@@ -14,20 +14,16 @@ export default function LobbyPage() {
 
   // Monitor status to auto-redirect
   useEffect(() => {
-    if (isJoined && gameStatus === 'PLAYING') {
+    if (gameStatus === 'PLAYING') {
       router.push("/board");
     }
-  }, [gameStatus, isJoined, router]);
+  }, [gameStatus, router]);
 
   const handleJoin = (e: React.FormEvent) => {
     e.preventDefault();
-    // Validate with store's roomCode
-    if (roomCode.trim().toUpperCase() === storeRoomCode) {
-      joinRoom(groupName);
-      setIsJoined(true);
-    } else {
-      alert("Kode Room salah atau belum dibuat Guru!");
-    }
+    // Use the typed room code directly since Socket.IO isn't broadcasting everything globally like BroadcastChannel did
+    joinRoom(roomCode.trim().toUpperCase(), groupName);
+    setIsJoined(true);
   };
 
   return (

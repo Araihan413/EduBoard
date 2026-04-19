@@ -1,0 +1,29 @@
+{
+  "name": "api",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "lint": "eslint src/"
+  },
+  "dependencies": {
+    "fastify": "^4.26.2",
+    "@fastify/cors": "^8.5.0",
+    "@fastify/jwt": "^8.0.0",
+    "@fastify/cookie": "^9.3.1",
+    "socket.io": "^4.7.5",
+    "bcryptjs": "^2.4.3",
+    "zod": "^3.23.4",
+    "fastify-type-provider-zod": "^1.1.9",
+    "@repo/db": "workspace:*",
+    "@repo/types": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "tsx": "^4.7.2",
+    "@types/node": "^20.12.7",
+    "@types/bcryptjs": "^2.4.6"
+  }
+}

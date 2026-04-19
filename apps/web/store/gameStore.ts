@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { io, Socket } from 'socket.io-client';
 
 // Types
 export type GroupStatus = 'ACTIVE' | 'SKIP_NEXT' | 'WAITING';
@@ -62,10 +63,10 @@ interface GameState {
   
   winner: Group | null;
   logs: string[];
+  myGroupName: string | null;
 
-  // Actions - Room & Sesi
   createRoom: (config: RoomConfig) => void;
-  joinRoom: (name: string) => void;
+  joinRoom: (roomCode: string, name: string) => void;
   startGame: () => void;
   endGame: () => void;
   resetToIdle: () => void;
@@ -96,9 +97,9 @@ const DUMMY_QUESTIONS: QuestionCard[] = [
   { id: 'q6', type: 'DASAR', text: 'Surah pendek pertama dalam urutan juz 30 adalah...', points: 10, options: ['An-Naba', 'An-Naziat', 'Al-Mursalat', 'Abasa'], answerKey: 'An-Naba' },
 ];
 
-let syncChannel: BroadcastChannel | null = null;
+let socket: Socket | null = null;
 if (typeof window !== 'undefined') {
-  syncChannel = new BroadcastChannel('eduboard_sync');
+  socket = io(process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:4000');
 }
 
 export const useGameStore = create<GameState>((set, get) => {
@@ -106,17 +107,26 @@ export const useGameStore = create<GameState>((set, get) => {
   const syncSet = (partial: Partial<GameState> | ((state: GameState) => Partial<GameState>)) => {
     set((state) => {
       const nextState = typeof partial === 'function' ? partial(state) : partial;
-      if (syncChannel) {
-        syncChannel.postMessage(nextState);
+      if (socket) {
+        // Emit full state update to Server over Socket
+        socket.emit("game:sync_state", { roomCode: nextState.roomCode || state.roomCode, state: nextState });
       }
       return nextState;
     });
   };
 
-  if (syncChannel) {
-    syncChannel.onmessage = (event) => {
-      set(event.data);
-    };
+  if (socket) {
+    socket.on("game:state", (newState: Partial<GameState>) => {
+      set(newState);
+    });
+    
+    socket.on("game:timer", (time: number) => {
+       set({ timer: time });
+       // Auto wrong if time runs out
+       if (time <= 0) {
+          get().decrementTimer(); // this will handle logic when timer becomes 0
+       }
+    });
   }
 
   const checkWinner = (groups: Group[], currentState: GameState): Partial<GameState> | null => {
@@ -163,11 +173,13 @@ export const useGameStore = create<GameState>((set, get) => {
     
     winner: null,
     logs: ["Sistem sedia... menunggu konfigurasi room."],
+    myGroupName: null,
 
     setStateFromSync: (newState) => set(newState),
 
     createRoom: (config) => syncSet((state) => {
       const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+      if (socket) socket.emit("room:join", { roomCode: newCode, role: 'guru' });
       return {
         gameStatus: 'LOBBY',
         roomCode: newCode,
@@ -178,22 +190,19 @@ export const useGameStore = create<GameState>((set, get) => {
       };
     }),
 
-    joinRoom: (name: string) => syncSet((state) => {
-      if (state.groups.length >= state.roomConfig.maxGroups) return {}; 
-      return {
-        groups: [...state.groups, {
-          id: `g${Date.now()}`,
-          name: name,
-          score: 0,
-          position: 0,
-          status: 'WAITING'
-        }],
-        logs: [`${name} bergabung ke room.`, ...state.logs]
-      }
-    }),
+    joinRoom: (typedRoomCode: string, name: string) => {
+      // Siswa joins room manually. 
+      // Do NOT use syncSet here! If Siswa pushes their local state, it will wipe the Guru's state on the server.
+      // Just emit room:join and let the server merge and broadcast back.
+      if (socket) socket.emit("room:join", { roomCode: typedRoomCode, role: 'siswa', groupName: name });
+      
+      // Save local identity
+      set({ myGroupName: name });
+    },
 
     startGame: () => syncSet((state) => {
-      const activeGroups = state.groups.map(g => ({ ...g, status: 'ACTIVE' as GroupStatus }));
+      const activeGroups = (state.groups || []).map(g => ({ ...g, status: 'ACTIVE' as GroupStatus }));
+      if (socket) socket.emit("game:start", state.roomCode);
       return {
         gameStatus: 'PLAYING',
         groups: activeGroups,
@@ -257,17 +266,21 @@ export const useGameStore = create<GameState>((set, get) => {
     })),
 
     drawCard: () => syncSet((state) => {
-      const randIdx = Math.floor(Math.random() * state.questions.length);
-      const card = state.questions[randIdx];
+      const remainingQuestions = state.questions && state.questions.length > 0 ? state.questions : DUMMY_QUESTIONS;
+      const randIdx = Math.floor(Math.random() * remainingQuestions.length);
+      const card = remainingQuestions[randIdx];
       let t = state.roomConfig.turnDurationSec;
       if (card.type === 'TANTANGAN') t = t + 30; // Tantangan lebih lama
       if (card.type === 'AKSI') t = 10;
       
+      // Notify backend if drawing card sets custom timer
+      // if (socket) socket.emit("game:drawCard", { roomCode: state.roomCode, card });
+
       return { 
         currentCard: card,
         timer: t,
         isTimerRunning: true,
-        logs: [`${state.groups[state.activeGroupIndex]?.name} mengambil Kartu ${card.type}.`, ...state.logs]
+        logs: [`${state.groups[state.activeGroupIndex]?.name} mengambil Kartu ${card.type}.`, ...(state.logs || [])]
       };
     }),
 
@@ -304,11 +317,16 @@ export const useGameStore = create<GameState>((set, get) => {
       const winState = checkWinner(newGroups, state);
       if (winState) return winState;
 
+      // Auto next turn after 2 seconds
+      setTimeout(() => {
+         get().nextTurn();
+      }, 2000);
+
       return {
         groups: newGroups,
         currentCard: null,
         isTimerRunning: false,
-        logs: [logMsg, ...state.logs]
+        logs: [logMsg, ...(state.logs || [])]
       };
     }),
 
@@ -353,10 +371,15 @@ export const useGameStore = create<GameState>((set, get) => {
       const winState = checkWinner(newGroups, state);
       if (winState) return { ...winState, pendingReviews: cleanedReviews };
 
+      // Auto next turn after grading
+      setTimeout(() => {
+         get().nextTurn();
+      }, 2000);
+
       return {
         groups: newGroups,
         pendingReviews: cleanedReviews,
-        logs: [logMsg, ...state.logs]
+        logs: [logMsg, ...(state.logs || [])]
       };
     }),
 
@@ -383,10 +406,13 @@ export const useGameStore = create<GameState>((set, get) => {
     }),
 
     decrementTimer: () => syncSet((state) => {
-      const newTime = state.timer - 1;
-      if (newTime <= 0) {
-        const activeG = state.groups[state.activeGroupIndex];
+      // Logic solely for handling time = 0 since the ticking is done via socket now
+      if (state.timer <= 0) {
+        // Find group
+        const activeG = state.groups && state.groups[state.activeGroupIndex];
         const card = state.currentCard;
+
+        if (!activeG) return { isTimerRunning: false };
 
         if (card && card.type === 'TANTANGAN') {
           // If time expires on subjective, auto submit empty
@@ -404,10 +430,10 @@ export const useGameStore = create<GameState>((set, get) => {
           timer: 0,
           isTimerRunning: false,
           currentCard: null,
-          logs: [`Waktu habis untuk giliran ini!`, ...state.logs]
+          logs: [`Waktu habis untuk giliran ini!`, ...(state.logs || [])]
         };
       }
-      return { timer: newTime };
+      return {};
     }),
 
   };

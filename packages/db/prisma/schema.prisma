@@ -1,0 +1,109 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime   @default(now())
+  rooms        Room[]
+  questions    Question[]
+}
+
+model Room {
+  id                 String      @id @default(cuid())
+  code               String      @unique @db.Char(6)
+  guruId             String
+  guru               User        @relation(fields: [guruId], references: [id])
+  status             RoomStatus  @default(LOBBY)
+  durationMinutes    Int
+  timePerTurnSeconds Int         @default(30)
+  maxGroups          Int         @default(6)
+  createdAt          DateTime    @default(now())
+  groups             Group[]
+  session            GameSession?
+}
+
+enum RoomStatus { 
+  LOBBY 
+  ACTIVE 
+  ENDED 
+}
+
+model Group {
+  id       String      @id @default(cuid())
+  roomId   String
+  room     Room        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  name     String
+  score    Int         @default(0)
+  position Int         @default(0)
+  status   GroupStatus @default(ACTIVE)
+  answers  Answer[]
+}
+
+enum GroupStatus { 
+  ACTIVE 
+  SKIP_NEXT 
+}
+
+model Question {
+  id        String       @id @default(cuid())
+  guruId    String
+  guru      User         @relation(fields: [guruId], references: [id])
+  type      QuestionType
+  text      String
+  options   Json?
+  answerKey String?
+  points    Int          @default(10)
+  createdAt DateTime     @default(now())
+  answers   Answer[]
+}
+
+enum QuestionType { 
+  DASAR 
+  AKSI 
+  TANTANGAN 
+}
+
+model GameSession {
+  id            String    @id @default(cuid())
+  roomId        String    @unique
+  room          Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  startedAt     DateTime  @default(now())
+  endedAt       DateTime?
+  winnerGroupId String?
+  answers       Answer[]
+  turnLogs      TurnLog[]
+}
+
+model Answer {
+  id         String      @id @default(cuid())
+  sessionId  String
+  session    GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  groupId    String
+  group      Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  questionId String
+  question   Question    @relation(fields: [questionId], references: [id])
+  answerText String?
+  isCorrect  Boolean?
+  scoreGiven Int?
+  answeredAt DateTime    @default(now())
+}
+
+model TurnLog {
+  id         String      @id @default(cuid())
+  sessionId  String
+  session    GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  groupId    String
+  questionId String?
+  turnNumber Int
+  timestamp  DateTime    @default(now())
+}

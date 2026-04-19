@@ -25,7 +25,7 @@ function BoardPage() {
 
   const { 
     groups, activeGroupIndex, timer, currentTurn, gameStatus, winner, roomCode,
-    isTimerRunning, decrementTimer, drawCard, currentCard, 
+    isTimerRunning, decrementTimer, drawCard, currentCard, myGroupName,
     submitAnswerObjektif, submitAnswerSubjektif, nextTurn, pendingReviews
   } = useGameStore();
 
@@ -35,16 +35,7 @@ function BoardPage() {
   // Check if active group is currently under review
   const isUnderReview = pendingReviews.some(r => r.groupId === activeGroup?.id);
 
-  // Timer Effect
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isTimerRunning && timer > 0 && gameStatus === 'PLAYING') {
-      interval = setInterval(() => {
-        decrementTimer();
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [isTimerRunning, timer, decrementTimer, gameStatus]);
+  // Timer is now driven by socket, Board just displays it.
 
   // Confetti when game finishes
   useEffect(() => {
@@ -156,7 +147,7 @@ function BoardPage() {
                 exit={{ opacity: 0, y: -20, scale: 0.9 }}
                 className="absolute inset-0 flex items-center justify-center pointer-events-none"
               >
-                {role === 'siswa' ? (
+                {role === 'siswa' && activeGroup.name === myGroupName ? (
                   <button 
                     onClick={drawCard}
                     className="pointer-events-auto group relative flex flex-col items-center justify-center px-12 py-8 bg-zinc-900/90 backdrop-blur-lg border border-zinc-700 rounded-[2rem] shadow-[0_0_50px_rgba(59,130,246,0.3)] hover:shadow-[0_0_80px_rgba(59,130,246,0.5)] transition-all hover:-translate-y-2 active:translate-y-0"
@@ -166,12 +157,15 @@ function BoardPage() {
                     <span className="text-3xl font-black text-white tracking-widest uppercase relative z-10">
                       Ambil Kartu
                     </span>
-                    <p className="text-zinc-400 mt-3 font-semibold text-sm relative z-10">Giliran {activeGroup.name}</p>
+                    <p className="text-zinc-400 mt-3 font-semibold text-sm relative z-10">Jatah Giliranku!</p>
                   </button>
                 ) : (
-                  <div className="px-12 py-8 bg-zinc-900/90 backdrop-blur-lg border border-zinc-700 rounded-[2rem] text-center">
-                    <span className="text-xl font-bold text-zinc-400 tracking-widest uppercase block mb-2">Mode Pengawas</span>
-                    <p className="text-zinc-500 font-medium">Siswa sedang berinteraksi di ruangannya...</p>
+                  <div className="absolute top-6 left-1/2 -translate-x-1/2 px-8 py-3 bg-zinc-900/80 backdrop-blur-lg border border-zinc-700 rounded-full text-center flex items-center shadow-lg pointer-events-none transition-all">
+                    <span className="text-sm font-bold text-zinc-300 tracking-widest mr-2">
+                       {role === 'siswa' ? 'TIM LAIN SEDANG BERMAIN' : 'MODE PENGAWAS'}
+                    </span>
+                    <span className="text-zinc-500 mx-2">|</span>
+                    <p className="text-emerald-400 font-bold text-sm tracking-wide animate-pulse">Menunggu eksekusi tim {activeGroup.name}...</p>
                   </div>
                 )}
               </motion.div>
@@ -183,24 +177,39 @@ function BoardPage() {
                 initial={{ opacity: 0, scale: 0.8, rotateX: 20 }}
                 animate={{ opacity: 1, scale: 1, rotateX: 0 }}
                 exit={{ opacity: 0, scale: 1.1, filter: 'blur(10px)' }}
-                className="absolute inset-0 flex items-center justify-center p-6 bg-zinc-950/60 backdrop-blur-sm z-50"
+                className={`absolute pointer-events-none z-50 ${
+                  role === 'siswa' && activeGroup.name === myGroupName
+                    ? "inset-0 flex flex-col items-center justify-center p-6 bg-zinc-950/60 backdrop-blur-sm"
+                    : "top-6 left-1/2 -translate-x-1/2 flex justify-center w-full max-w-2xl"
+                }`}
               >
-                <div className="max-w-2xl w-full bg-zinc-900/95 border border-zinc-700 p-10 rounded-[3rem] shadow-2xl relative overflow-hidden text-center">
-                  <div className={`absolute top-0 right-0 w-2 h-full ${currentCard.type === 'DASAR' ? 'bg-blue-500' : currentCard.type === 'AKSI' ? 'bg-orange-500' : 'bg-red-500'}`}></div>
+                <div className={`w-full relative overflow-hidden text-center transition-all pointer-events-auto shadow-[0_0_50px_rgba(0,0,0,0.5)] ${
+                  role === 'siswa' && activeGroup.name === myGroupName
+                     ? "bg-zinc-900/95 border border-zinc-700 p-10 rounded-[3rem]"
+                     : "bg-zinc-900/90 border border-zinc-700/50 p-6 rounded-[2rem] backdrop-blur-md"
+                }`}>
+                  <div className={`absolute top-0 right-0 h-full ${currentCard.type === 'DASAR' ? 'bg-blue-500' : currentCard.type === 'AKSI' ? 'bg-orange-500' : 'bg-red-500'} ${role === 'siswa' && activeGroup.name === myGroupName ? 'w-2' : 'w-1'}`}></div>
                   
-                  <span className={`inline-block px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest mb-6 ${
-                    currentCard.type === 'DASAR' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/20' : 
-                    currentCard.type === 'AKSI' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/20' : 
-                    'bg-red-500/20 text-red-400 border border-red-500/20'
-                  }`}>
-                    KARTU {currentCard.type}
-                  </span>
+                  <div className="flex justify-between items-center mb-4">
+                    <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                      currentCard.type === 'DASAR' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/20' : 
+                      currentCard.type === 'AKSI' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/20' : 
+                      'bg-red-500/20 text-red-400 border border-red-500/20'
+                    }`}>
+                      KARTU {currentCard.type}
+                    </span>
+                    {(role !== 'siswa' || activeGroup.name !== myGroupName) && (
+                      <span className="text-xs font-bold text-zinc-500 bg-zinc-950 px-2 py-1 rounded-md border border-zinc-800">
+                         {role === 'guru' ? `Mode Pengawas (${activeGroup.name})` : `Menunggu ${activeGroup.name}`}
+                      </span>
+                    )}
+                  </div>
 
-                  <h2 className="text-3xl font-bold text-white mb-2 leading-relaxed">{currentCard.text}</h2>
-                  <p className="text-zinc-500 font-semibold mb-8 text-sm">Poin Potensial: {currentCard.points > 0 ? `+${currentCard.points}` : currentCard.points}</p>
+                  <h2 className={`${role === 'siswa' && activeGroup.name === myGroupName ? 'text-3xl' : 'text-xl'} font-bold text-white mb-2 leading-relaxed`}>{currentCard.text}</h2>
+                  <p className="text-zinc-500 font-semibold mb-6 text-sm">Poin Potensial: {currentCard.points > 0 ? `+${currentCard.points}` : currentCard.points}</p>
 
                   <div className="space-y-4 max-w-lg mx-auto">
-                    {role === 'siswa' ? (
+                    {role === 'siswa' && activeGroup.name === myGroupName ? (
                        currentCard.type === 'DASAR' && currentCard.options ? (
                          currentCard.options.map((opt, i) => (
                            <button 
@@ -238,9 +247,7 @@ function BoardPage() {
                          </button>
                        )
                     ) : (
-                       <div className="p-8 bg-zinc-950 border border-zinc-800 text-center rounded-2xl">
-                          <p className="text-zinc-500 font-bold uppercase tracking-widest">Siswa sedang membaca pertanyaan di perambannya...</p>
-                       </div>
+                       null // Do not render extra bottom placeholder block for passive viewers
                     )}
                   </div>
                 </div>
@@ -253,11 +260,21 @@ function BoardPage() {
                  initial={{ opacity: 0, scale: 0.9 }}
                  animate={{ opacity: 1, scale: 1 }}
                  exit={{ opacity: 0, scale: 0.9 }}
-                 className="absolute inset-0 flex flex-col items-center justify-center p-6 bg-zinc-950/80 backdrop-blur-sm z-40 text-center"
+                 className={`absolute z-40 flex items-center pointer-events-none ${
+                   role === 'siswa' && activeGroup.name === myGroupName
+                     ? "inset-0 flex-col justify-center p-6 bg-zinc-950/80 backdrop-blur-sm text-center"
+                     : "top-24 left-1/2 -translate-x-1/2 bg-zinc-900/90 backdrop-blur-md px-6 py-3 rounded-full border border-orange-500/30 text-center flex-row gap-4 shadow-2xl"
+                 }`}
                >
-                 <Disc3 className="w-20 h-20 text-orange-500 animate-spin mb-6" />
-                 <h2 className="text-3xl font-black text-white px-8">Menunggu Penilaian Guru...</h2>
-                 <p className="text-zinc-400 mt-4 h-8">Jawaban kamu sedang dibaca di layar panduan Guru.</p>
+                 <Disc3 className={`text-orange-500 animate-spin ${role === 'siswa' && activeGroup.name === myGroupName ? 'w-20 h-20 mb-6' : 'w-6 h-6'}`} />
+                 {role === 'siswa' && activeGroup.name === myGroupName ? (
+                   <>
+                     <h2 className="text-3xl font-black text-white px-8">Menunggu Penilaian Guru...</h2>
+                     <p className="text-zinc-400 mt-4 h-8">Jawaban kamu sedang dibaca di layar panduan Guru.</p>
+                   </>
+                 ) : (
+                   <p className="text-white font-bold text-sm tracking-wide">Menunggu Guru menilai {activeGroup.name}...</p>
+                 )}
                </motion.div>
             )}
 
