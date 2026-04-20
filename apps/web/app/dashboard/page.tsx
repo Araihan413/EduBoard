@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Copy, Activity, LogOut, CheckCircle2, Play, Users, Plus, Pencil, Trash2, History } from "lucide-react";
+import { Copy, Activity, LogOut, CheckCircle2, Play, Plus, Pencil, Trash2 } from "lucide-react";
 import { useGameStore, QuestionCard, QuestionType } from "../../store/gameStore";
+import { toast } from "sonner";
 
 export default function DashboardPage() {
   const { 
@@ -16,7 +17,14 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<'SESI' | 'SOAL' | 'RIWAYAT'>('SESI');
 
   // Room config draft
-  const [draftConfig, setDraftConfig] = useState({ turnDurationSec: 30, maxGroups: 4 });
+  const [draftConfig, setDraftConfig] = useState({ 
+    gameDurationMin: 10, 
+    turnDurationDasar: 30,
+    turnDurationTantangan: 60,
+    turnDurationAksi: 15,
+    maxGroups: 4, 
+    hasPenalties: true 
+  });
 
   // Add/Edit Question Draft
   const [showAddModal, setShowAddModal] = useState(false);
@@ -31,11 +39,48 @@ export default function DashboardPage() {
   };
 
   const handleSaveQuestion = () => {
-    if (editingId) {
-       updateQuestion(editingId, newQ);
-    } else {
-       addQuestion(newQ as Omit<QuestionCard, 'id'>);
+    // Basic validation
+    if (!newQ.text?.trim()) {
+      toast.error("Isi teks pertanyaan terlebih dahulu!");
+      return;
     }
+
+    // Create a copy to avoid direct state mutation
+    const finalQ = { ...newQ };
+
+    if (finalQ.type === 'DASAR') {
+      const trimmedOptions = (finalQ.options || []).map(opt => opt.trim()).filter(opt => opt !== "");
+      const trimmedKey = finalQ.answerKey?.trim();
+
+      if (trimmedOptions.length === 0) {
+        toast.error("Harap masukkan opsi jawaban!");
+        return;
+      }
+
+      if (!trimmedKey) {
+        toast.error("Harap masukkan kunci jawaban!");
+        return;
+      }
+
+      const match = trimmedOptions.some(opt => opt === trimmedKey);
+      if (!match) {
+        toast.error(`Kunci jawaban tidak ditemukan dalam opsi!`);
+        return;
+      }
+
+      // Update the copy, not the state directly
+      finalQ.options = trimmedOptions;
+      finalQ.answerKey = trimmedKey;
+    }
+
+    if (editingId) {
+       updateQuestion(editingId, finalQ as QuestionCard);
+       toast.success("Pertanyaan berhasil diperbarui!");
+    } else {
+       addQuestion(finalQ as Omit<QuestionCard, 'id'>);
+       toast.success("Pertanyaan baru ditambahkan!");
+    }
+    
     setShowAddModal(false);
     setEditingId(null);
     setNewQ({ type: 'DASAR', text: '', points: 10, answerKey: '', options: ['','','',''] });
@@ -79,18 +124,51 @@ export default function DashboardPage() {
                     <h2 className="text-3xl font-extrabold text-white mb-4">Buat Room Permainan</h2>
                     <p className="text-zinc-400 mb-8 max-w-md mx-auto">Sesuaikan konfigurasi waktu dan peserta, lalu bagikan kode room ke siswa Anda untuk mulai bermain.</p>
                     
-                    <div className="flex items-center justify-center gap-6 mb-8">
-                       <div className="text-left space-y-2">
-                         <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Durasi Giliran (Dtk)</label>
-                         <input type="number" value={draftConfig.turnDurationSec} onChange={e=>setDraftConfig({...draftConfig, turnDurationSec: Number(e.target.value)})} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white font-bold text-lg" />
+                     <div className="flex flex-wrap items-center justify-center gap-6 mb-8">
+                       <div className="text-left space-y-2 flex flex-col">
+                         <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Durasi Permainan (Menit)</label>
+                         <input type="number" value={draftConfig.gameDurationMin} onChange={e=>setDraftConfig({...draftConfig, gameDurationMin: Number(e.target.value)})} className="w-max bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white font-bold text-lg" />
                        </div>
-                       <div className="text-left space-y-2">
-                         <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Maksimal Tim</label>
-                         <input type="number" value={draftConfig.maxGroups} onChange={e=>setDraftConfig({...draftConfig, maxGroups: Number(e.target.value)})} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white font-bold text-lg" />
+                        <div className="text-left space-y-2 flex flex-col">
+                          <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Maksimal Tim</label>
+                          <input type="number" value={draftConfig.maxGroups} onChange={e=>setDraftConfig({...draftConfig, maxGroups: Number(e.target.value)})} className="w-max bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white font-bold text-lg" />
+                        </div>
+
+                        {/* Card Timers Grid */}
+                        <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-4 pb-4 border-b border-zinc-800/50">
+                           <div className="text-left space-y-2">
+                             <label className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Waktu Dasar (Detik)</label>
+                             <input type="number" value={draftConfig.turnDurationDasar} onChange={e=>setDraftConfig({...draftConfig, turnDurationDasar: Number(e.target.value)})} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white font-bold" />
+                           </div>
+                           <div className="text-left space-y-2">
+                             <label className="text-[10px] font-black text-orange-500 uppercase tracking-widest">Waktu Tantangan (Detik)</label>
+                             <input type="number" value={draftConfig.turnDurationTantangan} onChange={e=>setDraftConfig({...draftConfig, turnDurationTantangan: Number(e.target.value)})} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white font-bold" />
+                           </div>
+                           <div className="text-left space-y-2">
+                             <label className="text-[10px] font-black text-red-500 uppercase tracking-widest">Waktu Aksi (Detik)</label>
+                             <input type="number" value={draftConfig.turnDurationAksi} onChange={e=>setDraftConfig({...draftConfig, turnDurationAksi: Number(e.target.value)})} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white font-bold" />
+                           </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 bg-zinc-950 border border-zinc-800 px-5 py-3 rounded-xl cursor-pointer hover:border-zinc-700 transition-all" onClick={() => setDraftConfig({...draftConfig, hasPenalties: !draftConfig.hasPenalties})}>
+                         <div className={`w-10 h-5 rounded-full relative transition-colors ${draftConfig.hasPenalties ? 'bg-emerald-600' : 'bg-zinc-800'}`}>
+                           <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${draftConfig.hasPenalties ? 'left-6' : 'left-1'}`}></div>
+                         </div>
+                         <span className="text-xs font-bold text-zinc-300 uppercase tracking-wider">Sanksi Mundur</span>
                        </div>
                     </div>
 
-                    <button onClick={() => createRoom(draftConfig)} className="px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl shadow-[0_0_30px_rgba(16,185,129,0.3)] transition-all">BUAT ROOM SEKARANG</button>
+                    <button onClick={() => {
+                      createRoom({ 
+                        gameDurationSec: draftConfig.gameDurationMin * 60, 
+                        turnDurationDasar: draftConfig.turnDurationDasar,
+                        turnDurationTantangan: draftConfig.turnDurationTantangan,
+                        turnDurationAksi: draftConfig.turnDurationAksi,
+                        maxGroups: draftConfig.maxGroups, 
+                        hasPenalties: draftConfig.hasPenalties 
+                      });
+                      toast.success("Room berhasil dibuat!");
+                    }} className="px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl shadow-[0_0_30px_rgba(16,185,129,0.3)] transition-all">BUAT ROOM SEKARANG</button>
                  </div>
               )}
 
@@ -233,12 +311,12 @@ export default function DashboardPage() {
                             <option value="TANTANGAN">Soal Subjektif (Tantangan)</option>
                             <option value="AKSI">Soal Instruksi (Aksi)</option>
                           </select>
-                          <textarea value={newQ.text} onChange={(e) => setNewQ({...newQ, text: e.target.value})} placeholder="Isi teks..." className="w-full bg-zinc-950 border border-zinc-800 p-3 rounded-xl text-white min-h-[100px]"></textarea>
+                          <textarea value={newQ.text} onChange={(e) => setNewQ({...newQ, text: e.target.value})} placeholder="Isi teks..." className="w-full bg-zinc-950 border border-zinc-800 p-3 rounded-xl text-white min-h-25"></textarea>
                           <input type="number" value={newQ.points} onChange={(e) => setNewQ({...newQ, points: Number(e.target.value)})} placeholder="Poin Reward/Sanksi (Contoh: 10 atau -5)" className="w-full bg-zinc-950 border border-zinc-800 p-3 rounded-xl text-white" />
                           
                           {newQ.type === 'DASAR' && (
                              <div className="p-4 bg-zinc-950 border border-zinc-800 rounded-xl space-y-3">
-                                <p className="text-xs font-bold text-zinc-500 uppercase">Input Opsi Jawaban (Pisahkan koma)</p>
+                                <p className="text-xs font-bold text-zinc-500 uppercase">Input Opsi Jawaban (Pisahkan koma tanpa spasi)</p>
                                 <input value={newQ.options?.join(',')} onChange={(e) => setNewQ({...newQ, options: e.target.value.split(',')})} placeholder="A, B, C, D" className="w-full bg-zinc-900 border border-zinc-800 p-2 rounded text-sm text-white" />
                                 <p className="text-xs font-bold text-zinc-500 uppercase mt-2">Kunci Jawaban Tepat</p>
                                 <input value={newQ.answerKey} onChange={(e) => setNewQ({...newQ, answerKey: e.target.value})} placeholder="Harus persis sama dengan salah satu opsi" className="w-full bg-zinc-900 border border-emerald-800 p-2 rounded text-sm text-emerald-400" />
@@ -282,7 +360,7 @@ export default function DashboardPage() {
 
         {/* Sidebar Log - (Hanya relevan di tab Sesi) */}
         <div className={`space-y-8 ${activeTab !== 'SESI' ? 'hidden lg:block opacity-50 pointer-events-none' : ''}`}>
-          <div className="bg-zinc-900/60 p-6 rounded-[2rem] border border-zinc-800 shadow-xl h-[600px] flex flex-col">
+          <div className="bg-zinc-900/60 p-6 rounded-[2rem] border border-zinc-800 shadow-xl h-150 flex flex-col">
             <h2 className="text-lg font-bold text-white mb-6 flex items-center">
               <Activity className="w-5 h-5 text-blue-500 mr-2"/> Log Aktivitas Server
             </h2>

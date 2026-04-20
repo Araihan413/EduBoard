@@ -3,16 +3,25 @@ import { Server, Socket } from "socket.io";
 // Usually in production we'd use Redis for this volatile state.
 
 interface ActiveRoom {
-  config: { turnDurationSec: number; maxGroups: number };
+  roomConfig: { 
+    gameDurationSec: number; 
+    maxGroups: number;
+    turnDurationDasar?: number;
+    turnDurationTantangan?: number;
+    turnDurationAksi?: number;
+  };
   groups: any[];
   activeGroupIndex: number;
-  timer: number;
-  isTimerRunning: boolean;
-  gameStatus: 'IDLE' | 'PLAYING' | 'FINISHED';
+  timer: number; // For card/turn
+  globalTimer: number; // For whole session
+  isTimerRunning: boolean; // Card timer
+  isGlobalTimerRunning: boolean; // Global session timer
+  gameStatus: 'LOBBY' | 'PLAYING' | 'FINISHED';
   currentTurn: number;
   winner: any | null;
   currentCard: any | null;
   pendingReviews: any[];
+  logs: string[];
   intervalId?: NodeJS.Timeout;
 }
 
@@ -27,16 +36,19 @@ export function handleSocketEvents(io: Server, socket: Socket) {
     // Initialize room if not exists
     if (!activeRooms.has(data.roomCode)) {
       activeRooms.set(data.roomCode, {
-        roomConfig: { turnDurationSec: 30, maxGroups: 6 },
+        roomConfig: { gameDurationSec: 600, maxGroups: 6 },
         groups: [],
         activeGroupIndex: 0,
-        timer: 30,
+        timer: 0,
+        globalTimer: 600,
         isTimerRunning: false,
+        isGlobalTimerRunning: false,
         gameStatus: 'LOBBY',
         currentTurn: 1,
         winner: null,
         currentCard: null,
-        pendingReviews: []
+        pendingReviews: [],
+        logs: ["Room dibuat."]
       });
     }
 
@@ -44,7 +56,7 @@ export function handleSocketEvents(io: Server, socket: Socket) {
 
     // Add group if role is siswa
     if (data.role !== 'guru' && data.groupName) {
-      const maxG = room.roomConfig?.maxGroups || room.config?.maxGroups || 6;
+      const maxG = room.roomConfig?.maxGroups || 6;
       if (room.groups.length < maxG && !room.groups.find((g: any) => g.name === data.groupName)) {
         room.groups.push({
           id: `g-${Date.now()}`,
@@ -72,8 +84,10 @@ export function handleSocketEvents(io: Server, socket: Socket) {
     if (!room) return;
 
     room.gameStatus = 'PLAYING';
-    room.isTimerRunning = true;
-    room.timer = room.roomConfig?.turnDurationSec || room.config?.turnDurationSec || 30;
+    room.isGlobalTimerRunning = true;
+    room.globalTimer = room.roomConfig?.gameDurationSec || 600;
+    room.timer = 0;
+    room.isTimerRunning = false;
     
     // Start interval safely retrieving fresh room
     if (room.intervalId) clearInterval(room.intervalId);
@@ -81,9 +95,33 @@ export function handleSocketEvents(io: Server, socket: Socket) {
       const liveRoom = activeRooms.get(roomCode);
       if (!liveRoom) return;
       
+      let updated = false;
+
+      // Tick Global Timer
+      if (liveRoom.isGlobalTimerRunning && liveRoom.globalTimer > 0) {
+        liveRoom.globalTimer--;
+        updated = true;
+      }
+
+      // Tick Card Timer
       if (liveRoom.isTimerRunning && liveRoom.timer > 0) {
         liveRoom.timer--;
-        io.to(roomCode).emit("game:timer", liveRoom.timer);
+        updated = true;
+      }
+
+      if (updated) {
+        io.to(roomCode).emit("game:timer_sync", {
+          timer: liveRoom.timer,
+          globalTimer: liveRoom.globalTimer
+        });
+      }
+
+      // Auto end game if global timer reaches 0
+      if (liveRoom.globalTimer <= 0 && liveRoom.gameStatus === 'PLAYING') {
+        liveRoom.gameStatus = 'FINISHED';
+        // In a real app we'd calculate winner here or let frontend do it on next sync
+        const { intervalId, ...roomData } = liveRoom;
+        io.to(roomCode).emit("game:state", roomData);
       }
     }, 1000);
 
@@ -123,8 +161,19 @@ export function handleSocketEvents(io: Server, socket: Socket) {
   });
 
   socket.on("game:sync_state", (data: { roomCode: string, state: any }) => {
-    const existing = activeRooms.get(data.roomCode) || {} as any;
+    const existing = activeRooms.get(data.roomCode);
+    if (!existing) return;
+
     const merged = { ...existing, ...data.state };
+    
+    // Safety: If game ends via sync, stop the server-side timer intervals
+    if (data.state.gameStatus === 'FINISHED' && existing.intervalId) {
+      clearInterval(existing.intervalId);
+      merged.intervalId = undefined;
+      merged.isGlobalTimerRunning = false;
+      merged.isTimerRunning = false;
+    }
+
     activeRooms.set(data.roomCode, merged);
     const { intervalId, ...mergedData } = merged;
     socket.to(data.roomCode).emit("game:state", mergedData);
