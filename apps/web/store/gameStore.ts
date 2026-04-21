@@ -39,7 +39,6 @@ export interface RoomConfig {
   turnDurationTantangan: number;
   turnDurationAksi: number;
   maxGroups: number;
-  hasPenalties: boolean;
 }
 
 export interface SessionHistory {
@@ -202,8 +201,7 @@ export const useGameStore = create<GameState>((set, get) => {
       turnDurationDasar: 30, 
       turnDurationTantangan: 60, 
       turnDurationAksi: 15, 
-      maxGroups: 4, 
-      hasPenalties: true 
+      maxGroups: 4
     },
     groups: [],
     activeGroupIndex: 0,
@@ -364,13 +362,9 @@ export const useGameStore = create<GameState>((set, get) => {
           earnedPoints = card.points;
           logMsg = `(DASAR) ${groupName} Benar! +${earnedPoints} poin.`;
         } else {
-          // PRD: Sanksi Jawaban Salah (if enabled)
-          if (state.roomConfig.hasPenalties) {
-            stepsToMove = -1;
-            logMsg = `(DASAR) ${groupName} SALAH! Mundur 1 petak sebagai sanksi.`;
-          } else {
-            logMsg = `(DASAR) ${groupName} SALAH! Tidak ada poin didapat.`;
-          }
+          // Movement penalty removed as requested
+          stepsToMove = 0;
+          logMsg = `(DASAR) ${groupName} SALAH! Tidak ada poin didapat.`;
         }
       } else if (card.type === 'AKSI') {
         earnedPoints = card.points;

@@ -45,7 +45,8 @@ export default function BoardPageWrapper() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-white">
+        <div className="min-h-screen bg-white bg-grid flex items-center justify-center text-slate-900 font-black">
+          <Disc3 className="w-10 h-10 text-[#2c49c5] animate-spin mb-4" />
           Memuat Papan...
         </div>
       }
@@ -57,6 +58,7 @@ export default function BoardPageWrapper() {
 
 // ─── Main Board Page ───────────────────────────────────────────────────────────
 function BoardPage() {
+  // ... (keep state logic same)
   const searchParams = useSearchParams();
   const role = searchParams?.get("role") || "siswa";
 
@@ -93,7 +95,6 @@ function BoardPage() {
   const [cardPhase, setCardPhase] = useState<CardPhase>("idle");
   const cardPhaseRef = useRef<CardPhase>("idle");
 
-  // Adjusting state during render (React-recommended pattern for props-to-state sync)
   if (currentCard && currentCard !== stickyCardData) {
     setStickyCardData(currentCard);
   }
@@ -114,7 +115,6 @@ function BoardPage() {
         return () => clearTimeout(t);
       }
     } else if (!curr && (phase === "revealed" || phase === "drawing")) {
-      // Card answered → returning to deck
       updatePhase("returning");
       const t = setTimeout(() => {
         setStickyCardData(null);
@@ -129,8 +129,8 @@ function BoardPage() {
     if (gameStatus !== "FINISHED") return;
     const end = Date.now() + 3000;
     const frame = () => {
-      confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 }, colors: ["#3b82f6", "#10b981", "#f59e0b"] });
-      confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, colors: ["#3b82f6", "#10b981", "#f59e0b"] });
+      confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 }, colors: ["#2c49c5", "#ffda59", "#ef4444"] });
+      confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, colors: ["#2c49c5", "#ffda59", "#ef4444"] });
       if (Date.now() < end) requestAnimationFrame(frame);
     };
     frame();
@@ -141,7 +141,6 @@ function BoardPage() {
     const queryRoom = searchParams?.get("roomCode");
     const queryRole = searchParams?.get("role");
 
-    // If store is empty but URL has room code, attempt to rejoin
     if (queryRoom && !roomCode) {
       if (queryRole === "guru") {
         socket?.emit("room:join", { roomCode: queryRoom, role: "guru" });
@@ -150,7 +149,6 @@ function BoardPage() {
         if (savedName) {
           joinRoom(queryRoom, savedName);
         } else {
-          // Fallback: Join room as anonymous to at least see state/results
           socket?.emit("room:join", { roomCode: queryRoom, role: "siswa" });
         }
       }
@@ -159,11 +157,8 @@ function BoardPage() {
 
   const activeGroup = groups[activeGroupIndex];
   const isUnderReview = pendingReviews.some((r) => r.groupId === activeGroup?.id);
-
-  // displayCard keeps the card data alive during the "returning" phase
   const displayCard = currentCard ?? stickyCardData;
 
-  // Format timer as MM:SS
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
@@ -171,18 +166,22 @@ function BoardPage() {
   };
   const isCardActive = cardPhase !== "idle";
 
-  // Show loading only if not finished and not joined yet
   if (!activeGroup && gameStatus !== "FINISHED" && gameStatus !== "IDLE") {
     return (
-      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-6 text-white text-center">
-        <Disc3 className="w-16 h-16 text-blue-500 animate-spin mb-6" />
-        <h2 className="text-2xl font-bold">Mempersiapkan Papan...</h2>
-        <p className="text-zinc-500 mt-2">
+      <div className="min-h-screen bg-white bg-grid flex flex-col items-center justify-center p-6 text-slate-900 text-center">
+        <div className="relative mb-10">
+           <Disc3 className="w-20 h-20 text-[#2c49c5] animate-spin" />
+           <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-1.5 h-1.5 bg-[#ffda59] rounded-full shadow-[0_0_8px_#ffda59]" />
+           </div>
+        </div>
+        <h2 className="text-3xl font-black tracking-tight mb-4">Mempersiapkan Papan...</h2>
+        <p className="text-slate-500 max-w-sm font-medium leading-relaxed">
           Menunggu Guru untuk mengklik &quot;Mulai Permainan&quot; di Dashboard.
         </p>
         
         {role === "guru" && (
-          <Link href="/dashboard" className="mt-8 text-blue-500 hover:underline">
+          <Link href="/dashboard" className="mt-10 px-8 py-3 bg-[#2c49c5] text-white font-black rounded-2xl shadow-xl shadow-[#2c49c5]/20 hover:scale-105 transition-all">
             Ke Dashboard Guru
           </Link>
         )}
@@ -190,49 +189,49 @@ function BoardPage() {
     );
   }
 
-  // If IDLE (just refreshed and waiting for join to trigger/complete)
   if (!roomCode && gameStatus === "IDLE") {
     return (
-       <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-6 text-white text-center">
-         <Disc3 className="w-16 h-16 text-zinc-800 animate-spin mb-6" />
-         <h2 className="text-xl font-bold text-zinc-400">Menghubungkan Kembali...</h2>
+       <div className="min-h-screen bg-white bg-grid flex flex-col items-center justify-center p-6 text-slate-900 text-center font-black">
+         <Disc3 className="w-12 h-12 text-[#2c49c5] animate-spin mb-6" />
+         <h2 className="text-xl text-slate-400">Menghubungkan Kembali...</h2>
        </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex flex-col font-sans select-none overflow-hidden relative"
-      style={{ backgroundImage: "radial-gradient(ellipse at 20% 50%, rgba(59,130,246,0.04) 0%, transparent 60%), radial-gradient(ellipse at 80% 20%, rgba(168,85,247,0.04) 0%, transparent 60%)" }}
-    >
-      {/* Ambient glow */}
-      <div className={`absolute -top-32 -left-32 w-96 h-96 rounded-full blur-[120px] pointer-events-none transition-colors duration-1000 ${
-        isCardActive ? "bg-orange-600/15" :
-        activeGroupIndex === 0 ? "bg-blue-600/15" :
-        activeGroupIndex === 1 ? "bg-red-600/15" : "bg-purple-600/15"
+    <div className="min-h-screen bg-white flex flex-col font-sans select-none overflow-hidden relative">
+      {/* Background Grid Pattern */}
+      <div className="absolute inset-0 bg-grid opacity-100 pointer-events-none" />
+      
+      {/* Dynamic ambient background glow - Light themed */}
+      <div className={`absolute -top-32 -left-32 w-[600px] h-[600px] rounded-full blur-[160px] pointer-events-none transition-colors duration-1000 opacity-20 ${
+        isCardActive ? "bg-orange-400" :
+        activeGroupIndex === 0 ? "bg-blue-400" :
+        activeGroupIndex === 1 ? "bg-red-400" : "bg-purple-400"
       }`} />
 
       {/* ── Top Nav ─────────────────────────────────────────────────────────── */}
-      <header className="h-16 flex items-center justify-between px-6 bg-zinc-900/80 backdrop-blur-md border-b border-zinc-800 shadow-xl z-20 text-white relative">
-        <div className="flex bg-zinc-950 px-4 py-2 rounded-xl text-sm font-semibold tracking-wide border border-zinc-800">
-          <span className="text-zinc-500 mr-2">ROOM</span>
-          <span className="text-emerald-400">{roomCode}</span>
+      <header className="h-20 flex items-center justify-between px-10 bg-white/80 backdrop-blur-md border-b border-slate-100 shadow-sm z-50 text-slate-900 relative">
+        <div className="flex bg-slate-50 px-5 py-2.5 rounded-2xl text-sm font-black tracking-tight border border-slate-100 shadow-inner">
+          <span className="text-slate-400 mr-3">ROOM</span>
+          <span className="text-[#2c49c5] font-mono tracking-widest">{roomCode}</span>
         </div>
 
         {activeGroup && (
-          <div className="flex items-center gap-6">
-            {/* Answer Timer (Visible only when a card is active) */}
+          <div className="flex items-center gap-10">
+            {/* Answer Timer */}
             <AnimatePresence>
               {isTimerRunning && (
                 <motion.div 
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
-                  className="flex flex-col items-center border-r border-zinc-800 pr-6 mr-6"
+                  className="flex flex-col items-end border-r border-slate-100 pr-10"
                 >
-                  <span className="text-[10px] font-black text-orange-500 uppercase tracking-widest mb-1 italic">Selesaikan Soal!</span>
+                  <span className="text-[10px] font-black text-orange-500 uppercase tracking-widest mb-1">Waktu Menjawab</span>
                   <div className="flex items-center gap-2">
-                    <span className={`text-2xl font-black font-mono transition-colors ${timer <= 5 ? 'text-red-500 animate-pulse' : 'text-orange-400'}`}>
-                      {timer}<span className="text-xs ml-0.5">s</span>
+                    <span className={`text-3xl font-black font-mono leading-none ${timer <= 5 ? 'text-red-500 animate-pulse' : 'text-slate-900'}`}>
+                      {timer}<span className="text-xs ml-0.5 opacity-50">s</span>
                     </span>
                   </div>
                 </motion.div>
@@ -240,23 +239,22 @@ function BoardPage() {
             </AnimatePresence>
 
             <div className="flex flex-col items-center">
-              <span className="text-center text-xs font-bold text-zinc-500 uppercase tracking-widest px-2">Giliran</span>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-emerald-500 animate-[pulse_1.5s_ease-in-out_infinite]" />
-                <span className="font-extrabold text-base tracking-wide text-zinc-100">{activeGroup.name}</span>
+              <span className="text-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Gilirin Aktif</span>
+              <div className="flex items-center gap-4 bg-white px-5 py-2 rounded-2xl border border-slate-100 shadow-sm">
+                <div className="w-2.5 h-2.5 rounded-full bg-[#ffda59] shadow-[0_0_8px_#ffda59] animate-pulse" />
+                <span className="font-black text-lg tracking-tight text-[#2c49c5]">{activeGroup.name}</span>
               </div>
             </div>
 
             {/* Global Session Timer */}
-            <div className="flex items-center justify-center bg-zinc-950 px-6 py-2 rounded-2xl border border-zinc-800 relative overflow-hidden shadow-inner min-w-[140px]">
-              <Timer className={`w-5 h-5 mr-3 ${globalTimer <= 60 && globalTimer > 0 ? "text-red-500 animate-pulse" : "text-zinc-500"}`} />
-              <span className={`text-3xl font-mono font-black ${globalTimer <= 60 && globalTimer > 0 ? "text-red-500" : "text-white"}`}>
+            <div className="flex items-center justify-center bg-slate-900 px-8 py-3 rounded-2xl border-b-4 border-slate-950 relative overflow-hidden shadow-2xl min-w-[160px] group">
+              <Timer className={`w-5 h-5 mr-3 group-hover:rotate-12 transition-transform ${globalTimer <= 60 && globalTimer > 0 ? "text-yellow-400 animate-pulse" : "text-slate-500"}`} />
+              <span className={`text-3xl font-mono font-black ${globalTimer <= 60 && globalTimer > 0 ? "text-yellow-400" : "text-white"}`}>
                 {formatTime(globalTimer)}
               </span>
-              <span className="text-xs font-bold text-zinc-600 ml-1 mt-2">rem</span>
               {isGlobalTimerRunning && (
                 <div
-                  className="absolute bottom-0 left-0 h-0.5 bg-gradient-to-r from-blue-500 to-emerald-400 transition-all duration-1000 ease-linear"
+                  className="absolute bottom-0 left-0 h-1 bg-[#2c49c5] transition-all duration-1000 ease-linear shadow-[0_0_10px_#2c49c5]"
                   style={{ width: `${(globalTimer / (roomConfig?.gameDurationSec || 600)) * 100}%` }}
                 />
               )}
@@ -265,71 +263,80 @@ function BoardPage() {
         )}
 
         {role === "guru" ? (
-          <Link href="/dashboard" className="flex items-center px-4 py-2 hover:bg-yellow-500/10 rounded-full text-yellow-500 transition-colors border border-transparent hover:border-yellow-500/20 font-bold text-sm">
-            &larr; DASHBOARD
+          <Link href="/dashboard" className="flex items-center px-6 py-2.5 bg-slate-900 text-white rounded-2xl hover:bg-slate-800 transition-all font-black text-xs tracking-widest shadow-xl shadow-slate-900/20">
+            KONTROL PANEL &rarr;
           </Link>
         ) : (
-          <Link href="/lobby" className="hover:bg-red-500/10 p-3 rounded-full text-zinc-500 hover:text-red-400 transition-colors border border-transparent hover:border-red-500/20">
+          <Link href="/lobby" className="bg-red-50 p-3.5 rounded-2xl text-red-500 hover:bg-red-500 hover:text-white transition-all border border-red-100 shadow-sm">
             <LogOut className="w-5 h-5" />
           </Link>
         )}
       </header>
 
       {/* ── Main Layout ─────────────────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col xl:flex-row w-full relative z-10 p-4 lg:p-6 gap-4 lg:gap-6 overflow-x-hidden overflow-y-auto xl:overflow-hidden">
+      <div className="flex-1 flex flex-col xl:flex-row w-full relative z-10 p-4 lg:p-8 gap-6 lg:gap-10 overflow-x-hidden overflow-y-auto xl:overflow-hidden">
 
         {/* Left Sidebar */}
-        <div className="w-full xl:w-64 flex flex-col gap-4 relative h-max">
+        <div className="w-full xl:w-72 flex flex-col gap-6 relative h-max">
           {/* Legend Popover */}
           <div className="relative group/legend">
-            <button className="flex items-center gap-3 bg-zinc-900/80 backdrop-blur-xl border border-zinc-800 px-4 py-2 rounded-3xl shadow-lg hover:bg-zinc-800 transition-all">
-              <div className="w-10 h-10 rounded-2xl bg-zinc-800 flex items-center justify-center text-zinc-500 group-hover/legend:text-blue-400 transition-colors">
-                <Info className="w-6 h-6" />
+            <button className="w-full flex items-center justify-between bg-white border-2 border-slate-100 px-6 py-4 rounded-[2rem] shadow-xl shadow-slate-200/40 hover:border-[#2c49c5] transition-all group">
+              <div className="flex items-center gap-4">
+                 <div className="w-10 h-10 rounded-2xl bg-blue-50 flex items-center justify-center text-[#2c49c5] shadow-sm border border-blue-100">
+                   <Info className="w-6 h-6" />
+                 </div>
+                 <span className="text-sm font-black text-slate-900 tracking-tight">Keterangan</span>
               </div>
-              <span className="text-sm font-black text-white tracking-tight">Keterangan</span>
+              <ScrollText className="w-4 h-4 text-slate-300 group-hover:text-[#2c49c5]" />
             </button>
-            <div className="absolute top-full left-0 mt-3 w-64 bg-zinc-900/98 backdrop-blur-2xl border border-zinc-800 p-6 rounded-[2rem] shadow-2xl opacity-0 scale-95 pointer-events-none group-hover/legend:opacity-100 group-hover/legend:scale-100 group-hover/legend:pointer-events-auto transition-all duration-300 origin-top-left z-50">
-              <h3 className="text-sm font-black text-zinc-400 uppercase tracking-widest mb-6">Informasi Kartu</h3>
-              <div className="space-y-2">
-                <LegendItem icon={<BookOpen className="w-5 h-5 text-blue-400" />} color="text-blue-400" label="Kartu Dasar" />
-                <LegendItem icon={<Target className="w-5 h-5 text-red-400" />} color="text-red-400" label="Kartu Aksi" />
-                <LegendItem icon={<Flame className="w-5 h-5 text-orange-400" />} color="text-orange-400" label="Kartu Tantangan" />
-                <LegendItem icon={<Moon className="w-5 h-5 text-purple-400" />} color="text-purple-400" label="Skip 1 Putaran" />
+            <div className="absolute top-full left-0 mt-4 w-full bg-white border-2 border-slate-100 p-8 rounded-[3rem] shadow-2xl shadow-slate-300/40 opacity-0 scale-95 pointer-events-none group-hover/legend:opacity-100 group-hover/legend:scale-100 group-hover/legend:pointer-events-auto transition-all duration-300 origin-top-left z-50">
+              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Misi EduBoard</h3>
+              <div className="space-y-5">
+                <LegendItem icon={<BookOpen className="w-5 h-5 text-blue-600" />} color="text-slate-700" label="Kartu Dasar" />
+                <LegendItem icon={<Target className="w-5 h-5 text-red-600" />} color="text-slate-700" label="Kartu Aksi" />
+                <LegendItem icon={<Flame className="w-5 h-5 text-orange-600" />} color="text-slate-700" label="Kartu Tantangan" />
+                <LegendItem icon={<Moon className="w-5 h-5 text-purple-600" />} color="text-slate-700" label="Skip Putaran" />
               </div>
             </div>
           </div>
 
           {/* Leaderboard */}
-          <div className="bg-zinc-900/50 backdrop-blur-md border border-zinc-800 p-6 rounded-3xl flex-1 pb-12">
-            <h3 className="text-xs font-black text-zinc-500 uppercase tracking-widest mb-4">Leaderboard</h3>
-            <div className="space-y-3">
+          <div className="bg-white border-2 border-slate-100 p-8 rounded-[3rem] shadow-2xl shadow-slate-200/50 flex-1 pb-10">
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-8 flex items-center gap-2">
+               <Award className="w-4 h-4 text-[#ffda59]" /> Papan Skor
+            </h3>
+            <div className="space-y-5">
               {[...groups]
                 .map((g, i) => ({ ...g, originalIndex: i }))
                 .sort((a, b) => b.score - a.score)
                 .map((g, rank) => (
-                  <div key={g.id} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className={`text-xs font-black w-5 text-center ${rank === 0 ? "text-yellow-400" : rank === 1 ? "text-zinc-400" : rank === 2 ? "text-amber-600" : "text-zinc-600"}`}>
+                  <div key={g.id} className="flex items-center justify-between group">
+                    <div className="flex items-center gap-4">
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black shadow-sm border ${rank === 0 ? "bg-yellow-50 text-yellow-600 border-yellow-100" : "bg-slate-50 text-slate-400 border-slate-100"}`}>
                         {rank + 1}
-                      </span>
-                      <div className={`w-2 h-2 rounded-full ${g.originalIndex === 0 ? "bg-blue-500" : g.originalIndex === 1 ? "bg-red-500" : g.originalIndex === 2 ? "bg-purple-500" : "bg-emerald-500"}`} />
-                      <span className={`text-sm font-bold ${activeGroupIndex === g.originalIndex ? "text-white underline underline-offset-4" : "text-zinc-500"}`}>
-                        {g.name}
-                      </span>
+                      </div>
+                      <div className="flex flex-col">
+                         <span className={`text-sm font-black tracking-tight ${activeGroupIndex === g.originalIndex ? "text-[#2c49c5]" : "text-slate-600"}`}>
+                           {g.name}
+                         </span>
+                         <div className={`h-1 w-8 rounded-full mt-1 ${g.originalIndex === 0 ? "bg-blue-500" : g.originalIndex === 1 ? "bg-red-500" : g.originalIndex === 2 ? "bg-purple-500" : "bg-emerald-500"}`} />
+                      </div>
                     </div>
-                    <span className="text-sm font-black text-white">{g.score}</span>
+                    <span className="text-base font-black text-slate-900 group-hover:scale-110 transition-transform">{g.score}</span>
                   </div>
                 ))}
             </div>
           </div>
         </div>
 
-        {/* Center Board */}
-        <div className="flex-1 relative flex items-center justify-center">
+        {/* Center Board Area */}
+        <div className="flex-1 relative flex items-center justify-center min-h-[600px] bg-white rounded-[4rem] border border-slate-50 shadow-inner">
           <BoardCanvas groups={groups} />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+          
+          {/* Floating UI Elements on Board */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-20">
             <Dice
-              size={120}
+              size={130}
               value={diceValue}
               isRolling={isRolling}
               onClick={() => {
@@ -347,21 +354,21 @@ function BoardPage() {
                 key="turn-indicator"
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 20 }}
-                className="absolute top-6 left-1/2 -translate-x-1/2 px-8 py-3 bg-zinc-900/90 backdrop-blur-lg border border-zinc-700 rounded-full flex items-center shadow-lg pointer-events-none z-30"
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="absolute top-8 left-1/2 -translate-x-1/2 px-10 py-4 bg-white/90 backdrop-blur-xl border border-slate-100 rounded-full flex items-center shadow-[0_20px_50px_rgba(0,0,0,0.1)] z-30"
               >
                 {role === "siswa" && activeGroup.name === myGroupName ? (
-                  <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-blue-500 animate-ping" />
-                    <span className="text-blue-400 font-black tracking-widest text-sm uppercase">GILIRAN KAMU: KLIK DADU!</span>
+                  <div className="flex items-center gap-4">
+                    <div className="w-3 h-3 rounded-full bg-[#2c49c5] animate-ping" />
+                    <span className="text-[#2c49c5] font-black tracking-widest text-xs uppercase">GILIRAN KAMU: KLIK DADU!</span>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-bold text-zinc-300 tracking-widest uppercase">
-                      {role === "siswa" ? "TIM LAIN BERMAIN" : "MODE PENGAWAS"}
+                  <div className="flex items-center gap-4">
+                    <span className="text-xs font-black text-slate-400 tracking-widest uppercase">
+                      {role === "siswa" ? "MENUNGGU LAWAN" : "MODE PEMANTAU"}
                     </span>
-                    <span className="text-zinc-600">|</span>
-                    <p className="text-emerald-400 font-bold text-sm animate-pulse">{activeGroup.name}...</p>
+                    <div className="w-px h-4 bg-slate-100" />
+                    <p className="text-[#2c49c5] font-black text-sm italic">{activeGroup.name} Sedang Jalan...</p>
                   </div>
                 )}
               </motion.div>
@@ -373,20 +380,25 @@ function BoardPage() {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
-                className={`absolute z-40 flex items-center pointer-events-none ${
+                className={`absolute z-50 flex items-center pointer-events-none rounded-[3rem] ${
                   role === "siswa" && activeGroup.name === myGroupName
-                    ? "inset-0 flex-col justify-center p-6 bg-zinc-950/80 text-center"
-                    : "top-24 left-1/2 -translate-x-1/2 bg-zinc-900/90 backdrop-blur-md px-6 py-3 rounded-full border border-orange-500/30 gap-3"
+                    ? "inset-0 flex-col justify-center p-10 bg-white/95 text-center"
+                    : "top-32 left-1/2 -translate-x-1/2 bg-white px-8 py-4 border-2 border-[#ffda59] gap-4 shadow-2xl"
                 }`}
               >
-                <Disc3 className={`text-orange-500 animate-spin ${role === "siswa" && activeGroup.name === myGroupName ? "w-20 h-20 mb-6" : "w-5 h-5"}`} />
+                <div className="relative">
+                   <Disc3 className={`text-[#2c49c5] animate-spin ${role === "siswa" && activeGroup.name === myGroupName ? "w-24 h-24 mb-10" : "w-6 h-6"}`} />
+                   <div className="absolute inset-0 flex items-center justify-center">
+                     <div className="w-2 h-2 bg-[#ffda59] rounded-full shadow-[0_0_10px_#ffda59]" />
+                   </div>
+                </div>
                 {role === "siswa" && activeGroup.name === myGroupName ? (
-                  <>
-                    <h2 className="text-3xl font-black text-white">Menunggu Penilaian Guru...</h2>
-                    <p className="text-zinc-400 mt-4">Jawaban kamu sedang dibaca di layar Guru.</p>
-                  </>
+                  <div className="max-w-md">
+                    <h2 className="text-4xl font-black text-slate-900 tracking-tight mb-4">Jawaban Terkirim!</h2>
+                    <p className="text-slate-500 text-lg font-medium">Harap tenang, Guru sedang memberikan nilai untuk aksimu.</p>
+                  </div>
                 ) : (
-                  <p className="text-white font-bold text-sm">Menunggu Guru menilai {activeGroup.name}...</p>
+                  <p className="text-slate-900 font-black text-sm tracking-tight">Guru sedang menilai {activeGroup.name}...</p>
                 )}
               </motion.div>
             )}
@@ -394,31 +406,43 @@ function BoardPage() {
             {gameStatus === "FINISHED" && (
               <motion.div
                 key="victory"
-                initial={{ opacity: 0, y: 50 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="absolute inset-0 flex flex-col items-center justify-center p-6 bg-zinc-950/90 backdrop-blur-xl z-50 text-center"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="absolute inset-0 flex flex-col items-center justify-center p-12 bg-white/98 backdrop-blur-2xl z-[100] text-center"
               >
-                <div className="bg-gradient-to-tr from-yellow-500/20 to-amber-500/20 p-8 rounded-full mb-8 border border-yellow-500/30">
-                  <Award className="w-24 h-24 text-yellow-400 drop-shadow-[0_0_20px_rgba(250,204,21,0.5)]" />
+                 {/* Yellow Detail Detail */}
+                <div className="absolute top-0 left-0 w-full h-3 bg-[#ffda59]" />
+
+                <div className="relative group mb-12">
+                   <div className="absolute inset-0 bg-[#ffda59]/20 blur-[60px] rounded-full group-hover:scale-150 transition-transform duration-1000" />
+                   <div className="bg-white p-12 rounded-[3.5rem] shadow-2xl relative border border-yellow-50">
+                      <Award className="w-32 h-32 text-[#ffda59] filter drop-shadow-2xl" />
+                   </div>
                 </div>
-                <h1 className="text-6xl font-black text-white tracking-widest uppercase mb-4">PERMAINAN SELESAI</h1>
+                
+                <h1 className="text-6xl font-black text-slate-900 tracking-tighter uppercase mb-6">MISI BERHASIL!</h1>
                 {winner && (
-                  <p className="text-3xl text-zinc-300 font-bold max-w-2xl">
-                    Pemenangnya adalah{" "}
-                    <span className="text-emerald-400">{winner.name}</span> dengan Skor{" "}
-                    <span className="text-emerald-400">{winner.score}</span>!
-                  </p>
+                  <div className="space-y-4">
+                    <p className="text-2xl text-slate-500 font-bold max-w-2xl mx-auto">
+                      Selamat kepada tim <span className="text-[#2c49c5] font-black underline decoration-yellow-400 decoration-4 underline-offset-8">{winner.name}</span>
+                    </p>
+                    <div className="inline-block bg-[#2c49c5] text-white px-8 py-3 rounded-2xl font-black text-3xl shadow-2xl shadow-[#2c49c5]/30">
+                       SKOR {winner.score}
+                    </div>
+                  </div>
                 )}
                 
-                {role === "guru" ? (
-                  <Link href="/dashboard" className="mt-12 px-8 py-4 rounded-full bg-emerald-600 text-white font-bold hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-900/20">
-                    KEMBALI KE DASHBOARD
-                  </Link>
-                ) : (
-                  <Link href="/lobby" className="mt-12 px-8 py-4 rounded-full bg-zinc-800 border border-zinc-700 text-white font-bold hover:bg-zinc-700 transition-all">
-                    KEMBALI KE LOBBY
-                  </Link>
-                )}
+                <div className="flex gap-6 mt-16">
+                  {role === "guru" ? (
+                    <Link href="/dashboard" className="px-12 py-5 rounded-[2rem] bg-[#2c49c5] text-white font-black hover:bg-[#1a34a8] transition-all shadow-2xl shadow-[#2c49c5]/30 text-lg active:scale-95">
+                      KE DASHBOARD ADMIN
+                    </Link>
+                  ) : (
+                    <Link href="/lobby" className="px-12 py-5 rounded-[2rem] bg-slate-900 text-white font-black hover:bg-slate-800 transition-all shadow-2xl shadow-slate-900/30 text-lg active:scale-95">
+                      KEMBALI KE LOBBY
+                    </Link>
+                  )}
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -426,24 +450,24 @@ function BoardPage() {
 
         {/* Right Sidebar — Card Decks */}
         <div className="w-full xl:w-80 flex flex-col gap-6 relative">
-          <div className="bg-zinc-900/50 border border-zinc-800 rounded-[2rem] p-6">
-            <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em] mb-8 text-center">
-              Tumpukan Kartu
+          <div className="bg-white border-2 border-slate-100 rounded-[3rem] p-8 shadow-2xl shadow-slate-200/50">
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mb-12 text-center">
+              Bank Kartu
             </h3>
-            <div className="flex flex-col items-center gap-10">
+            <div className="flex flex-col items-center gap-14 pb-4">
               <PhysicalDeck
                 type="DASAR"
-                label="Dasar"
+                label="Misi Dasar"
                 isDrawn={isCardActive && displayCard?.type === "DASAR"}
               />
               <PhysicalDeck
                 type="AKSI"
-                label="Aksi"
+                label="Misi Aksi"
                 isDrawn={isCardActive && displayCard?.type === "AKSI"}
               />
               <PhysicalDeck
                 type="TANTANGAN"
-                label="Tantangan"
+                label="Misi Tantangan"
                 isDrawn={isCardActive && displayCard?.type === "TANTANGAN"}
               />
             </div>
@@ -452,13 +476,34 @@ function BoardPage() {
           {role === "guru" && !currentCard && !isCardActive && (
             <button
               onClick={nextTurn}
-              className="w-full py-4 bg-zinc-800 text-white font-black text-xs tracking-widest uppercase rounded-2xl border border-zinc-700 hover:bg-zinc-700 transition-all"
+              className="w-full py-6 bg-slate-900 text-white font-black text-xs tracking-[0.3em] uppercase rounded-[2rem] shadow-xl shadow-slate-900/20 hover:bg-slate-800 transition-all active:scale-95 border-b-4 border-slate-950"
             >
-              Next Turn →
+              SKIP KE GILIRAN BERIKUTNYA &rarr;
             </button>
           )}
         </div>
       </div>
+
+      <CardOverlay
+        phase={cardPhase}
+        displayCard={displayCard}
+        currentCard={currentCard}
+        isUnderReview={isUnderReview}
+        isTimerRunning={isTimerRunning}
+        timer={timer}
+        role={role}
+        activeGroup={activeGroup}
+        myGroupName={myGroupName}
+        tantanganText={tantanganText}
+        setTantanganText={setTantanganText}
+        submitAnswerObjektif={submitAnswerObjektif}
+        submitAnswerSubjektif={submitAnswerSubjektif}
+        gradeSubjektif={gradeSubjektif}
+        pendingReviews={pendingReviews}
+      />
+    </div>
+  );
+}
 
       {/* ── Card Overlay (the animated drawn card) ──────────────────────────── */}
       <CardOverlay
@@ -483,8 +528,6 @@ function BoardPage() {
 }
 
 // ─── Physical Card Deck ────────────────────────────────────────────────────────
-// A realistic-looking deck of card backs stacked on top of each other.
-// When `isDrawn` is true, the top card visually disappears (it's now the overlay).
 function PhysicalDeck({
   type,
   label,
@@ -495,53 +538,38 @@ function PhysicalDeck({
   isDrawn: boolean;
 }) {
   const accent =
-    type === "DASAR" ? { bg: "bg-blue-500", text: "text-blue-400", border: "border-blue-500/40", glow: "rgba(59,130,246,0.3)" } :
-    type === "AKSI" ? { bg: "bg-red-500", text: "text-red-400", border: "border-red-500/40", glow: "rgba(239,68,68,0.3)" } :
-    { bg: "bg-orange-500", text: "text-orange-400", border: "border-orange-500/40", glow: "rgba(249,115,22,0.3)" };
+    type === "DASAR" ? { bg: "bg-[#2c49c5]", text: "text-[#2c49c5]", border: "border-[#2c49c5]/40", glow: "rgba(44,73,197,0.15)" } :
+    type === "AKSI" ? { bg: "bg-[#ef4444]", text: "text-[#ef4444]", border: "border-[#ef4444]/40", glow: "rgba(239,68,68,0.15)" } :
+    { bg: "bg-[#f59e0b]", text: "text-[#f59e0b]", border: "border-[#f59e0b]/40", glow: "rgba(245,158,11,0.15)" };
 
   return (
-    <div className="relative" style={{ width: 112, height: 160 }}>
-      {/* Shadow layers — simulate card thickness */}
-      <div className="absolute inset-0 translate-x-2.25 translate-y-2.25 bg-zinc-800 rounded-[14px] border border-zinc-700/50" />
-      <div className="absolute inset-0 translate-x-1.5 translate-y-1.5 bg-zinc-700 rounded-[14px] border border-zinc-600/50" />
-      <div className="absolute inset-0 translate-x-0.75 translate-y-0.75 bg-zinc-600 rounded-[14px] border border-zinc-500/50" />
+    <div className="relative group" style={{ width: 120, height: 170 }}>
+      {/* Shadow layers — simulation of stacked cards in light theme */}
+      <div className="absolute inset-0 translate-x-3 translate-y-3 bg-slate-100 rounded-[20px] border border-slate-200/50 shadow-sm" />
+      <div className="absolute inset-0 translate-x-2 translate-y-2 bg-slate-50 rounded-[20px] border border-slate-200/50 shadow-sm" />
+      <div className="absolute inset-0 translate-x-1 translate-y-1 bg-white rounded-[20px] border border-slate-100/50 shadow-sm" />
 
-      {/* Base card — stays visible even when top card is drawn */}
-      <div className="absolute inset-0 rounded-[14px] overflow-hidden">
+      {/* Base card */}
+      <div className="absolute inset-0 rounded-[20px] overflow-hidden shadow-sm">
         <CardBackFace type={type} />
       </div>
 
-      {/* Top card — disappears when drawn, appears when returned */}
+      {/* Top card */}
       <motion.div
-        className="absolute inset-0 rounded-[14px] overflow-hidden"
-        animate={isDrawn ? { opacity: 0, y: -8, scale: 0.97 } : { opacity: 1, y: 0, scale: 1 }}
+        className="absolute inset-0 rounded-[20px] overflow-hidden shadow-xl"
+        animate={isDrawn ? { opacity: 0, y: -12, scale: 0.95 } : { opacity: 1, y: 0, scale: 1 }}
         transition={isDrawn
-          ? { duration: 0.25, ease: "easeOut" }
-          : { duration: 0.35, ease: [0.34, 1.56, 0.64, 1] }  // spring back
+          ? { duration: 0.3, ease: "easeOut" }
+          : { duration: 0.45, ease: [0.34, 1.56, 0.64, 1] }
         }
-        style={{ boxShadow: `0 8px 24px ${accent.glow}` }}
+        style={{ boxShadow: isDrawn ? 'none' : `0 15px 35px -5px ${accent.glow}` }}
       >
         <CardBackFace type={type} />
       </motion.div>
 
-      {/* Glow ring when active */}
-      <AnimatePresence>
-        {isDrawn && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className={`absolute -inset-1 rounded-[18px] border-2 ${accent.border} pointer-events-none`}
-          />
-        )}
-      </AnimatePresence>
-
       {/* Label above */}
-      <div className="absolute -top-4 left-0 right-0 flex items-center justify-center gap-2">
-        {type === "DASAR" && <BookOpen className={`w-3 h-3 ${accent.text}`} />}
-        {type === "AKSI" && <Target className={`w-3 h-3 ${accent.text}`} />}
-        {type === "TANTANGAN" && <Flame className={`w-3 h-3 ${accent.text}`} />}
-        <span className={`text-[9px] font-black uppercase tracking-[0.25em] ${accent.text}`}>{label}</span>
+      <div className="absolute -top-6 left-0 right-0 flex items-center justify-center gap-2">
+        <span className={`text-[10px] font-black uppercase tracking-[0.3em] ${accent.text}`}>{label}</span>
       </div>
     </div>
   );
@@ -550,25 +578,27 @@ function PhysicalDeck({
 // ─── Card Back Face (shared design for deck and overlay) ──────────────────────
 function CardBackFace({ type }: { type: string }) {
   const accent =
-    type === "DASAR" ? "bg-blue-500" :
-    type === "AKSI" ? "bg-red-500" : "bg-orange-500";
+    type === "DASAR" ? "bg-[#2c49c5]" :
+    type === "AKSI" ? "bg-[#ef4444]" : "bg-[#f59e0b]";
+
+  const Icon = type === "DASAR" ? BookOpen : type === "AKSI" ? Target : Flame;
 
   return (
-    <div className="absolute inset-0 bg-zinc-900 border-2 border-zinc-700 rounded-[14px] flex flex-col items-center justify-center overflow-hidden">
-      {/* Subtle pattern */}
-      <div
-        className="absolute inset-0 opacity-[0.025] pointer-events-none"
-        style={{ backgroundImage: "radial-gradient(circle at 1px 1px, white 1px, transparent 0)", backgroundSize: "14px 14px" }}
-      />
-      {/* Inner border detail */}
-      <div className="absolute inset-[8px] border border-zinc-600/40 rounded-[8px]" />
-      {/* Icon */}
-      <div className={`w-10 h-10 rounded-full ${accent}/15 flex items-center justify-center`}>
-        {type === "DASAR" && <BookOpen className="w-5 h-5 text-zinc-400" />}
-        {type === "AKSI" && <Target className="w-5 h-5 text-zinc-400" />}
-        {type === "TANTANGAN" && <Flame className="w-5 h-5 text-zinc-400" />}
+    <div className="absolute inset-0 bg-white border-2 border-slate-100 rounded-[20px] flex flex-col items-center justify-center overflow-hidden">
+      {/* Pattern Detail */}
+      <div className="absolute inset-0 opacity-[0.05] pointer-events-none" style={{ backgroundImage: "radial-gradient(#2c49c5 0.5px, transparent 0.5px)", backgroundSize: "12px 12px" }} />
+      
+      {/* Corner Details */}
+      <div className={`absolute top-4 left-4 w-2 h-2 rounded-full ${accent} opacity-20`} />
+      <div className={`absolute bottom-4 right-4 w-2 h-2 rounded-full ${accent} opacity-20`} />
+
+      <div className={`w-14 h-14 rounded-2xl ${accent} flex items-center justify-center shadow-lg shadow-slate-200 mb-4`}>
+        <Icon className="w-7 h-7 text-white" />
       </div>
-      <span className="text-[7px] font-black tracking-[0.4em] text-zinc-600 uppercase mt-2">EDUBOARD</span>
+      <span className="text-[8px] font-black tracking-[0.6em] text-slate-300 uppercase">EDUBOARD</span>
+      
+      {/* Inner Frame */}
+      <div className="absolute inset-3 border border-slate-50 rounded-[14px] pointer-events-none" />
     </div>
   );
 }
@@ -610,43 +640,35 @@ function CardOverlay({
   gradeSubjektif,
   pendingReviews,
 }: CardOverlayProps) {
-  // isFlipped: tracks 3D flip state
-  // false = back face shown, true = front face (question) shown
   const [isFlipped, setIsFlipped] = useState(false);
 
   useEffect(() => {
     if (phase === "revealed") {
-      // Small delay so the card reaches center before flipping
       const t = setTimeout(() => setIsFlipped(true), 80);
       return () => clearTimeout(t);
     }
-    // No setState needed here: `flipped` below is derived and automatically
-    // returns false for any phase that is not "revealed".
   }, [phase]);
 
   const flipped = phase === "revealed" ? isFlipped : false;
-
   const cardType = displayCard?.type ?? "DASAR";
   const isVisible = phase !== "idle";
 
-  // Position animation: starts at deck position (right side), moves to center
-  // x: positive = right (toward deck), negative = left (toward center)
   const positionVariants = {
-    hidden: { x: 280, y: 60, scale: 0.28, opacity: 0 },
+    hidden: { x: 300, y: 150, scale: 0.3, opacity: 0 },
     drawing: { x: 0, y: 0, scale: 1, opacity: 1 },
     revealed: { x: 0, y: 0, scale: 1, opacity: 1 },
-    returning: { x: 280, y: 60, scale: 0.28, opacity: 0 },
+    returning: { x: 300, y: 150, scale: 0.3, opacity: 0 },
   };
 
   const getPositionTarget = () => {
     if (phase === "returning") return "returning";
-    if (phase === "drawing" || phase === "revealed") return "drawing"; // same center position
+    if (phase === "drawing" || phase === "revealed") return "drawing";
     return "hidden";
   };
 
   const getPositionTransition = () => {
-    if (phase === "drawing") return { duration: 0.5, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] };
-    if (phase === "returning") return { duration: 0.5, ease: [0.4, 0, 0.6, 1] as [number, number, number, number], delay: 0.32 };
+    if (phase === "drawing") return { duration: 0.6, ease: [0.34, 1.56, 0.64, 1] };
+    if (phase === "returning") return { duration: 0.5, ease: "easeInOut", delay: 0.2 };
     return { duration: 0.3 };
   };
 
@@ -658,59 +680,55 @@ function CardOverlay({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-[100] flex items-center justify-center"
-          // Allow clicks through the backdrop when drawing (no interaction needed)
+          className="fixed inset-0 z-[100] flex items-center justify-center p-6"
           style={{ pointerEvents: phase === "drawing" ? "none" : "auto" }}
         >
-          {/* ── Backdrop — NO blur, just a semi-transparent dim ── */}
+          {/* Light Theme Backdrop */}
           <motion.div
-            className="absolute inset-0 bg-zinc-950"
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px]"
             initial={{ opacity: 0 }}
-            animate={{ opacity: phase === "returning" ? 0 : 0.65 }}
-            transition={{ duration: 0.3 }}
+            animate={{ opacity: phase === "returning" ? 0 : 1 }}
+            transition={{ duration: 0.4 }}
           />
 
-          {/* ── Card container: handles position animation ── */}
           <motion.div
             className="relative z-10"
-            style={{ perspective: 1200, width: 360, maxWidth: "92vw" }}
+            style={{ perspective: 1500, width: 400, maxWidth: "100%" }}
             variants={positionVariants}
             initial="hidden"
             animate={getPositionTarget()}
             transition={getPositionTransition()}
           >
-            {/* ── Flip container: handles 3D rotation ── */}
             <motion.div
               className="w-full relative"
-              style={{ height: 520, transformStyle: "preserve-3d" }}
+              style={{ height: 560, transformStyle: "preserve-3d" }}
               animate={{ rotateY: flipped ? 180 : 0 }}
-              transition={{ type: "spring", stiffness: 220, damping: 26 }}
+              transition={{ type: "spring", stiffness: 180, damping: 20 }}
             >
-              {/* BACK FACE (card design — visible while drawing/returning) */}
+              {/* BACK FACE */}
               <div
                 className="absolute inset-0"
                 style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
               >
                 <div
-                  className="absolute inset-0 bg-zinc-900 border-4 border-zinc-700 rounded-[20px] flex flex-col items-center justify-center overflow-hidden"
-                  style={{ boxShadow: "0 30px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)" }}
+                  className="absolute inset-0 bg-white border-4 border-slate-100 rounded-[3rem] flex flex-col items-center justify-center overflow-hidden shadow-[0_50px_100px_-20px_rgba(0,0,0,0.25)]"
                 >
-                  <div className="absolute inset-0 opacity-[0.025] pointer-events-none" style={{ backgroundImage: "radial-gradient(circle at 1px 1px, white 1px, transparent 0)", backgroundSize: "18px 18px" }} />
-                  <div className="absolute inset-[18px] border border-zinc-600/30 rounded-[12px]" />
-                  <div className={`w-20 h-20 rounded-full flex items-center justify-center ${
-                    cardType === "DASAR" ? "bg-blue-500/15" :
-                    cardType === "AKSI" ? "bg-red-500/15" : "bg-orange-500/15"
-                  }`}>
-                    {cardType === "DASAR" && <BookOpen className="w-10 h-10 text-zinc-300" />}
-                    {cardType === "AKSI" && <Target className="w-10 h-10 text-zinc-300" />}
-                    {cardType === "TANTANGAN" && <Flame className="w-10 h-10 text-zinc-300" />}
+                   {/* Detail Pola */}
+                  <div className="absolute inset-10 border-2 border-slate-50 rounded-[2rem] flex flex-col items-center justify-center">
+                     <div className={`w-24 h-24 rounded-[2rem] shadow-2xl flex items-center justify-center mb-6 ${
+                        cardType === "DASAR" ? "bg-[#2c49c5]" :
+                        cardType === "AKSI" ? "bg-[#ef4444]" : "bg-[#f59e0b]"
+                     }`}>
+                        {cardType === "DASAR" && <BookOpen className="w-12 h-12 text-white" />}
+                        {cardType === "AKSI" && <Target className="w-12 h-12 text-white" />}
+                        {cardType === "TANTANGAN" && <Flame className="w-12 h-12 text-white" />}
+                     </div>
+                     <span className="text-[10px] font-black tracking-[1em] text-slate-200 uppercase">EDUBOARD</span>
                   </div>
-                  <span className="text-xs font-black tracking-[0.5em] text-zinc-500 uppercase mt-4">EDUBOARD</span>
                 </div>
               </div>
 
-              {/* FRONT FACE (question content — revealed after flip) */}
+              {/* FRONT FACE */}
               <div
                 className="absolute inset-0"
                 style={{
@@ -781,97 +799,101 @@ function CardFrontFace({
 }) {
   const accentCorner =
     isUnderReview ? "bg-orange-500" :
-    cardType === "DASAR" ? "bg-blue-600" :
-    cardType === "AKSI" ? "bg-red-600" : "bg-orange-600";
+    cardType === "DASAR" ? "bg-[#2c49c5]" :
+    cardType === "AKSI" ? "bg-[#ef4444]" : "bg-[#f59e0b]";
 
   const accentText =
     isUnderReview ? "text-orange-600" :
-    cardType === "DASAR" ? "text-blue-600" :
-    cardType === "AKSI" ? "text-red-600" : "text-orange-600";
+    cardType === "DASAR" ? "text-[#2c49c5]" :
+    cardType === "AKSI" ? "text-[#ef4444]" : "text-[#f59e0b]";
 
   return (
     <div
-      className="absolute inset-0 bg-[#fafafa] rounded-[20px] flex flex-col p-7 overflow-hidden"
-      style={{ boxShadow: "0 30px 80px rgba(0,0,0,0.5), 0 0 0 4px rgba(0,0,0,0.08)" }}
+      className="absolute inset-0 bg-white rounded-[3rem] flex flex-col p-10 overflow-hidden shadow-[0_50px_100px_-20px_rgba(0,0,0,0.3)] border-b-8 border-slate-100"
     >
       {/* Corner accent triangle */}
       <div
-        className={`absolute top-0 right-0 w-28 h-28 ${accentCorner}`}
+        className={`absolute top-0 right-0 w-32 h-32 ${accentCorner} opacity-90`}
         style={{ clipPath: "polygon(0 0, 100% 0, 100% 100%)" }}
       />
 
       {/* Floating Timer Badge */}
       {isTimerRunning && !isUnderReview && (
-        <div className="absolute top-4 right-4 z-20 flex flex-col items-center">
-           <div className={`flex items-center justify-center w-12 h-12 rounded-full border-4 border-white shadow-xl ${timer <= 5 ? 'bg-red-500 animate-pulse' : 'bg-zinc-900'}`}>
-              <span className="text-xl font-black text-white font-mono">{timer}</span>
+        <div className="absolute top-6 right-6 z-20 flex flex-col items-center">
+           <div className={`flex items-center justify-center w-14 h-14 rounded-full border-4 border-white shadow-2xl ${timer <= 5 ? 'bg-red-500 animate-pulse' : 'bg-slate-950'}`}>
+              <span className="text-2xl font-black text-white font-mono">{timer}</span>
            </div>
-           <span className={`text-[8px] font-black uppercase tracking-widest mt-1 ${timer <= 5 ? 'text-red-500' : 'text-zinc-400'}`}>Detik</span>
+           <span className={`text-[9px] font-black uppercase tracking-widest mt-2 ${timer <= 5 ? 'text-red-500' : 'text-slate-400'}`}>Detik Tersisa</span>
         </div>
       )}
 
       <div className="flex-1 flex flex-col relative z-10 min-h-0">
         {/* Header */}
-        <div className="mb-5 pb-4 border-b-2 border-zinc-900/10">
-          <p className={`text-[10px] font-black uppercase tracking-[0.35em] mb-1 ${accentText}`}>
-            {isUnderReview ? "PENILAIAN GURU" : `KARTU ${cardType}`}
+        <div className="mb-8 pb-6 border-b border-slate-100">
+          <p className={`text-[10px] font-black uppercase tracking-[0.4em] mb-2 ${accentText}`}>
+            {isUnderReview ? "KONFIRMASI GURU" : `MISI ${cardType}`}
           </p>
           {!isUnderReview && displayCard && (
-            <p className="text-3xl font-black text-zinc-900 leading-none">{displayCard.points} <span className="text-sm font-bold text-zinc-400">POIN</span></p>
+            <div className="flex items-baseline gap-3">
+               <span className="text-5xl font-black text-slate-900 tracking-tighter">{displayCard.points}</span>
+               <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Poin Reward</span>
+            </div>
           )}
         </div>
 
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto min-h-0 pr-1">
+        {/* Body Content */}
+        <div className="flex-1 overflow-y-auto min-h-0 pr-2 scrollbar-hide">
           {isUnderReview ? (
-            // ── Review mode (guru grading) ──
-            <div className="space-y-5">
+            <div className="space-y-8">
               {pendingReviews
                 .filter((r) => r.groupId === activeGroup?.id)
                 .map((review) => (
-                  <div key={review.id} className="space-y-4">
+                  <div key={review.id} className="space-y-6">
                     <div>
-                      <p className="text-[9px] font-black text-zinc-400 uppercase tracking-[0.3em] mb-2">PERTANYAAN</p>
-                      <p className="text-base font-bold text-zinc-800 leading-snug">&ldquo;{review.questionText}&rdquo;</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">PERTANYAAN</p>
+                      <p className="text-xl font-bold text-slate-900 leading-snug italic">&ldquo;{review.questionText}&rdquo;</p>
                     </div>
-                    <div className="p-5 bg-zinc-100 rounded-xl border-2 border-zinc-200">
-                      <p className="text-[9px] font-black text-zinc-400 uppercase tracking-[0.3em] mb-2 flex items-center gap-2">
-                        <ScrollText className="w-3 h-3" /> JAWABAN {review.groupName}
+                    <div className="p-8 bg-slate-50 rounded-[2rem] border-2 border-slate-100 shadow-inner relative overflow-hidden">
+                      <div className="absolute top-0 left-0 w-2 h-full bg-[#2c49c5]" />
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-3">
+                        <ScrollText className="w-4 h-4 text-[#2c49c5]" /> JAWABAN TIM {review.groupName}
                       </p>
-                      <p className="text-base font-semibold text-zinc-800 italic leading-relaxed">{review.answerText}</p>
+                      <p className="text-xl font-black text-[#2c49c5] leading-relaxed break-words">{review.answerText}</p>
                     </div>
                   </div>
                 ))}
             </div>
           ) : (
-            // ── Question mode ──
             <div>
-              <p className="text-[9px] font-black text-zinc-400 uppercase tracking-[0.3em] mb-3">ISI KARTU</p>
-              <p className="text-lg font-bold text-zinc-900 leading-snug mb-6">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">INSTRUKSI MISI</p>
+              <p className="text-2xl font-black text-slate-900 leading-tight mb-8">
                 &ldquo;{displayCard?.text}&rdquo;
               </p>
 
-              {/* Active student interaction */}
+              {/* Interaction Panel */}
               {role === "siswa" && activeGroup?.name === myGroupName && (
-                <div className="mt-4 pt-4 border-t-2 border-zinc-100">
+                <div className="mt-8 pt-8 border-t border-slate-100">
                   {currentCard?.type === "DASAR" && currentCard.options ? (
-                    <div className="grid grid-cols-1 gap-2.5">
+                    <div className="grid grid-cols-1 gap-4">
                       {currentCard.options.map((opt, i) => (
                         <button
                           key={i}
                           onClick={() => submitAnswerObjektif(activeGroup.id, opt)}
-                          className="w-full text-left px-5 py-3.5 rounded-xl border-2 border-zinc-900 bg-white text-base font-black text-zinc-900 hover:bg-zinc-50 hover:-translate-y-0.5 shadow-[4px_4px_0_0_rgba(0,0,0,0.85)] active:translate-y-0 active:shadow-none transition-all"
+                          className="w-full text-left px-8 py-5 rounded-2xl border-2 border-slate-100 bg-white text-lg font-black text-slate-900 hover:border-[#2c49c5] hover:text-[#2c49c5] hover:shadow-xl hover:shadow-blue-500/10 transition-all flex justify-between items-center group/opt"
                         >
-                          {opt}
+                          <span>{opt}</span>
+                          <div className="w-8 h-8 rounded-xl bg-slate-50 group-hover/opt:bg-blue-50 flex items-center justify-center transition-colors">
+                             <div className="w-2 h-2 rounded-full bg-slate-200 group-hover/opt:bg-[#2c49c5]" />
+                          </div>
                         </button>
                       ))}
                     </div>
                   ) : currentCard?.type === "TANTANGAN" ? (
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       <textarea
                         autoFocus
-                        className="w-full min-h-[100px] bg-white border-2 border-zinc-900 rounded-xl px-5 py-4 text-zinc-900 text-base font-bold focus:outline-none focus:ring-4 focus:ring-orange-500/15 resize-none shadow-inner"
-                        placeholder="Ketik jawabanmu..."
+                        className="w-full min-h-[140px] bg-slate-50 border-2 border-slate-100 rounded-[2rem] px-8 py-6 text-slate-900 text-lg font-bold focus:outline-none focus:border-[#ffda59] focus:ring-8 focus:ring-[#ffda59]/10 shadow-inner resize-none transition-all"
+                        placeholder="Tuliskan jawaban yang paling tepat..."
                         value={tantanganText}
                         onChange={(e) => setTantanganText(e.target.value)}
                       />
@@ -881,71 +903,74 @@ function CardFrontFace({
                           setTantanganText("");
                         }}
                         disabled={!tantanganText.trim()}
-                        className="w-full py-3.5 rounded-xl bg-zinc-900 text-white font-black tracking-[0.2em] uppercase hover:bg-zinc-800 disabled:opacity-20 transition-all shadow-[4px_4px_0_0_rgba(0,0,0,0.2)]"
+                        className="w-full py-6 rounded-[2rem] bg-[#2c49c5] text-white font-black tracking-[0.2em] uppercase hover:bg-[#1a34a8] disabled:opacity-20 transition-all shadow-2xl shadow-[#2c49c5]/30 active:scale-95 flex items-center justify-center gap-3"
                       >
-                        KIRIM JAWABAN
+                        KIRIM KE GURU <Disc3 className="w-5 h-5 animate-spin opacity-50" />
                       </button>
                     </div>
                   ) : (
                     <button
                       onClick={() => submitAnswerObjektif(activeGroup.id, "SELESAI")}
-                      className="w-full py-4 rounded-xl bg-zinc-900 text-white text-base font-black tracking-widest uppercase hover:bg-zinc-800 transition-all shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] active:scale-95"
+                      className="w-full py-6 rounded-[2rem] bg-slate-900 text-white text-lg font-black tracking-widest uppercase hover:bg-slate-800 transition-all shadow-2xl shadow-slate-900/30 active:scale-95 border-b-4 border-slate-950"
                     >
-                      SAYA MENGERTI
+                      MISI SELESAI &rarr;
                     </button>
                   )}
                 </div>
               )}
 
-              {/* Observer / Guru */}
+              {/* Observer State */}
               {(role === "guru" || activeGroup?.name !== myGroupName) && (
-                <div className="mt-4 bg-zinc-100 border-2 border-zinc-200 p-6 rounded-xl text-center">
-                  <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1">STATUS</p>
-                  <p className="text-base font-black text-zinc-800">MENUNGGU TIM {activeGroup?.name || "..."}</p>
+                <div className="mt-8 bg-[#2c49c5]/5 border-2 border-[#2c49c5]/10 p-10 rounded-[2.5rem] text-center group">
+                  <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-blue-500/10 border border-blue-50 group-hover:scale-110 transition-transform">
+                     <Disc3 className="w-8 h-8 text-[#2c49c5] animate-[spin_3s_linear_infinite]" />
+                  </div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">STATUS TIM</p>
+                  <p className="text-xl font-black text-slate-800">MENUNGGU AKSI <span className="text-[#2c49c5]">{activeGroup?.name || "..."}</span></p>
                 </div>
               )}
             </div>
           )}
         </div>
 
-        {/* Footer — guru grading buttons */}
+        {/* Footer Grading Panel (Teacher only) */}
         {isUnderReview && (
-          <div className="mt-4 pt-4 border-t-2 border-zinc-200">
+          <div className="mt-8 pt-8 border-t border-slate-100">
             {role === "guru" ? (
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-4">
                 <button
                   onClick={() => gradeSubjektif(pendingReviews.find((r) => r.groupId === activeGroup?.id)!.id, 0)}
-                  className="flex flex-col items-center gap-0.5 p-3 rounded-xl border-2 border-zinc-800 bg-white hover:bg-red-50 transition-all shadow-[3px_3px_0_0_rgba(0,0,0,0.85)] active:shadow-none active:translate-y-0.5"
+                  className="flex flex-col items-center gap-1 p-5 rounded-2xl border-2 border-slate-100 bg-white hover:bg-red-50 hover:border-red-200 transition-all group"
                 >
-                  <span className="text-[8px] font-black text-zinc-400 uppercase">Salah</span>
-                  <span className="font-black text-zinc-900 text-[11px] tracking-wide">TIDAK TEPAT</span>
+                  <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest group-hover:text-red-400">Gagal</span>
+                  <span className="font-black text-slate-900 text-[13px] tracking-tight">SALAH</span>
                 </button>
                 <button
                   onClick={() => {
                     const r = pendingReviews.find((r) => r.groupId === activeGroup?.id)!;
                     gradeSubjektif(r.id, Math.floor(r.maxPoints / 2));
                   }}
-                  className="flex flex-col items-center gap-0.5 p-3 rounded-xl border-2 border-zinc-800 bg-white hover:bg-orange-50 transition-all shadow-[3px_3px_0_0_rgba(0,0,0,0.85)] active:shadow-none active:translate-y-0.5"
+                  className="flex flex-col items-center gap-1 p-5 rounded-2xl border-2 border-slate-100 bg-white hover:bg-[#ffda59]/10 hover:border-[#ffda59]/30 transition-all group"
                 >
-                  <span className="text-[8px] font-black text-zinc-400 uppercase">Setengah</span>
-                  <span className="font-black text-zinc-900 text-[11px] tracking-wide">SEBAGIAN</span>
+                  <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest group-hover:text-yellow-600">Sedang</span>
+                  <span className="font-black text-slate-900 text-[13px] tracking-tight">CUKUP</span>
                 </button>
                 <button
                   onClick={() => {
                     const r = pendingReviews.find((r) => r.groupId === activeGroup?.id)!;
                     gradeSubjektif(r.id, r.maxPoints);
                   }}
-                  className="flex flex-col items-center gap-0.5 p-3 rounded-xl border-2 border-zinc-800 bg-zinc-900 text-white hover:bg-zinc-800 transition-all shadow-[3px_3px_0_0_rgba(0,0,0,0.4)] active:shadow-none active:translate-y-0.5"
+                  className="flex flex-col items-center gap-1 p-5 rounded-2xl bg-[#2c49c5] text-white hover:bg-[#1a34a8] transition-all shadow-xl shadow-blue-500/20 active:scale-95"
                 >
-                  <span className="text-[8px] font-black text-white/50 uppercase">Benar</span>
-                  <span className="font-black text-[11px] tracking-wide">TEPAT SEKALI</span>
+                  <span className="text-[9px] font-black text-white/50 uppercase tracking-widest">Sempurna</span>
+                  <span className="font-black text-[13px] tracking-tight">HEBAT!</span>
                 </button>
               </div>
             ) : (
-              <div className="bg-zinc-100 border-2 border-dashed border-zinc-300 p-5 rounded-xl text-center">
-                <div className="flex items-center justify-center gap-2">
-                  <Disc3 className="w-5 h-5 text-zinc-700 animate-spin" />
-                  <p className="font-black text-zinc-800 uppercase tracking-widest text-sm">SEDANG DINILAI GURU</p>
+              <div className="bg-slate-50 border-2 border-dashed border-slate-100 p-8 rounded-[2rem] text-center">
+                <div className="flex flex-col items-center justify-center gap-4">
+                  <Disc3 className="w-8 h-8 text-[#2c49c5]/40 animate-spin" />
+                  <p className="font-black text-slate-400 uppercase tracking-widest text-xs">GURU SEDANG MEMBERI NILAI...</p>
                 </div>
               </div>
             )}
@@ -968,11 +993,11 @@ function LegendItem({
   color: string;
 }) {
   return (
-    <div className="flex items-center gap-3">
-      <div className="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center flex-shrink-0">
+    <div className="flex items-center gap-4 group/leg">
+      <div className="w-10 h-10 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center flex-shrink-0 group-hover/leg:scale-110 transition-transform shadow-sm">
         {icon}
       </div>
-      <span className={`text-xs font-black uppercase tracking-widest ${color}`}>{label}</span>
+      <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${color}`}>{label}</span>
     </div>
   );
 }
@@ -1017,29 +1042,29 @@ function Dice({
   return (
     <div
       className={`relative flex items-center justify-center ${isMyTurn ? "cursor-pointer pointer-events-auto group" : "pointer-events-none"}`}
-      style={{ perspective: "1000px", width: size, height: size }}
+      style={{ perspective: "1200px", width: size, height: size }}
       onClick={onClick}
     >
       {isMyTurn && (
         <motion.div
-          animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
-          transition={{ repeat: Infinity, duration: 2 }}
-          className="absolute inset-0 bg-blue-500/20 blur-3xl rounded-full"
+          animate={{ scale: [1, 1.4, 1], opacity: [0.1, 0.4, 0.1] }}
+          transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
+          className="absolute inset-0 bg-blue-400/20 blur-[80px] rounded-full"
         />
       )}
 
       <motion.div
         animate={
           isRolling
-            ? { rotateX: [0, 360, 720], rotateY: [0, 360, 720], rotateZ: [0, 90, 180], y: [-50, 0, -50, 0], scale: [1, 1.1, 0.9, 1] }
+            ? { rotateX: [0, 720, 1440, 2160], rotateY: [0, 720, 1440, 2160], rotateZ: [0, 180, 360], y: [-80, 0, -80, 0], scale: [1, 1.2, 0.8, 1] }
             : { ...faceRotations[displayValue] || faceRotations[1], rotateZ: 0, y: 0, scale: 1 }
         }
-        whileHover={isMyTurn ? { scale: 1.1 } : {}}
-        whileTap={isMyTurn ? { scale: 0.9 } : {}}
+        whileHover={isMyTurn ? { scale: 1.15 } : {}}
+        whileTap={isMyTurn ? { scale: 0.9, rotateX: 10, rotateY: 10 } : {}}
         transition={
           isRolling
-            ? { duration: 1, repeat: Infinity, ease: "linear" }
-            : { type: "spring", stiffness: 150, damping: 15 }
+            ? { duration: 1.2, repeat: Infinity, ease: "linear" }
+            : { type: "spring", stiffness: 200, damping: 20 }
         }
         className="relative w-full h-full z-10"
         style={{ transformStyle: "preserve-3d" }}
@@ -1053,13 +1078,13 @@ function Dice({
       </motion.div>
 
       <motion.div
-        animate={isRolling ? { scale: [1, 0.5, 1], opacity: [0.2, 0.05, 0.2] } : { scale: 1, opacity: 0.2 }}
-        className="absolute -bottom-10 w-1/2 h-4 bg-black/40 blur-xl rounded-full"
+        animate={isRolling ? { scale: [1, 0.4, 1], opacity: [0.3, 0.05, 0.3] } : { scale: 1, opacity: 0.1 }}
+        className="absolute -bottom-16 w-3/4 h-6 bg-slate-900 blur-2xl rounded-full"
       />
 
       {isMyTurn && (
-        <div className="absolute -bottom-14 whitespace-nowrap text-xs font-black text-blue-400 tracking-widest uppercase opacity-0 group-hover:opacity-100 transition-opacity">
-          Klik untuk Putar!
+        <div className="absolute -bottom-20 whitespace-nowrap text-[10px] font-black text-[#2c49c5] tracking-[0.4em] uppercase opacity-0 group-hover:opacity-100 transition-all bg-blue-50 px-5 py-2 rounded-xl border border-blue-100 shadow-xl shadow-blue-500/5 backdrop-blur-md translate-y-4 group-hover:translate-y-0">
+          GULIRKAN DADU!
         </div>
       )}
     </div>
@@ -1079,18 +1104,19 @@ function DieFace({ val, size, transform }: { val: number; size: number; transfor
 
   return (
     <div
-      className="absolute inset-0 bg-white dark:bg-zinc-900 border-4 border-zinc-200 dark:border-zinc-700 rounded-3xl flex flex-wrap items-center justify-center p-3 shadow-inner"
+      className="absolute inset-0 bg-white border-4 border-slate-100 rounded-[2rem] flex flex-wrap items-center justify-center p-4 shadow-[inset_0_0_20px_rgba(0,0,0,0.02)]"
       style={{ transform, backfaceVisibility: "hidden" }}
     >
-      <div className="grid grid-cols-3 grid-rows-3 gap-1 w-full h-full place-items-center">
+      <div className="grid grid-cols-3 grid-rows-3 gap-2 w-full h-full place-items-center">
         {Array.from({ length: 9 }).map((_, i) => (
           <div
             key={i}
-            className={`rounded-full ${dots.includes(i) ? "bg-zinc-900 dark:bg-white scale-100" : "bg-transparent scale-0"}`}
-            style={{ width: "22%", height: "22%" }}
+            className={`rounded-full shadow-inner ${dots.includes(i) ? "bg-slate-900 scale-100" : "bg-transparent scale-0"}`}
+            style={{ width: "24%", height: "24%" }}
           />
         ))}
       </div>
     </div>
   );
 }
+
