@@ -72,7 +72,7 @@
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --radius: 1rem;
+  --radius: 0.75rem;
   --sidebar: oklch(1 0 0);
   --sidebar-foreground: oklch(0.205 0 0);
   --sidebar-primary: oklch(0.403 0.178 268.04);
@@ -93,16 +93,6 @@
   html {
     @apply font-sans;
   }
-  
-  /* Generic grid pattern */
-  .bg-grid {
-    background-image: 
-      linear-gradient(to right, oklch(0.922 0 0) 1px, transparent 1px),
-      linear-gradient(to bottom, oklch(0.922 0 0) 1px, transparent 1px);
-    background-size: 30px 30px;
-  }
-
-  /* Deep blue premium grid */
   .bg-grid-premium {
     background-image: 
       linear-gradient(rgba(44, 72, 197, 0.05) 1px, transparent 1px), 

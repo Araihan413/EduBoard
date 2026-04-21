@@ -7,7 +7,7 @@ import { useGameStore } from "../../../store/gameStore";
 
 export default function LobbyPage() {
   const router = useRouter();
-  const { gameStatus, joinRoom, groups, roomConfig } = useGameStore();
+  const { gameStatus, joinRoom, groups, roomCode: storeRoomCode, roomConfig } = useGameStore();
   const [roomCode, setRoomCode] = useState("");
   const [groupName, setGroupName] = useState("");
   const [isJoined, setIsJoined] = useState(false);
