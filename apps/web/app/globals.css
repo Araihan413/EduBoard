@@ -50,31 +50,37 @@
 
 :root {
   --background: oklch(1 0 0);
-  --foreground: #0f172a;
+  --foreground: oklch(0.205 0 0);
   --card: oklch(1 0 0);
-  --card-foreground: #0f172a;
+  --card-foreground: oklch(0.205 0 0);
   --popover: oklch(1 0 0);
-  --popover-foreground: #0f172a;
-  --primary: #2c49c5;
+  --popover-foreground: oklch(0.205 0 0);
+  --primary: oklch(0.403 0.178 268.04); /* #2c49c5 equivalent */
   --primary-foreground: oklch(1 0 0);
-  --secondary: #f1f5f9;
-  --secondary-foreground: #2c49c5;
-  --muted: #f1f5f9;
-  --muted-foreground: #64748b;
-  --accent: #ffda59;
-  --accent-foreground: #1e293b;
-  --destructive: #ef4444;
-  --border: #e2e8f0;
-  --input: #e2e8f0;
-  --ring: #2c49c5;
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.885 0.163 87.12); /* #ffda59 equivalent */
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.403 0.178 268.04);
+  --chart-1: oklch(0.403 0.178 268.04);
+  --chart-2: oklch(0.885 0.163 87.12);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
   --radius: 1rem;
-}
-
-.bg-grid {
-  background-image: 
-    linear-gradient(to right, #e2e8f0 1px, transparent 1px),
-    linear-gradient(to bottom, #e2e8f0 1px, transparent 1px);
-  background-size: 30px 30px;
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.205 0 0);
+  --sidebar-primary: oklch(0.403 0.178 268.04);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.403 0.178 268.04);
 }
 
 @layer base {
@@ -86,5 +92,21 @@
   }
   html {
     @apply font-sans;
+  }
+  
+  /* Generic grid pattern */
+  .bg-grid {
+    background-image: 
+      linear-gradient(to right, oklch(0.922 0 0) 1px, transparent 1px),
+      linear-gradient(to bottom, oklch(0.922 0 0) 1px, transparent 1px);
+    background-size: 30px 30px;
+  }
+
+  /* Deep blue premium grid */
+  .bg-grid-premium {
+    background-image: 
+      linear-gradient(rgba(44, 72, 197, 0.05) 1px, transparent 1px), 
+      linear-gradient(90deg, rgba(44, 72, 197, 0.05) 1px, transparent 1px);
+    background-size: 40px 40px;
   }
 }

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Copy, Activity, LogOut, CheckCircle2, Play, Plus, Pencil, Trash2 } from "lucide-react";
+import { Copy, Activity, LogOut, CheckCircle2, Play, Plus, Pencil, Trash2, Users, Award } from "lucide-react";
 import { useGameStore, QuestionCard, QuestionType } from "../../store/gameStore";
 import { toast } from "sonner";
 
@@ -223,7 +223,7 @@ export default function DashboardPage() {
                      <button onClick={startGame} disabled={groups.length === 0} className="w-full py-5 bg-[#2c49c5] text-white font-black rounded-3xl shadow-xl shadow-[#2c49c5]/30 disabled:opacity-20 transition-all hover:bg-[#1a34a8] flex items-center justify-center text-xl tracking-tight"><Play className="mr-3 fill-current w-6 h-6"/> MULAI MISI SEKARANG</button>
                   ) : (
                      <div className="grid grid-cols-2 gap-5">
-                        <Link href="/board?role=guru" target="_blank" className="py-5 text-center bg-white border-2 border-slate-100 hover:border-[#2c49c5] text-[#2c49c5] font-black rounded-3xl transition-all flex items-center justify-center gap-2 shadow-xl shadow-slate-100">
+                        <Link href={`/board?roomCode=${roomCode}&role=guru`} className="py-5 text-center bg-white border-2 border-slate-100 hover:border-[#2c49c5] text-[#2c49c5] font-black rounded-3xl transition-all flex items-center justify-center gap-2 shadow-xl shadow-slate-100">
                            BUKA PAPAN LAYAR 
                         </Link>
                         <button onClick={endGame} className="py-5 text-center bg-red-50 text-red-600 hover:bg-red-600 hover:text-white border-2 border-red-100 font-black rounded-3xl transition-all shadow-xl shadow-red-100">

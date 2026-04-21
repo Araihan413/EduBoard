@@ -16,6 +16,25 @@ interface TileInfo {
   y: number;
 }
 
+const getTileIcon = (type: string) => {
+  switch (type) {
+    case "DASAR": return <BookOpen className="w-8 h-8 text-blue-50/40" />;
+    case "AKSI": return <Target className="w-8 h-8 text-red-50/40" />;
+    case "TANTANGAN": return <Flame className="w-8 h-8 text-orange-50/40" />;
+    case "SKIP": return <Moon className="w-8 h-8 text-slate-200" />;
+    default: return null;
+  }
+};
+
+const getTileColor = (type: string) => {
+  switch (type) {
+    case "SKIP": return "bg-zinc-100 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700";
+    case "AKSI": return "bg-red-500 dark:bg-red-600 border-red-400 dark:border-red-500";
+    case "TANTANGAN": return "bg-orange-500 dark:bg-orange-600 border-orange-400 dark:border-orange-500";
+    default: return "bg-blue-500 dark:bg-blue-600 border-blue-400 dark:border-blue-500";
+  }
+};
+
 export default function BoardCanvas({ groups }: BoardCanvasProps) {
   const [tileSize, setTileSize] = useState(70);
   const gap = 10;
@@ -221,7 +240,9 @@ function PlayerPion({ group, gIdx, tiles, tileSize, gap, startPos }: {
           gIdx === 0 ? "bg-[#2c49c5]" : gIdx === 1 ? "bg-red-500" : gIdx === 2 ? "bg-purple-500" : "bg-emerald-500"
         }`}
         title={group.name}
-      />
+      >
+         <div className="absolute inset-0 bg-white/10 rounded-xl" />
+      </div>
     </motion.div>
   );
 }

@@ -33,6 +33,14 @@ export interface PendingReview {
   type: QuestionType;
 }
 
+export interface AnswerResult {
+  type: 'SUCCESS' | 'FAILURE' | 'NEUTRAL';
+  title: string;
+  message: string;
+  points: number;
+  groupName: string;
+}
+
 export interface RoomConfig {
   gameDurationSec: number;
   turnDurationDasar: number;
@@ -73,6 +81,7 @@ interface GameState {
   winner: Group | null;
   logs: string[];
   myGroupName: string | null;
+  lastResult: AnswerResult | null;
 
   createRoom: (config: RoomConfig) => void;
   joinRoom: (roomCode: string, name: string) => void;
@@ -93,6 +102,7 @@ interface GameState {
   rollDice: () => void;
   nextTurn: () => void;
   decrementTimer: () => void;
+  clearLastResult: () => void;
   
   // Sync
   setStateFromSync: (state: Partial<GameState>) => void;
@@ -222,8 +232,9 @@ export const useGameStore = create<GameState>((set, get) => {
     ],
     
     winner: null,
-    logs: ["Sistem sedia... menunggu konfigurasi room."],
+    logs: [],
     myGroupName: null,
+    lastResult: null,
 
     setStateFromSync: (newState) => set(newState),
 
@@ -368,7 +379,6 @@ export const useGameStore = create<GameState>((set, get) => {
         }
       } else if (card.type === 'AKSI') {
         earnedPoints = card.points;
-        stepsToMove = 0; // Removed automatic +/- 2 steps bonus
         logMsg = `(AKSI) ${groupName} mengeksekusi instruksi aksi.`;
       }
       
@@ -389,14 +399,27 @@ export const useGameStore = create<GameState>((set, get) => {
 
       // No winner check here anymore, we wait for timer to run out.
 
-      // Auto next turn after 2 seconds
+      // Auto next turn after 5 seconds
       setTimeout(() => {
          get().nextTurn();
-      }, 2000);
+      }, 5000);
 
       return {
         groups: newGroups,
         currentCard: null,
+        lastResult: card.type === 'DASAR' ? {
+          type: answer === card.answerKey ? 'SUCCESS' : 'FAILURE',
+          title: answer === card.answerKey ? 'BENAR!' : 'SALAH!',
+          message: answer === card.answerKey ? `Kamu mendapatkan ${earnedPoints} poin.` : `Jawaban yang benar adalah: ${card.answerKey}`,
+          points: earnedPoints,
+          groupName
+        } : {
+          type: 'SUCCESS',
+          title: 'BERHASIL!',
+          message: 'Instruksi aksi telah dijalankan.',
+          points: earnedPoints,
+          groupName
+        },
         // isTimerRunning remains true for global timer
         logs: [logMsg, ...(state.logs || [])]
       };
@@ -458,7 +481,14 @@ export const useGameStore = create<GameState>((set, get) => {
       return {
         groups: newGroups,
         pendingReviews: cleanedReviews,
-        logs: [logMsg, ...(state.logs || [])]
+        lastResult: {
+          type: score >= review.maxPoints ? 'SUCCESS' : score > 0 ? 'NEUTRAL' : 'FAILURE',
+          title: score >= review.maxPoints ? 'SEMPURNA!' : score > 0 ? 'BAGUS!' : 'KURANG TEPAT!',
+          message: `Nilai: ${score}/${review.maxPoints} poin.`,
+          points: score,
+          groupName: review.groupName
+        },
+        logs: [logMsg, ...state.logs]
       };
     }),
 
@@ -480,7 +510,8 @@ export const useGameStore = create<GameState>((set, get) => {
         currentTurn: state.currentTurn + 1,
         currentCard: null,
         timer: 0,
-        isTimerRunning: false
+        isTimerRunning: false,
+        lastResult: null
       };
     }),
 
@@ -563,6 +594,10 @@ export const useGameStore = create<GameState>((set, get) => {
           syncSet({ isTimerRunning: false });
         }
       }
+    },
+
+    clearLastResult: () => {
+      syncSet({ lastResult: null });
     }
 
   };

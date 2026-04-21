@@ -9,6 +9,7 @@ import {
   type QuestionCard,
   type Group,
   type PendingReview,
+  type AnswerResult,
 } from "../../../store/gameStore";
 import {
   Timer,
@@ -21,6 +22,9 @@ import {
   Flame,
   Moon,
   Info,
+  CheckCircle2,
+  XCircle,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -31,16 +35,57 @@ const BoardCanvas = dynamic(
   { ssr: false },
 );
 
-// ─── Card Animation State Machine ─────────────────────────────────────────────
-//
-//  idle       → deck looks normal, no card active
-//  drawing    → top card lifts from deck → flies to center (back face shown)
-//  revealed   → card at center, flips to front (question visible, NO blur)
-//  returning  → card flips back to back → slides back to deck bottom
-//
+const TeacherReviewPanel = dynamic(
+  () => import("../../../components/game/TeacherReviewPanel"),
+  { ssr: false },
+);
+
+const ResultNotification = ({ result, onClose }: { result: AnswerResult; onClose: () => void }) => {
+  const isSuccess = result.type === 'SUCCESS';
+  const isFailure = result.type === 'FAILURE';
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.8, y: 50 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.8, y: 50 }}
+      className="fixed inset-0 z-[200] flex items-center justify-center p-6 pointer-events-none"
+    >
+      <div className="bg-white/95 backdrop-blur-3xl border-2 border-slate-100 rounded-[2.5rem] p-10 shadow-[0_40px_100px_rgba(0,0,0,0.15)] flex flex-col items-center max-w-sm w-full text-center relative overflow-hidden pointer-events-auto">
+        <button 
+          onClick={onClose}
+          className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        <div className={`absolute inset-0 opacity-10 blur-3xl pointer-events-none ${isSuccess ? 'bg-emerald-500' : isFailure ? 'bg-red-500' : 'bg-blue-500'}`} />
+        
+        <div className={`w-24 h-24 rounded-3xl flex items-center justify-center mb-8 border-4 border-white shadow-2xl ${isSuccess ? 'bg-emerald-500' : isFailure ? 'bg-red-500' : 'bg-blue-500'}`}>
+          {isSuccess ? <CheckCircle2 className="w-12 h-12 text-white" /> : isFailure ? <XCircle className="w-12 h-12 text-white" /> : <Award className="w-12 h-12 text-white" />}
+        </div>
+        
+        <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400 mb-2">{result.groupName}</p>
+        <h2 className={`text-4xl font-black tracking-tighter mb-4 ${isSuccess ? 'text-emerald-600' : isFailure ? 'text-red-600' : 'text-blue-600'}`}>
+          {result.title}
+        </h2>
+        <p className="text-lg font-bold text-slate-600 leading-relaxed mb-6">
+          {result.message}
+        </p>
+        
+        <div className="bg-slate-50 px-6 py-3 rounded-2xl border border-slate-100">
+          <span className="text-xs font-black text-slate-400 uppercase tracking-widest mr-2">POIN DIDAPAT:</span>
+          <span className={`text-xl font-black ${isSuccess ? 'text-emerald-600' : 'text-slate-900'}`}>{result.points > 0 ? `+${result.points}` : result.points}</span>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// Card Animation State Machine
 type CardPhase = "idle" | "drawing" | "revealed" | "returning";
 
-// ─── Wrapper for Suspense ──────────────────────────────────────────────────────
+// Wrapper for Suspense
 export default function BoardPageWrapper() {
   return (
     <Suspense
@@ -56,9 +101,8 @@ export default function BoardPageWrapper() {
   );
 }
 
-// ─── Main Board Page ───────────────────────────────────────────────────────────
+// Main Board Page
 function BoardPage() {
-  // ... (keep state logic same)
   const searchParams = useSearchParams();
   const role = searchParams?.get("role") || "siswa";
 
@@ -85,12 +129,13 @@ function BoardPage() {
     diceValue,
     isMoving,
     joinRoom,
-    createRoom,
+    lastResult,
+    clearLastResult,
   } = useGameStore();
 
   const [tantanganText, setTantanganText] = useState("");
 
-  // ── State Machine ──────────────────────────────────────────────────────────
+  // State Machine
   const [stickyCardData, setStickyCardData] = useState<QuestionCard | null>(null);
   const [cardPhase, setCardPhase] = useState<CardPhase>("idle");
   const cardPhaseRef = useRef<CardPhase>("idle");
@@ -124,7 +169,6 @@ function BoardPage() {
     }
   }, [currentCard]);
 
-  // ── Confetti ───────────────────────────────────────────────────────────────
   useEffect(() => {
     if (gameStatus !== "FINISHED") return;
     const end = Date.now() + 3000;
@@ -136,7 +180,6 @@ function BoardPage() {
     frame();
   }, [gameStatus]);
 
-  // ── Auto Rejoin ────────────────────────────────────────────────────────────
   useEffect(() => {
     const queryRoom = searchParams?.get("roomCode");
     const queryRole = searchParams?.get("role");
@@ -154,6 +197,16 @@ function BoardPage() {
       }
     }
   }, [searchParams, roomCode, joinRoom]);
+
+  // Auto-clear last result
+  useEffect(() => {
+    if (lastResult) {
+      const t = setTimeout(() => {
+        clearLastResult();
+      }, 2000);
+      return () => clearTimeout(t);
+    }
+  }, [lastResult, clearLastResult]);
 
   const activeGroup = groups[activeGroupIndex];
   const isUnderReview = pendingReviews.some((r) => r.groupId === activeGroup?.id);
@@ -179,7 +232,6 @@ function BoardPage() {
         <p className="text-slate-500 max-w-sm font-medium leading-relaxed">
           Menunggu Guru untuk mengklik &quot;Mulai Permainan&quot; di Dashboard.
         </p>
-        
         {role === "guru" && (
           <Link href="/dashboard" className="mt-10 px-8 py-3 bg-[#2c49c5] text-white font-black rounded-2xl shadow-xl shadow-[#2c49c5]/20 hover:scale-105 transition-all">
             Ke Dashboard Guru
@@ -217,6 +269,16 @@ function BoardPage() {
           <span className="text-[#2c49c5] font-mono tracking-widest">{roomCode}</span>
         </div>
 
+        {/* Monitoring Mode Badge (Centered) */}
+        {role === "guru" && (
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2 bg-blue-50 border border-blue-100 px-4 py-1.5 rounded-full shadow-sm animate-pulse z-10">
+            <div className="w-1.5 h-1.5 bg-[#2c49c5] rounded-full" />
+            <span className="text-[9px] font-black text-[#2c49c5] uppercase tracking-[0.2em] whitespace-nowrap">
+              📡 Mode Memantau
+            </span>
+          </div>
+        )}
+
         {activeGroup && (
           <div className="flex items-center gap-10">
             {/* Answer Timer */}
@@ -239,7 +301,7 @@ function BoardPage() {
             </AnimatePresence>
 
             <div className="flex flex-col items-center">
-              <span className="text-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Gilirin Aktif</span>
+              <span className="text-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Giliran Aktif</span>
               <div className="flex items-center gap-4 bg-white px-5 py-2 rounded-2xl border border-slate-100 shadow-sm">
                 <div className="w-2.5 h-2.5 rounded-full bg-[#ffda59] shadow-[0_0_8px_#ffda59] animate-pulse" />
                 <span className="font-black text-lg tracking-tight text-[#2c49c5]">{activeGroup.name}</span>
@@ -301,7 +363,7 @@ function BoardPage() {
           </div>
 
           {/* Leaderboard */}
-          <div className="bg-white border-2 border-slate-100 p-8 rounded-[3rem] shadow-2xl shadow-slate-200/50 flex-1 pb-10">
+          <div className="bg-white border-2 border-slate-100 p-8 rounded-[3rem] shadow-2xl shadow-slate-200/50 flex-1 pb-10 overflow-hidden">
             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-8 flex items-center gap-2">
                <Award className="w-4 h-4 text-[#ffda59]" /> Papan Skor
             </h3>
@@ -330,7 +392,7 @@ function BoardPage() {
         </div>
 
         {/* Center Board Area */}
-        <div className="flex-1 relative flex items-center justify-center min-h-[600px] bg-white rounded-[4rem] border border-slate-50 shadow-inner">
+        <div className="flex-1 relative flex items-center justify-center min-h-[600px] bg-white rounded-[4rem] border border-slate-50 shadow-inner overflow-hidden">
           <BoardCanvas groups={groups} />
           
           {/* Floating UI Elements on Board */}
@@ -349,7 +411,7 @@ function BoardPage() {
           </div>
 
           <AnimatePresence>
-            {gameStatus === "PLAYING" && !currentCard && timer > 0 && !isUnderReview && !isCardActive && (
+            {gameStatus === "PLAYING" && !currentCard && timer > 0 && !isUnderReview && !isCardActive && !lastResult && (
               <motion.div
                 key="turn-indicator"
                 initial={{ opacity: 0, y: -20 }}
@@ -410,7 +472,7 @@ function BoardPage() {
                 animate={{ opacity: 1 }}
                 className="absolute inset-0 flex flex-col items-center justify-center p-12 bg-white/98 backdrop-blur-2xl z-[100] text-center"
               >
-                 {/* Yellow Detail Detail */}
+                 {/* Yellow Detail */}
                 <div className="absolute top-0 left-0 w-full h-3 bg-[#ffda59]" />
 
                 <div className="relative group mb-12">
@@ -501,28 +563,20 @@ function BoardPage() {
         gradeSubjektif={gradeSubjektif}
         pendingReviews={pendingReviews}
       />
-    </div>
-  );
-}
 
-      {/* ── Card Overlay (the animated drawn card) ──────────────────────────── */}
-      <CardOverlay
-        phase={cardPhase}
-        displayCard={displayCard}
-        currentCard={currentCard}
-        isUnderReview={isUnderReview}
-        isTimerRunning={isTimerRunning}
-        timer={timer}
-        role={role}
-        activeGroup={activeGroup}
-        myGroupName={myGroupName}
-        tantanganText={tantanganText}
-        setTantanganText={setTantanganText}
-        submitAnswerObjektif={submitAnswerObjektif}
-        submitAnswerSubjektif={submitAnswerSubjektif}
-        gradeSubjektif={gradeSubjektif}
-        pendingReviews={pendingReviews}
-      />
+      <AnimatePresence>
+        {lastResult && (
+          <ResultNotification result={lastResult} onClose={clearLastResult} />
+        )}
+      </AnimatePresence>
+
+      {/* Real-time Teacher Review Panel */}
+      {role === "guru" && (
+        <TeacherReviewPanel 
+          pendingReviews={pendingReviews} 
+          onGrade={gradeSubjektif} 
+        />
+      )}
     </div>
   );
 }
@@ -554,20 +608,19 @@ function PhysicalDeck({
         <CardBackFace type={type} />
       </div>
 
-      {/* Top card */}
+      {/* Top card animate */}
       <motion.div
         className="absolute inset-0 rounded-[20px] overflow-hidden shadow-xl"
         animate={isDrawn ? { opacity: 0, y: -12, scale: 0.95 } : { opacity: 1, y: 0, scale: 1 }}
         transition={isDrawn
           ? { duration: 0.3, ease: "easeOut" }
-          : { duration: 0.45, ease: [0.34, 1.56, 0.64, 1] }
+          : { duration: 0.45, ease: [0.34, 1.56, 0.64, 1] as any }
         }
         style={{ boxShadow: isDrawn ? 'none' : `0 15px 35px -5px ${accent.glow}` }}
       >
         <CardBackFace type={type} />
       </motion.div>
 
-      {/* Label above */}
       <div className="absolute -top-6 left-0 right-0 flex items-center justify-center gap-2">
         <span className={`text-[10px] font-black uppercase tracking-[0.3em] ${accent.text}`}>{label}</span>
       </div>
@@ -603,8 +656,6 @@ function CardBackFace({ type }: { type: string }) {
   );
 }
 
-// ─── Card Overlay ──────────────────────────────────────────────────────────────
-// Handles the full animation: draw → flip to reveal → flip back → return
 interface CardOverlayProps {
   phase: CardPhase;
   displayCard: QuestionCard | null;
@@ -667,9 +718,9 @@ function CardOverlay({
   };
 
   const getPositionTransition = () => {
-    if (phase === "drawing") return { duration: 0.6, ease: [0.34, 1.56, 0.64, 1] };
-    if (phase === "returning") return { duration: 0.5, ease: "easeInOut", delay: 0.2 };
-    return { duration: 0.3 };
+    if (phase === "drawing") return { duration: 0.6, ease: [0.34, 1.56, 0.64, 1] } as any;
+    if (phase === "returning") return { duration: 0.5, ease: "easeInOut", delay: 0.2 } as any;
+    return { duration: 0.3 } as any;
   };
 
   return (
@@ -713,7 +764,7 @@ function CardOverlay({
                 <div
                   className="absolute inset-0 bg-white border-4 border-slate-100 rounded-[3rem] flex flex-col items-center justify-center overflow-hidden shadow-[0_50px_100px_-20px_rgba(0,0,0,0.25)]"
                 >
-                   {/* Detail Pola */}
+                   {/* Pattern Detail */}
                   <div className="absolute inset-10 border-2 border-slate-50 rounded-[2rem] flex flex-col items-center justify-center">
                      <div className={`w-24 h-24 rounded-[2rem] shadow-2xl flex items-center justify-center mb-6 ${
                         cardType === "DASAR" ? "bg-[#2c49c5]" :
@@ -763,7 +814,6 @@ function CardOverlay({
   );
 }
 
-// ─── Card Front Face (Question Content) ───────────────────────────────────────
 function CardFrontFace({
   cardType,
   displayCard,
@@ -811,13 +861,11 @@ function CardFrontFace({
     <div
       className="absolute inset-0 bg-white rounded-[3rem] flex flex-col p-10 overflow-hidden shadow-[0_50px_100px_-20px_rgba(0,0,0,0.3)] border-b-8 border-slate-100"
     >
-      {/* Corner accent triangle */}
       <div
         className={`absolute top-0 right-0 w-32 h-32 ${accentCorner} opacity-90`}
         style={{ clipPath: "polygon(0 0, 100% 0, 100% 100%)" }}
       />
 
-      {/* Floating Timer Badge */}
       {isTimerRunning && !isUnderReview && (
         <div className="absolute top-6 right-6 z-20 flex flex-col items-center">
            <div className={`flex items-center justify-center w-14 h-14 rounded-full border-4 border-white shadow-2xl ${timer <= 5 ? 'bg-red-500 animate-pulse' : 'bg-slate-950'}`}>
@@ -828,7 +876,6 @@ function CardFrontFace({
       )}
 
       <div className="flex-1 flex flex-col relative z-10 min-h-0">
-        {/* Header */}
         <div className="mb-8 pb-6 border-b border-slate-100">
           <p className={`text-[10px] font-black uppercase tracking-[0.4em] mb-2 ${accentText}`}>
             {isUnderReview ? "KONFIRMASI GURU" : `MISI ${cardType}`}
@@ -841,7 +888,6 @@ function CardFrontFace({
           )}
         </div>
 
-        {/* Body Content */}
         <div className="flex-1 overflow-y-auto min-h-0 pr-2 scrollbar-hide">
           {isUnderReview ? (
             <div className="space-y-8">
@@ -870,7 +916,6 @@ function CardFrontFace({
                 &ldquo;{displayCard?.text}&rdquo;
               </p>
 
-              {/* Interaction Panel */}
               {role === "siswa" && activeGroup?.name === myGroupName && (
                 <div className="mt-8 pt-8 border-t border-slate-100">
                   {currentCard?.type === "DASAR" && currentCard.options ? (
@@ -919,7 +964,6 @@ function CardFrontFace({
                 </div>
               )}
 
-              {/* Observer State */}
               {(role === "guru" || activeGroup?.name !== myGroupName) && (
                 <div className="mt-8 bg-[#2c49c5]/5 border-2 border-[#2c49c5]/10 p-10 rounded-[2.5rem] text-center group">
                   <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-blue-500/10 border border-blue-50 group-hover:scale-110 transition-transform">
@@ -933,7 +977,6 @@ function CardFrontFace({
           )}
         </div>
 
-        {/* Footer Grading Panel (Teacher only) */}
         {isUnderReview && (
           <div className="mt-8 pt-8 border-t border-slate-100">
             {role === "guru" ? (
@@ -980,8 +1023,6 @@ function CardFrontFace({
     </div>
   );
 }
-
-// ─── Sub-components ────────────────────────────────────────────────────────────
 
 function LegendItem({
   icon,
@@ -1037,7 +1078,7 @@ function Dice({
     return () => clearInterval(interval);
   }, [isRolling]);
 
-  const displayValue = isRolling ? shuffleValue : value;
+  const displayValue = isRolling ? shuffleValue : (value || 1);
 
   return (
     <div
@@ -1069,12 +1110,12 @@ function Dice({
         className="relative w-full h-full z-10"
         style={{ transformStyle: "preserve-3d" }}
       >
-        <DieFace val={1} size={size} transform={`translateZ(${size / 2}px)`} />
-        <DieFace val={6} size={size} transform={`rotateY(180deg) translateZ(${size / 2}px)`} />
-        <DieFace val={2} size={size} transform={`rotateY(90deg) translateZ(${size / 2}px)`} />
-        <DieFace val={5} size={size} transform={`rotateY(-90deg) translateZ(${size / 2}px)`} />
-        <DieFace val={3} size={size} transform={`rotateX(90deg) translateZ(${size / 2}px)`} />
-        <DieFace val={4} size={size} transform={`rotateX(-90deg) translateZ(${size / 2}px)`} />
+        <DieFace val={1} transform={`translateZ(${size / 2}px)`} />
+        <DieFace val={6} transform={`rotateY(180deg) translateZ(${size / 2}px)`} />
+        <DieFace val={2} transform={`rotateY(90deg) translateZ(${size / 2}px)`} />
+        <DieFace val={5} transform={`rotateY(-90deg) translateZ(${size / 2}px)`} />
+        <DieFace val={3} transform={`rotateX(90deg) translateZ(${size / 2}px)`} />
+        <DieFace val={4} transform={`rotateX(-90deg) translateZ(${size / 2}px)`} />
       </motion.div>
 
       <motion.div
@@ -1091,7 +1132,7 @@ function Dice({
   );
 }
 
-function DieFace({ val, size, transform }: { val: number; size: number; transform: string }) {
+function DieFace({ val, transform }: { val: number; transform: string }) {
   const dotPositions: Record<number, number[]> = {
     1: [4],
     2: [0, 8],
@@ -1119,4 +1160,3 @@ function DieFace({ val, size, transform }: { val: number; size: number; transfor
     </div>
   );
 }
-

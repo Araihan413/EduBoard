@@ -1,20 +1,24 @@
-import { useEffect, useRef } from "react";
+"use client";
+
+import { useEffect, useState } from "react";
 import { io, Socket } from "socket.io-client";
 
 export const useSocket = () => {
-  const socketRef = useRef<Socket | null>(null);
+  const [socket, setSocket] = useState<Socket | null>(null);
 
   useEffect(() => {
-    socketRef.current = io("http://localhost:4000");
+    const socketInstance = io(process.env.NEXT_PUBLIC_WS_URL || "http://localhost:4000");
 
-    socketRef.current.on("connect", () => {
-      console.log("Connected to API Server:", socketRef.current?.id);
+    socketInstance.on("connect", () => {
+      console.log("Connected to API Server:", socketInstance.id);
     });
 
+    Promise.resolve().then(() => setSocket(socketInstance));
+
     return () => {
-      socketRef.current?.disconnect();
+      socketInstance.disconnect();
     };
   }, []);
 
-  return socketRef.current;
+  return socket;
 };

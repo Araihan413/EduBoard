@@ -1,62 +1,62 @@
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-
-export default function LoginPage() {
-  return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-white bg-grid p-6 relative overflow-hidden">
-      {/* Decorative ambient light */}
-      <div className="absolute top-0 right-0 w-96 h-96 bg-[#2c49c5]/5 blur-[120px] rounded-full -mr-48 -mt-48" />
-      <div className="absolute bottom-0 left-0 w-96 h-96 bg-[#ffda59]/10 blur-[120px] rounded-full -ml-48 -mb-48" />
-
-      <div className="w-full max-w-md relative z-10">
-        <div className="bg-white p-10 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.1)] border border-slate-50">
-          <div className="mb-10 text-center">
-            <div className="w-16 h-16 bg-[#2c49c5] rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-blue-500/20">
-              <span className="text-white font-black text-2xl">E</span>
+ import { ArrowLeft, Sparkles, KeyRound } from "lucide-react";
+ 
+ export default function LoginPage() {
+   return (
+     <div className="flex min-h-screen flex-col items-center bg-transparent p-6 pt-30 relative overflow-hidden">
+       {/* Decorative elements */}
+       <div className="absolute top-[-5%] left-[-5%] w-[30%] h-[30%] bg-[#2c49c5]/5 blur-[100px] rounded-full pointer-events-none" />
+       <div className="absolute bottom-[-5%] right-[-5%] w-[30%] h-[30%] bg-[#ffda59]/5 blur-[100px] rounded-full pointer-events-none" />
+ 
+       <div className="w-full max-w-lg bg-white p-12 rounded-[2rem] shadow-2xl shadow-slate-200/50 border border-slate-100 relative z-10">
+         <Link href="/" className="inline-flex items-center text-sm font-black text-slate-400 hover:text-[#2c49c5] mb-10 transition-all group uppercase tracking-widest">
+           <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
+           Kembali ke Beranda
+         </Link>
+ 
+         <div className="flex items-center gap-4 mb-8">
+            <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center border border-blue-100">
+                <KeyRound className="w-6 h-6 text-[#2c49c5]" />
             </div>
-            <h1 className="text-3xl font-black tracking-tight text-slate-900 mb-2">
-              EduBoard Admin
-            </h1>
-            <p className="text-sm font-medium text-slate-500">
-              Masuk untuk mengelola permainan Anda
-            </p>
-          </div>
-
-          <form className="space-y-6">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email Kredensial</label>
-              <input 
-                type="email" 
-                className="w-full h-14 px-6 rounded-2xl border-2 border-slate-100 bg-white text-base font-bold placeholder:text-slate-300 focus:outline-none focus:border-[#2c49c5] focus:ring-8 focus:ring-[#2c49c5]/5 transition-all" 
-                placeholder="admin@eduboard.com"
-              />
+            <div className="space-y-1">
+              <h1 className="text-3xl font-black tracking-tight text-slate-900">
+                Akses Guru
+              </h1>
+              <p className="text-sm text-slate-500 font-medium">
+                Masuk untuk mengelola misi dan game board.
+              </p>
             </div>
-
-            <div className="space-y-2">
-              <div className="flex justify-between items-center ml-1">
-                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Kata Sandi</label>
-                 <a href="#" className="text-[10px] font-black text-[#2c49c5] uppercase tracking-widest hover:underline">Lupa?</a>
-              </div>
-              <input 
-                type="password" 
-                className="w-full h-14 px-6 rounded-2xl border-2 border-slate-100 bg-white text-base font-bold placeholder:text-slate-300 focus:outline-none focus:border-[#2c49c5] focus:ring-8 focus:ring-[#2c49c5]/5 transition-all" 
-                placeholder="••••••••"
-              />
-            </div>
-
-            <button 
-              type="submit"
-              className="w-full h-14 mt-4 bg-[#2c49c5] text-white font-black rounded-2xl shadow-xl shadow-blue-500/20 hover:bg-[#1a34a8] hover:-translate-y-1 active:translate-y-0 transition-all text-sm tracking-widest uppercase border-b-4 border-blue-900"
-            >
-              MASUK KE DASHBOARD &rarr;
-            </button>
-          </form>
-
-          <p className="mt-10 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">
-            Hanya untuk Guru / Admin
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
+         </div>
+ 
+         <form className="space-y-8" action="/dashboard">
+           <div className="space-y-3">
+             <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] pl-2">Alamat Email Resmi</label>
+             <input 
+               type="email" 
+               placeholder="guru@sekolah.com"
+               required
+               className="w-full h-14 px-6 rounded-xl border-2 border-slate-100 bg-slate-50 text-slate-900 font-bold placeholder:text-slate-300 focus:outline-none focus:border-[#2c49c5] focus:bg-white focus:ring-4 focus:ring-blue-50 transition-all shadow-inner" 
+             />
+           </div>
+           <div className="space-y-3">
+             <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] pl-2">Kata Sandi</label>
+             <input 
+               type="password" 
+               placeholder="••••••••"
+               required
+               className="w-full h-14 px-6 rounded-xl border-2 border-slate-100 bg-slate-50 text-slate-900 font-bold placeholder:text-slate-300 focus:outline-none focus:border-[#2c49c5] focus:bg-white focus:ring-4 focus:ring-blue-50 transition-all shadow-inner" 
+             />
+           </div>
+           <div className="pt-2">
+             <button 
+               type="submit" 
+               className="w-full h-16 inline-flex items-center justify-center rounded-xl bg-[#2c49c5] text-white text-lg font-black hover:bg-[#1a34a8] shadow-xl shadow-[#2c49c5]/30 transition-all hover:scale-[1.02] active:scale-[0.98] tracking-tight"
+             >
+               MASUK KE DASHBOARD <Sparkles className="ml-3 w-5 h-5 text-[#ffda59]" />
+             </button>
+           </div>
+         </form>
+       </div>
+     </div>
+   );
+ }
