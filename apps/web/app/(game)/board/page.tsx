@@ -25,6 +25,12 @@ import {
   CheckCircle2,
   XCircle,
   X,
+  HelpCircle,
+  AlertCircle,
+  Clock,
+  LayoutDashboard,
+  Trophy,
+  ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -91,6 +97,7 @@ function BoardPage() {
   } = useGameStore();
 
   const [tantanganText, setTantanganText] = useState("");
+  const [isInfoOpen, setIsInfoOpen] = useState(false);
 
   // State Machine
   const [stickyCardData, setStickyCardData] = useState<QuestionCard | null>(null);
@@ -203,272 +210,215 @@ function BoardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-transparent flex flex-col font-sans select-none overflow-hidden relative">
-      <div className={`absolute -top-32 -left-32 w-96 h-96 rounded-full blur-[120px] pointer-events-none transition-colors duration-1000 ${
-        isCardActive ? "bg-orange-600/15" :
-        activeGroupIndex === 0 ? "bg-blue-600/15" :
-        activeGroupIndex === 1 ? "bg-red-600/15" : "bg-purple-600/15"
+    <div className="h-screen bg-table-bright flex flex-col font-sans select-none overflow-hidden relative">
+      {/* Dynamic Background Glow based on Active Group */}
+      <div className={`absolute inset-0 pointer-events-none transition-colors duration-1000 opacity-20 blur-[150px] ${
+        isCardActive ? "bg-orange-400" :
+        activeGroupIndex === 0 ? "bg-blue-400" :
+        activeGroupIndex === 1 ? "bg-red-400" : "bg-purple-400"
       }`} />
 
-      <header className="h-16 flex items-center justify-between px-6 bg-white/90 backdrop-blur-md border-b border-slate-100 shadow-sm text-slate-900 relative">
-        <div className="flex bg-slate-50 px-4 py-2 rounded-xl text-sm font-semibold tracking-wide border border-slate-200">
-          <span className="text-slate-400 mr-2">ROOM</span>
-          <span className="text-[#2c49c5]">{roomCode}</span>
+      {/* 1. TOP HUD (Corner Modules) */}
+      <div className="fixed top-6 left-6 right-6 flex items-start justify-between pointer-events-none z-50">
+        {/* Left Module: Room Info & Monitoring */}
+        <div className="flex flex-col gap-2 pointer-events-auto">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3 bg-white/70 backdrop-blur-xl px-4 py-2 rounded-2xl border border-white/50 shadow-lg">
+              <div className="flex flex-col">
+                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Room Code</span>
+                <span className="text-sm font-black text-[#2c49c5] leading-none tracking-tight">{roomCode}</span>
+              </div>
+              {role === "guru" && <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />}
+            </div>
+            
+            <button 
+              onClick={() => setIsInfoOpen(true)}
+              className="w-10 h-10 bg-white/70 backdrop-blur-xl rounded-2xl flex items-center justify-center text-slate-400 hover:text-blue-500 hover:bg-white transition-all border border-white/50 shadow-lg group"
+            >
+              <Info className="w-5 h-5 transition-transform group-hover:scale-110" />
+            </button>
+          </div>
+          
+          {role === "guru" && (
+            <div className="bg-blue-500/10 backdrop-blur-md px-3 py-1.5 rounded-xl border border-blue-500/20 inline-flex items-center gap-2 w-fit">
+              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full" />
+              <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest">Monitoring Mode</span>
+            </div>
+          )}
         </div>
 
-        {/* Monitoring Mode Badge (Centered) */}
-        {role === "guru" && (
-          <div className="absolute left-1/2 top-20 -translate-x-1/2 flex items-center gap-2 bg-blue-50 border border-blue-100 px-4 py-1.5 rounded-full shadow-sm animate-pulse z-10">
-            <div className="w-1.5 h-1.5 bg-[#2c49c5] rounded-full" />
-            <span className="text-[9px] font-black text-[#2c49c5] uppercase tracking-[0.2em] whitespace-nowrap">
-              📡 Mode Memantau
-            </span>
-          </div>
-        )}
-
-        {activeGroup && (
-          <div className="flex items-center gap-6">
-            <AnimatePresence>
-              {isTimerRunning && (
-                <motion.div 
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  className="flex flex-col items-center border-r border-slate-200 pr-6 mr-6"
-                >
-                  <span className="text-[10px] font-black text-orange-500 uppercase tracking-widest mb-1 italic">Selesaikan Soal!</span>
-                  <div className="flex items-center gap-2">
-                    <span className={`text-2xl font-black font-mono transition-colors ${timer <= 5 ? 'text-red-500 animate-pulse' : 'text-orange-500'}`}>
-                      {timer}<span className="text-xs ml-0.5">s</span>
-                    </span>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <div className="flex flex-col items-center">
-              <span className="text-center text-xs font-bold text-slate-400 uppercase tracking-widest px-2">Giliran</span>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-emerald-500 animate-[pulse_1.5s_ease-in-out_infinite]" />
-                <span className="font-extrabold text-base tracking-wide text-slate-900">{activeGroup.name}</span>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-center bg-slate-900 px-6 py-2 rounded-xl border-2 border-slate-800 relative overflow-hidden shadow-xl min-w-[130px]">
-              <Timer className={`w-5 h-5 mr-3 ${globalTimer <= 60 && globalTimer > 0 ? "text-red-500 animate-pulse" : "text-slate-400"}`} />
-              <span className={`text-2xl font-mono font-black ${globalTimer <= 60 && globalTimer > 0 ? "text-red-500" : "text-white"}`}>
+        {/* Right Module: Game Status & Controls */}
+        <div className="flex items-start gap-3 pointer-events-auto">
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex items-center bg-slate-900/90 backdrop-blur-xl px-4 py-2 rounded-2xl border border-slate-800 shadow-xl">
+              <Timer className={`w-4 h-4 mr-2.5 ${globalTimer <= 60 && globalTimer > 0 ? "text-red-500 animate-pulse" : "text-slate-400"}`} />
+              <span className={`text-lg font-mono font-black ${globalTimer <= 60 && globalTimer > 0 ? "text-red-500" : "text-white"}`}>
                 {formatTime(globalTimer)}
               </span>
-              {isGlobalTimerRunning && (
-                <div
-                  className="absolute bottom-0 left-0 h-1 bg-gradient-to-r from-[#2c49c5] to-[#ffda59] transition-all duration-1000 ease-linear"
-                  style={{ width: `${(globalTimer / (roomConfig?.gameDurationSec || 600)) * 100}%` }}
-                />
-              )}
             </div>
-          </div>
-        )}
-
-        {role === "guru" ? (
-          <Link href="/dashboard" className="flex items-center px-4 py-2 hover:bg-yellow-500/10 rounded-full text-yellow-500 transition-colors border border-transparent hover:border-yellow-500/20 font-bold text-sm">
-            &larr; DASHBOARD
-          </Link>
-        ) : (
-          <Link href="/lobby" className="hover:bg-red-500/10 p-3 rounded-full text-zinc-500 hover:text-red-400 transition-colors border border-transparent hover:border-red-500/20">
-            <LogOut className="w-5 h-5" />
-          </Link>
-        )}
-      </header>
-
-      <div className="flex-1 flex flex-col xl:flex-row w-full relative z-10 p-4 lg:p-6 pr-6 lg:pr-10 gap-4 lg:gap-6 overflow-x-hidden overflow-y-auto xl:overflow-hidden">
-        <div className="w-full xl:w-64 flex flex-col gap-4 relative h-max">
-           <div className="relative group/legend">
-             <button className="flex items-center gap-4 bg-white border border-slate-100 px-5 py-3 rounded-2xl shadow-sm hover:border-[#2c49c5] transition-all group">
-               <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-blue-50 group-hover:text-[#2c49c5] transition-all">
-                 <Info className="w-6 h-6" />
-               </div>
-               <span className="text-sm font-black text-slate-900 tracking-tight">Keterangan</span>
-             </button>
-             <div className="absolute top-full left-0 mt-3 w-72 bg-white/95 backdrop-blur-xl border border-slate-100 p-8 rounded-2xl shadow-2xl opacity-0 scale-95 pointer-events-none group-hover/legend:opacity-100 group-hover/legend:scale-100 group-hover/legend:pointer-events-auto transition-all duration-300 origin-top-left z-50">
-               <div className="absolute top-0 left-8 w-4 h-4 bg-white border-t border-l border-slate-100 -translate-y-2 rotate-45" />
-               <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 border-b border-slate-50 pb-4">Jenis Kartu</h3>
-               <div className="space-y-4">
-                 <LegendItem icon={<BookOpen className="w-5 h-5 text-blue-500" />} color="text-slate-700" label="Kartu Dasar" />
-                 <LegendItem icon={<Target className="w-5 h-5 text-red-500" />} color="text-slate-700" label="Kartu Aksi" />
-                 <LegendItem icon={<Flame className="w-5 h-5 text-orange-500" />} color="text-slate-700" label="Kartu Tantangan" />
-                 <LegendItem icon={<Moon className="w-5 h-5 text-purple-500" />} color="text-slate-700" label="Berhenti 1 Putaran" />
-               </div>
-             </div>
-           </div>
-
-           <div className="bg-white border border-slate-100 p-8 rounded-2xl shadow-xl shadow-slate-200/40 flex-1 relative overflow-hidden">
-             <div className="absolute top-0 right-0 w-12 h-12 bg-blue-50" style={{ clipPath: "polygon(0 0, 100% 0, 100% 100%)" }} />
-             <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-                <Award className="w-4 h-4" /> Klasemen Tim
-             </h3>
-             <div className="space-y-4">
-               {[...groups]
-                 .map((g, i) => ({ ...g, originalIndex: i }))
-                 .sort((a, b) => b.score - a.score)
-                 .map((g, rank) => (
-                   <div key={g.id} className="flex items-center justify-between p-3 rounded-xl border border-transparent hover:bg-slate-50 transition-all">
-                     <div className="flex items-center gap-4">
-                       <span className={`text-xs font-black w-6 h-6 rounded-lg flex items-center justify-center ${rank === 0 ? "bg-yellow-100 text-yellow-700" : rank === 1 ? "bg-slate-100 text-slate-500" : rank === 2 ? "bg-orange-100 text-orange-700" : "bg-slate-50 text-slate-400"}`}>
-                         {rank + 1}
-                       </span>
-                       <div className={`w-3 h-3 rounded-full shadow-sm ${g.originalIndex === 0 ? "bg-[#2c49c5]" : g.originalIndex === 1 ? "bg-red-500" : g.originalIndex === 2 ? "bg-purple-500" : "bg-emerald-500"}`} />
-                       <span className={`text-sm font-black ${activeGroupIndex === g.originalIndex ? "text-[#2c49c5]" : "text-slate-500"}`}>
-                         {g.name}
-                       </span>
-                     </div>
-                     <span className="text-sm font-black text-slate-900 bg-slate-50 px-3 py-1 rounded-lg border border-slate-100">{g.score}</span>
-                   </div>
-                 ))}
-             </div>
-           </div>
-        </div>
-
-        <div className="flex-1 relative flex items-center justify-center">
-          <BoardCanvas groups={groups} />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
-            <Dice
-              size={120}
-              value={diceValue}
-              isRolling={isRolling}
-              onClick={() => {
-                if (role === "siswa" && activeGroup.name === myGroupName && !isRolling && !isMoving && !currentCard) {
-                  rollDice();
-                }
-              }}
-              isMyTurn={role === "siswa" && activeGroup.name === myGroupName && !isRolling && !isMoving && !currentCard}
-            />
-          </div>
-
-          <AnimatePresence>
-            {gameStatus === "PLAYING" && !currentCard && timer > 0 && !isUnderReview && !isCardActive && !lastResult && (
-               <motion.div
-                 key="turn-indicator"
-                 initial={{ opacity: 0, y: -20 }}
-                 animate={{ opacity: 1, y: 0 }}
-                 exit={{ opacity: 0, y: 20 }}
-                 className="absolute top-10 left-1/2 -translate-x-1/2 px-10 py-5 bg-white/95 backdrop-blur-xl border border-slate-100 rounded-2xl flex items-center shadow-2xl pointer-events-none z-30"
-               >
-                 {role === "siswa" && activeGroup.name === myGroupName ? (
-                   <div className="flex items-center gap-4">
-                     <div className="w-3 h-3 rounded-full bg-[#2c49c5] animate-[pulse_1s_infinite]" />
-                     <span className="text-[#2c49c5] font-black tracking-[0.2em] text-sm uppercase">GILIRAN KAMU: LEMPAR DADU!</span>
-                   </div>
-                 ) : (
-                   <div className="flex items-center gap-4">
-                     <span className="text-sm font-black text-slate-400 tracking-widest uppercase">
-                       {role === "siswa" ? "TIM LAIN BEROPERASI" : "SUPERVISOR MODE"}
-                     </span>
-                     <span className="text-slate-100 font-thin italic">/</span>
-                     <p className="text-slate-900 font-black text-base">{activeGroup.name}...</p>
-                   </div>
-                 )}
-               </motion.div>
-             )}
-
-            {isUnderReview && (
-               <motion.div
-                 key="review-indicator"
-                 initial={{ opacity: 0, scale: 0.9 }}
-                 animate={{ opacity: 1, scale: 1 }}
-                 exit={{ opacity: 0, scale: 0.9 }}
-                 className={`absolute z-40 flex items-center pointer-events-none ${
-                   role === "siswa" && activeGroup.name === myGroupName
-                     ? "inset-0 flex-col justify-center p-12 bg-white/95 text-center"
-                     : "top-32 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-xl px-10 py-5 rounded-2xl border border-orange-200 gap-5 shadow-2xl"
-                 }`}
-               >
-                 <Disc3 className={`text-orange-500 animate-spin ${role === "siswa" && activeGroup.name === myGroupName ? "w-24 h-24 mb-10" : "w-7 h-7"}`} />
-                 {role === "siswa" && activeGroup.name === myGroupName ? (
-                   <>
-                     <h2 className="text-5xl font-black text-slate-900 tracking-tight">Menunggu Guru Menilai...</h2>
-                     <p className="text-slate-500 mt-6 text-xl font-medium">Jawaban hebat kamu sedang dibaca oleh Guru.</p>
-                   </>
-                 ) : (
-                   <p className="text-slate-900 font-black text-lg tracking-tight">Guru sedang menilai {activeGroup.name}...</p>
-                 )}
-               </motion.div>
-             )}
-
-            {gameStatus === "FINISHED" && (
-              <motion.div
-                key="victory"
-                initial={{ opacity: 0, y: 50 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="absolute top-8 inset-0 flex flex-col items-center justify-center p-12 bg-white/98 backdrop-blur-3xl z-50 text-center"
+            
+            {isTimerRunning && (
+              <motion.div 
+                initial={{ x: 20, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                className="bg-orange-500 px-3 py-1.5 rounded-xl shadow-lg border border-orange-400 flex items-center gap-2"
               >
-                <div className="bg-yellow-50 p-12 rounded-2xl mb-10 border border-yellow-100 shadow-2xl shadow-yellow-500/10 rotate-3">
-                  <Award className="w-32 h-32 text-[#ffda59] drop-shadow-[0_0_20px_rgba(255,218,89,0.4)]" />
-                </div>
-                <h1 className="text-7xl font-black text-slate-900 tracking-tighter uppercase mb-6">Misi Selesai!</h1>
-                {winner && (
-                  <div className="space-y-4 mb-12">
-                     <p className="text-2xl text-slate-500 font-bold max-w-2xl">
-                        Pemenang utama dalam misi kali ini adalah:
-                     </p>
-                     <div className="text-5xl text-[#2c49c5] font-black bg-blue-50 px-10 py-4 rounded-2xl border-2 border-blue-100 inline-block shadow-lg">
-                        {winner.name}
-                     </div>
-                     <p className="text-xl font-black text-slate-400 mt-4 tracking-widest uppercase">Skor Akhir: {winner.score} POIN</p>
-                  </div>
-                )}
-                <div className="flex gap-6">
-                   {role === "guru" ? (
-                     <Link href="/dashboard" className="px-12 py-5 rounded-xl bg-slate-900 text-white font-black hover:bg-slate-800 transition-all shadow-2xl shadow-slate-900/20 text-lg">
-                        KEMBALI KE PANEL GURU
-                     </Link>
-                   ) : (
-                     <Link href="/lobby" className="px-12 py-5 rounded-xl bg-white border-2 border-slate-100 text-slate-900 font-black hover:bg-slate-50 transition-all shadow-xl shadow-slate-200/50 text-lg">
-                        KEMBALI KE LOBBY
-                     </Link>
-                   )}
-                </div>
+                <Clock className="w-3 h-3 text-white animate-spin-slow" />
+                <span className="text-[10px] font-black text-white uppercase tracking-widest italic">{timer}s</span>
               </motion.div>
             )}
-          </AnimatePresence>
-        </div>
-
-        <div className="w-full xl:w-80 flex flex-col gap-6 relative pr-2">
-
-          <div className="bg-white border border-slate-100 rounded-2xl p-8 shadow-xl shadow-slate-200/40 relative overflow-hidden">
-             <div className="absolute top-0 left-0 w-2 h-full bg-[#2c49c5]/10" />
-             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mb-10 text-center">
-               Tumpukan Kartu Misi
-             </h3>
-            <div className="flex flex-col items-center gap-10">
-              <PhysicalDeck
-                type="DASAR"
-                label="Dasar"
-                isDrawn={isCardActive && displayCard?.type === "DASAR"}
-              />
-              <PhysicalDeck
-                type="AKSI"
-                label="Aksi"
-                isDrawn={isCardActive && displayCard?.type === "AKSI"}
-              />
-              <PhysicalDeck
-                type="TANTANGAN"
-                label="Tantangan"
-                isDrawn={isCardActive && displayCard?.type === "TANTANGAN"}
-              />
-            </div>
           </div>
 
-          {role === "guru" && !currentCard && !isCardActive && (
-             <button
-               onClick={nextTurn}
-               className="w-full py-5 bg-slate-900 text-white font-black text-xs tracking-widest uppercase rounded-xl hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10 flex items-center justify-center gap-3"
-             >
-               Lanjut Giliran Berikutnya <LogOut className="w-4 h-4 rotate-180" />
-             </button>
-           )}
+          <div className="flex flex-col gap-2">
+            {role === "guru" ? (
+              <Link href="/dashboard" className="w-10 h-10 bg-yellow-400 hover:bg-yellow-300 text-yellow-950 rounded-xl flex items-center justify-center shadow-lg transition-all active:scale-95">
+                <LayoutDashboard className="w-5 h-5" />
+              </Link>
+            ) : (
+              <Link href="/lobby" className="w-10 h-10 bg-white/60 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-xl flex items-center justify-center border border-white transition-all">
+                <LogOut className="w-5 h-5" />
+              </Link>
+            )}
+          </div>
         </div>
       </div>
 
+      {/* 2. THE ARENA (Center Board) */}
+      <main className="flex-1 relative flex items-center justify-center p-4 lg:p-6 z-10 overflow-hidden" style={{ perspective: "2500px" }}>
+        {/* Spotlight Effect */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-blue-500/10 rounded-full blur-[140px] pointer-events-none" />
+        
+        {/* The 3D Board - Physical Board Look */}
+        <motion.div 
+          initial={{ rotateX: 30, y: 50, opacity: 0 }}
+          animate={{ rotateX: 25, y: -20, opacity: 1 }}
+          transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
+          className="relative transform-gpu"
+          style={{ transformStyle: "preserve-3d" }}
+        >
+          {/* Subtle drop shadow for the thin board */}
+          <div className="absolute inset-0 translate-y-2 bg-black/20 blur-[30px] rounded-[2.5rem]" />
+          
+          <div className="relative transform scale-[0.55] md:scale-[0.7] lg:scale-[0.8] transition-transform duration-700">
+             <BoardCanvas groups={groups} />
+          </div>
+        </motion.div>
+        
+        {/* Rest of the arena... */}
+
+        {/* 3. FLOATING LEADERBOARD (Left Side) */}
+        {/* 3. PLAYER SIDEBAR (Left Side) - Slim & Compact */}
+        <div className="fixed left-6 top-1/2 -translate-y-1/2 flex flex-col gap-2 z-30">
+          {[...groups]
+            .map((g, i) => ({ ...g, originalIndex: i }))
+            .sort((a, b) => b.score - a.score)
+            .map((g, rank) => {
+              const isMyTurn = activeGroupIndex === g.originalIndex;
+              const isLeader = rank === 0 && g.score > 0;
+              const colors = ["bg-blue-500", "bg-red-500", "bg-purple-500", "bg-emerald-500"];
+              
+              return (
+                <motion.div 
+                  key={g.id}
+                  initial={{ x: -40, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ delay: rank * 0.05 }}
+                  className={`relative flex items-center gap-3 p-1.5 pr-4 rounded-full border transition-all duration-500 ${
+                    isMyTurn 
+                      ? "bg-white shadow-lg border-blue-400 scale-105 z-10" 
+                      : "bg-white/40 backdrop-blur-md border-white/30 scale-95 opacity-80"
+                  }`}
+                >
+                  {/* Turn Indicator Pulse */}
+                  {isMyTurn && (
+                    <div className="absolute inset-0 rounded-full shadow-[0_0_15px_rgba(59,130,246,0.2)] animate-pulse" />
+                  )}
+
+                  {/* Avatar Section - Smaller */}
+                  <div className="relative">
+                    <div className={`w-10 h-10 rounded-full overflow-hidden border-2 border-white shadow-md ${colors[g.originalIndex % colors.length]}`}>
+                       <img 
+                         src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${g.name}`} 
+                         alt={g.name}
+                         className="w-full h-full object-cover"
+                       />
+                    </div>
+                    {/* Winner Medal */}
+                    {isLeader && (
+                      <div className="absolute -top-1 -right-1 w-5 h-5 bg-yellow-400 rounded-full flex items-center justify-center shadow-lg border border-white">
+                         <Trophy className="w-2.5 h-2.5 text-yellow-900" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Info Section - Compact */}
+                  <div className="flex flex-col min-w-[60px]">
+                     <span className={`text-[11px] font-black tracking-tight ${isMyTurn ? "text-slate-900" : "text-slate-600"}`}>{g.name}</span>
+                     <div className="flex items-center gap-1">
+                        <span className="text-[10px] font-black text-blue-600">{g.score}</span>
+                        <span className="text-[7px] font-bold text-slate-400 uppercase tracking-tighter">Pts</span>
+                     </div>
+                  </div>
+
+                  {/* Active Marker */}
+                  {isMyTurn && (
+                    <motion.div 
+                      layoutId="active-marker"
+                      className="absolute -right-2 w-1.5 h-4 bg-blue-500 rounded-full"
+                    />
+                  )}
+                </motion.div>
+              );
+            })}
+        </div>
+      </main>
+
+      {/* 4. ACTION DOCK (Bottom Bar) - SLIM & INTEGRATED */}
+      <footer className="h-20 lg:h-24 bg-white/80 backdrop-blur-3xl border-t border-white/50 relative z-40 flex items-center justify-between px-6 lg:px-16 shadow-[0_-15px_40px_rgba(0,0,0,0.05)] rounded-t-[2.5rem] lg:rounded-t-[3.5rem]">
+        {/* Subtle top reflection */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/3 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent" />
+        
+        <div className="flex items-center gap-6 lg:gap-10">
+          {/* Empty space for balance or small status icons */}
+        </div>
+
+        {/* Central Integrated Controls */}
+        <div className="absolute left-1/2 bottom-1/2 -translate-x-1/2 translate-y-1/2 flex items-center gap-6 lg:gap-12 bg-slate-100/50 backdrop-blur-md p-2 lg:p-3 rounded-[2.5rem] border border-white shadow-inner">
+          {/* The Dice - Now next to the cards */}
+          <div className="relative -translate-y-6 lg:-translate-y-8 flex items-center justify-center w-20 h-20">
+            <Dice
+              size={60}
+              value={diceValue}
+              isRolling={isRolling}
+              onClick={() => {
+                if (role === "siswa" && activeGroup.name === myGroupName && !isRolling && !isMoving && !currentCard && !isUnderReview) {
+                  rollDice();
+                }
+              }}
+              isMyTurn={role === "siswa" && activeGroup.name === myGroupName && !isRolling && !isMoving && !currentCard && !isUnderReview}
+            />
+          </div>
+
+          <div className="flex items-center gap-3 lg:gap-6 -translate-y-6 lg:-translate-y-8">
+            <PhysicalDeck type="DASAR" label="Dasar" isDrawn={isCardActive && displayCard?.type === "DASAR"} />
+            <PhysicalDeck type="AKSI" label="Aksi" isDrawn={isCardActive && displayCard?.type === "AKSI"} />
+            <PhysicalDeck type="TANTANGAN" label="Tantangan" isDrawn={isCardActive && displayCard?.type === "TANTANGAN"} />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4">
+          {role === "guru" && !currentCard && !isCardActive && (
+            <button
+              onClick={nextTurn}
+              className="px-5 py-2.5 bg-slate-900 text-white font-black text-[9px] tracking-widest uppercase rounded-xl hover:bg-slate-800 transition-all shadow-xl flex items-center gap-2"
+            >
+              Skip Turn <LogOut className="w-3 h-3 rotate-180" />
+            </button>
+          )}
+        </div>
+      </footer>
+
+      {/* Overlays */}
       <CardOverlay
         phase={cardPhase}
         displayCard={displayCard}
@@ -487,6 +437,27 @@ function BoardPage() {
         pendingReviews={pendingReviews}
       />
 
+      {/* Global Review Alert for Observers/Students if modal is minimized */}
+      <AnimatePresence>
+        {isUnderReview && (
+          <motion.div
+            initial={{ y: -100, opacity: 0 }}
+            animate={{ y: 20, opacity: 1 }}
+            exit={{ y: -100, opacity: 0 }}
+            className="fixed top-20 left-1/2 -translate-x-1/2 z-[60] bg-orange-500 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border-2 border-orange-400/50 backdrop-blur-xl"
+          >
+            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            <span className="text-xs font-black uppercase tracking-widest">Sesi Penilaian Guru Sedang Berlangsung</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {gameStatus === "FINISHED" && (
+          <LeaderboardOverlay groups={groups} />
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {lastResult && (
           <ResultNotification result={lastResult} onClose={clearLastResult} />
@@ -500,87 +471,145 @@ function BoardPage() {
           onGrade={gradeSubjektif} 
         />
       )}
-    </div>
-  );
-}
 
-function PhysicalDeck({
-  type,
-  label,
-  isDrawn,
-}: {
-  type: string;
-  label: string;
-  isDrawn: boolean;
-}) {
-  const accent =
-    type === "DASAR" ? { bg: "bg-[#2c49c5]", text: "text-[#2c49c5]", border: "border-[#2c49c5]/30", glow: "rgba(44,73,197,0.1)" } :
-    type === "AKSI" ? { bg: "bg-red-500", text: "text-red-500", border: "border-red-500/30", glow: "rgba(239,68,68,0.1)" } :
-    { bg: "bg-orange-500", text: "text-orange-500", border: "border-orange-500/30", glow: "rgba(249,115,22,0.1)" };
-
-  return (
-    <div className="relative" style={{ width: 112, height: 160 }}>
-      {/* Shadow layers */}
-      <div className="absolute inset-0 translate-x-1 translate-y-1 bg-zinc-800 rounded-xl" />
-      <div className="absolute inset-0 translate-x-0.5 translate-y-0.5 bg-zinc-700 rounded-xl" />
-
-      {/* Static bottom card */}
-      <div className="absolute inset-0 rounded-[14px] overflow-hidden">
-        <CardBackFace type={type} />
-      </div>
-
-      {/* Top card animate */}
-      <motion.div
-        className="absolute inset-0 rounded-[14px] overflow-hidden"
-        animate={isDrawn ? { opacity: 0, y: -8, scale: 0.97 } : { opacity: 1, y: 0, scale: 1 }}
-        transition={isDrawn
-          ? { duration: 0.25, ease: "easeOut" }
-          : { duration: 0.35, ease: [0.34, 1.56, 0.64, 1] }
-        }
-        style={{ boxShadow: `0 8px 24px ${accent.glow}` }}
-      >
-        <CardBackFace type={type} />
-      </motion.div>
-
+      {/* 8. GAME INFO MODAL */}
       <AnimatePresence>
-        {isDrawn && (
+        {isInfoOpen && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className={`absolute -inset-1 rounded-[18px] border-2 ${accent.border} pointer-events-none`}
-          />
+            className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-md"
+            onClick={() => setIsInfoOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.9, y: 20, opacity: 0 }}
+              className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden shadow-slate-900/40 mx-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="max-h-[80vh] overflow-y-auto custom-scrollbar">
+                <div className="p-6 lg:p-8">
+                  <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-blue-500/20 flex-shrink-0">
+                        <Info className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-black text-slate-900 tracking-tight leading-none">Cara Bermain</h3>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">Panduan EduBoard</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => setIsInfoOpen(false)}
+                      className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-400"
+                    >
+                      <X className="w-6 h-6" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    {[
+                      { icon: "🎲", title: "Kocok Dadu", desc: "Klik dadu di bagian bawah untuk mengocok. Tim Anda akan maju sesuai angka yang didapat." },
+                      { icon: "🃏", title: "Kotak Tantangan", desc: "Jika mendarat di kotak berwarna, ambil kartu dan selesaikan tantangannya." },
+                      { icon: "🏆", title: "Kumpulkan Poin", desc: "Setiap jawaban benar akan menambah poin tim Anda. Tim dengan poin terbanyak menang!" },
+                      { icon: "🔄", title: "Pantau Giliran", desc: "Glow pada sidebar kiri menunjukkan tim mana yang sedang aktif bermain." }
+                    ].map((item, i) => (
+                      <div key={i} className="flex gap-4 p-5 rounded-3xl bg-slate-50 border border-slate-100/80 transition-all hover:border-blue-100 hover:bg-blue-50/30 group">
+                        <span className="text-3xl group-hover:scale-110 transition-transform">{item.icon}</span>
+                        <div>
+                          <h4 className="text-sm font-black text-slate-900">{item.title}</h4>
+                          <p className="text-xs font-medium text-slate-500 leading-relaxed mt-1">{item.desc}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <button 
+                    onClick={() => setIsInfoOpen(false)}
+                    className="w-full mt-8 py-5 bg-slate-900 text-white rounded-[1.5rem] font-black text-[10px] uppercase tracking-[0.2em] hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/30 active:scale-[0.98]"
+                  >
+                    SAYA MENGERTI
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
-
-      <div className="absolute -top-4 left-0 right-0 flex items-center justify-center gap-2">
-        {type === "DASAR" && <BookOpen className={`w-3 h-3 ${accent.text}`} />}
-        {type === "AKSI" && <Target className={`w-3 h-3 ${accent.text}`} />}
-        {type === "TANTANGAN" && <Flame className={`w-3 h-3 ${accent.text}`} />}
-        <span className={`text-[9px] font-black uppercase tracking-[0.25em] ${accent.text}`}>{label}</span>
-      </div>
     </div>
   );
 }
 
-function CardBackFace({ type, className }: { type: string; className?: string }) {
-  const accentColor =
-    type === "DASAR" ? "text-blue-400" :
-    type === "AKSI" ? "text-red-400" : "text-orange-400";
+function PhysicalDeck({ type, label, isDrawn }: { type: string; label: string; isDrawn: boolean }) {
+  const accent = 
+    type === "DASAR" ? { bg: "bg-[#2c49c5]", text: "text-[#2c49c5]", border: "border-[#2c49c5]/30", glow: "rgba(44,73,197,0.2)" } :
+    type === "AKSI" ? { bg: "bg-red-500", text: "text-red-500", border: "border-red-500/30", glow: "rgba(239,68,68,0.2)" } :
+    { bg: "bg-orange-500", text: "text-orange-500", border: "border-orange-500/30", glow: "rgba(249,115,22,0.2)" };
 
   return (
-    <div className={`absolute inset-0 bg-[#1e293b] border-4 border-slate-700/50 flex flex-col items-center justify-center overflow-hidden ${className || "rounded-xl"}`}>
-      <div
-        className="absolute inset-0 opacity-[0.05] pointer-events-none"
-        style={{ backgroundImage: "radial-gradient(circle at 1px 1px, white 1px, transparent 0)", backgroundSize: "16px 16px" }}
-      />
-      <div className="absolute inset-[10px] border border-white/5 rounded-lg" />
-      <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10 shadow-sm">
-        {type === "DASAR" && <BookOpen className={`w-7 h-7 ${accentColor}`} />}
-        {type === "AKSI" && <Target className={`w-7 h-7 ${accentColor}`} />}
-        {type === "TANTANGAN" && <Flame className={`w-7 h-7 ${accentColor}`} />}
+    <motion.div 
+      whileHover={{ y: -12, scale: 1.1 }}
+      whileTap={{ scale: 0.95 }}
+      className="relative cursor-pointer group z-50 pointer-events-auto"
+      style={{ width: 85, height: 120 }}
+    >
+      {/* 1. Stack Layer 3 (Bottom) */}
+      <div className="absolute inset-0 translate-x-[6px] translate-y-[6px] bg-slate-300 rounded-xl" />
+      {/* 2. Stack Layer 2 (Middle) */}
+      <div className="absolute inset-0 translate-x-[3px] translate-y-[3px] bg-slate-200 rounded-xl border border-slate-300" />
+      
+      {/* 3. Top Card (Face) */}
+      <div className={`absolute inset-0 bg-white rounded-xl flex flex-col items-center justify-center border-2 border-white shadow-xl overflow-hidden transition-all duration-500 ${isDrawn ? "opacity-30 scale-95" : "opacity-100"}`}>
+        <div className={`absolute inset-0 opacity-[0.05] ${accent.bg}`} style={{ backgroundImage: "radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)", backgroundSize: "12px 12px" }} />
+        
+        {/* Card Icon Header */}
+        <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-3 ${accent.bg} shadow-lg shadow-black/10`}>
+          {type === "DASAR" && <BookOpen className="w-5 h-5 text-white" />}
+          {type === "AKSI" && <Target className="w-5 h-5 text-white" />}
+          {type === "TANTANGAN" && <Flame className="w-5 h-5 text-white" />}
+        </div>
+        
+        <span className={`text-[9px] font-black uppercase tracking-[0.2em] text-slate-800`}>{label}</span>
+        
+        {/* Glossy line */}
+        <div className="absolute -top-10 -left-10 w-20 h-40 bg-white/40 rotate-45 pointer-events-none group-hover:left-40 transition-all duration-700" />
       </div>
-      <span className="text-[8px] font-black tracking-[0.5em] text-white uppercase mt-4">EDUBOARD</span>
+
+      {/* Drawing Indicator */}
+      {isDrawn && (
+        <div className="absolute inset-0 flex items-center justify-center z-20">
+          <div className="w-2 h-2 bg-blue-500 rounded-full animate-ping" />
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+function CardBackFace({ type, className }: { type: string; className?: string }) {
+  const accent = 
+    type === "DASAR" ? { bg: "bg-[#2c49c5]", glow: "shadow-blue-500/20" } :
+    type === "AKSI" ? { bg: "bg-red-500", glow: "shadow-red-500/20" } :
+    { bg: "bg-orange-500", glow: "shadow-orange-500/20" };
+
+  return (
+    <div className={`absolute inset-0 bg-[#0f172a] border-[6px] border-white/10 flex flex-col items-center justify-center overflow-hidden shadow-2xl ${className || "rounded-[2.5rem]"}`}>
+      <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: "radial-gradient(circle at 2px 2px, white 1px, transparent 0)", backgroundSize: "24px 24px" }} />
+      
+      {/* Dynamic Glow Pattern */}
+      <div className={`absolute w-64 h-64 rounded-full blur-[80px] opacity-20 ${accent.bg}`} />
+      
+      <div className="relative z-10 w-20 h-20 rounded-3xl bg-white/5 flex items-center justify-center border border-white/10 backdrop-blur-sm shadow-inner">
+        <div className={`w-12 h-12 rounded-2xl ${accent.bg} flex items-center justify-center shadow-lg ${accent.glow}`}>
+           <Award className="w-7 h-7 text-white" />
+        </div>
+      </div>
+      
+      <div className="mt-6 flex flex-col items-center">
+         <span className="text-[10px] font-black tracking-[0.6em] text-white/40 uppercase">EDUBOARD</span>
+         <div className="w-8 h-1 bg-white/10 rounded-full mt-2" />
+      </div>
     </div>
   );
 }
@@ -629,18 +658,19 @@ function CardOverlay({
     }
   }, [phase]);
 
-  const flipped = phase === "revealed" ? isFlipped : false;
+  const flipped = (phase === "revealed" || isUnderReview) ? isFlipped : false;
   const cardType = displayCard?.type ?? "DASAR";
-  const isVisible = phase !== "idle";
+  const isVisible = phase !== "idle" || isUnderReview;
 
   const positionVariants = {
-    hidden: { x: 280, y: 60, scale: 0.28, opacity: 0 },
+    hidden: { x: 0, y: 400, scale: 0.1, opacity: 0 },
     drawing: { x: 0, y: 0, scale: 1, opacity: 1 },
     revealed: { x: 0, y: 0, scale: 1, opacity: 1 },
-    returning: { x: 280, y: 60, scale: 0.28, opacity: 0 },
+    returning: { x: 0, y: 400, scale: 0.1, opacity: 0 },
   };
 
   const getPositionTarget = () => {
+    if (isUnderReview) return "revealed";
     if (phase === "returning") return "returning";
     if (phase === "drawing" || phase === "revealed") return "drawing";
     return "hidden";
@@ -673,15 +703,19 @@ function CardOverlay({
 
           <motion.div
             className="relative z-10"
-            style={{ perspective: 1200, width: 360, maxWidth: "92vw" }}
+            style={{ 
+              perspective: 1200, 
+              width: "min(360px, 92vw)",
+              height: "min(520px, 82vh)" 
+            }}
             variants={positionVariants}
             initial="hidden"
             animate={getPositionTarget()}
             transition={getPositionTransition()}
           >
             <motion.div
-              className="w-full relative"
-              style={{ height: 520, transformStyle: "preserve-3d" }}
+              className="w-full h-full relative"
+              style={{ transformStyle: "preserve-3d" }}
               animate={{ rotateY: flipped ? 180 : 0 }}
               transition={{ type: "spring", stiffness: 220, damping: 26 }}
             >
@@ -763,61 +797,66 @@ function CardFrontFace({
   gradeSubjektif: (reviewId: string, score: number) => void;
   pendingReviews: PendingReview[];
 }) {
-  const accentCorner =
-    isUnderReview ? "bg-orange-500" :
-    cardType === "DASAR" ? "bg-blue-600" :
-    cardType === "AKSI" ? "bg-red-600" : "bg-orange-600";
-
-  const accentText =
-    isUnderReview ? "text-orange-600" :
-    cardType === "DASAR" ? "text-blue-600" :
-    cardType === "AKSI" ? "text-red-600" : "text-orange-600";
+  const accent =
+    isUnderReview ? { bg: "bg-orange-500", text: "text-orange-600", light: "bg-orange-50" } :
+    cardType === "DASAR" ? { bg: "bg-[#2c49c5]", text: "text-[#2c49c5]", light: "bg-blue-50" } :
+    cardType === "AKSI" ? { bg: "bg-red-600", text: "text-red-600", light: "bg-red-50" } : 
+    { bg: "bg-orange-600", text: "text-orange-600", light: "bg-orange-50" };
 
   return (
     <div
-      className="absolute inset-0 bg-[#fafafa] rounded-[20px] flex flex-col p-7 overflow-hidden"
-      style={{ boxShadow: "0 30px 80px rgba(0,0,0,0.5), 0 0 0 4px rgba(0,0,0,0.08)" }}
+      className="absolute inset-0 bg-white rounded-[2.5rem] flex flex-col p-8 overflow-hidden shadow-[0_40px_100px_rgba(0,0,0,0.2)] border-2 border-slate-100"
     >
+      {/* Corner Accent */}
       <div
-        className={`absolute top-0 right-0 w-28 h-28 ${accentCorner}`}
+        className={`absolute top-0 right-0 w-32 h-32 ${accent.bg} opacity-10`}
         style={{ clipPath: "polygon(0 0, 100% 0, 100% 100%)" }}
       />
 
-      {isTimerRunning && !isUnderReview && (
-        <div className="absolute top-4 right-4 z-20 flex flex-col items-center">
-           <div className={`flex items-center justify-center w-12 h-12 rounded-full border-4 border-white shadow-xl ${timer <= 5 ? 'bg-red-500 animate-pulse' : 'bg-zinc-900'}`}>
-              <span className="text-xl font-black text-white font-mono">{timer}</span>
+      {/* Header Section */}
+      <div className="relative z-10 flex items-center justify-between mb-1 pb-1 border-b border-slate-100">
+         <div>
+            <p className={`text-[10px] font-black uppercase tracking-[0.4em] mb-1 ${accent.text}`}>
+              {isUnderReview ? "PENILAIAN GURU" : `KARTU ${cardType}`}
+            </p>
+            {!isUnderReview && displayCard && (
+              <div className="flex items-center gap-2">
+                 <span className="text-3xl font-black text-slate-900 tracking-tighter">{displayCard.points}</span>
+                 <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Poin</span>
+              </div>
+            )}
+         </div>
+
+         {isTimerRunning && !isUnderReview && (
+           <div className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center border-2 border-white shadow-lg ${timer <= 5 ? 'bg-red-500 text-white animate-pulse' : 'bg-slate-900 text-white'}`}>
+              <span className="text-xl font-black font-mono leading-none">{timer}</span>
+              <span className="text-[7px] font-black uppercase tracking-widest opacity-60">Sec</span>
            </div>
-           <span className={`text-[8px] font-black uppercase tracking-widest mt-1 ${timer <= 5 ? 'text-red-500' : 'text-zinc-400'}`}>Detik</span>
-        </div>
-      )}
+         )}
+      </div>
 
       <div className="flex-1 flex flex-col relative z-10 min-h-0">
-        <div className="mb-5 pb-4 border-b-2 border-zinc-900/10">
-          <p className={`text-[10px] font-black uppercase tracking-[0.35em] mb-1 ${accentText}`}>
-            {isUnderReview ? "PENILAIAN GURU" : `KARTU ${cardType}`}
-          </p>
-          {!isUnderReview && displayCard && (
-            <p className="text-3xl font-black text-zinc-900 leading-none">{displayCard.points} <span className="text-sm font-bold text-zinc-400">POIN</span></p>
-          )}
-        </div>
-
-        <div className="flex-1 overflow-y-auto min-h-0 pr-1">
+         <div className="flex-1 overflow-y-auto min-h-0 pr-1">
           {isUnderReview ? (
-            <div className="space-y-5">
+            <div className="space-y-6">
               {pendingReviews
                 .filter((r) => r.groupId === activeGroup?.id)
                 .map((review) => (
-                  <div key={review.id} className="space-y-4">
-                    <div>
-                      <p className="text-[9px] font-black text-zinc-400 uppercase tracking-[0.3em] mb-2">PERTANYAAN</p>
-                      <p className="text-base font-bold text-zinc-800 leading-snug">&ldquo;{review.questionText}&rdquo;</p>
+                  <div key={review.id} className="space-y-6">
+                    {/* Focus on the Student Answer */}
+                    <div className="text-center mb-4">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mb-2">MENILAI JAWABAN</p>
+                      <h3 className="text-lg font-black text-slate-900 tracking-tight">Tim {review.groupName}</h3>
                     </div>
-                    <div className="p-5 bg-zinc-100 rounded-xl border-2 border-zinc-200">
-                      <p className="text-[9px] font-black text-zinc-400 uppercase tracking-[0.3em] mb-2 flex items-center gap-2">
-                        <ScrollText className="w-3 h-3" /> JAWABAN {review.groupName}
+
+                    <div className="p-4 bg-slate-50 rounded-[2.5rem] border-2 border-slate-100 shadow-inner relative overflow-hidden">
+                      <div className="absolute top-0 left-0 p-4 opacity-[0.03]">
+                         <ScrollText className="w-20 h-20" />
+                      </div>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] mb-2 text-center">ISI JAWABAN:</p>
+                      <p className="text-xl font-bold text-slate-800 italic leading-relaxed text-center relative z-10">
+                        &ldquo;{review.answerText}&rdquo;
                       </p>
-                      <p className="text-base font-semibold text-zinc-800 italic leading-relaxed">{review.answerText}</p>
                     </div>
                   </div>
                 ))}
@@ -885,49 +924,186 @@ function CardFrontFace({
         </div>
 
         {isUnderReview && (
-          <div className="mt-4 pt-4 border-t-2 border-zinc-200">
+          <div className="mt-6 pt-6 border-t-2 border-zinc-100">
             {role === "guru" ? (
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  onClick={() => gradeSubjektif(pendingReviews.find((r) => r.groupId === activeGroup?.id)!.id, 0)}
-                  className="flex flex-col items-center gap-0.5 p-3 rounded-xl border-2 border-zinc-800 bg-white hover:bg-red-50 transition-all shadow-[3px_3px_0_0_rgba(0,0,0,0.85)] active:shadow-none active:translate-y-0.5"
-                >
-                  <span className="text-[8px] font-black text-zinc-400 uppercase">Salah</span>
-                  <span className="font-black text-zinc-900 text-[11px] tracking-wide">TIDAK TEPAT</span>
-                </button>
-                <button
-                  onClick={() => {
-                    const r = pendingReviews.find((r) => r.groupId === activeGroup?.id)!;
-                    gradeSubjektif(r.id, Math.floor(r.maxPoints / 2));
-                  }}
-                  className="flex flex-col items-center gap-0.5 p-3 rounded-xl border-2 border-zinc-800 bg-white hover:bg-orange-50 transition-all shadow-[3px_3px_0_0_rgba(0,0,0,0.85)] active:shadow-none active:translate-y-0.5"
-                >
-                  <span className="text-[8px] font-black text-zinc-400 uppercase">Setengah</span>
-                  <span className="font-black text-zinc-900 text-[11px] tracking-wide">SEBAGIAN</span>
-                </button>
-                <button
-                  onClick={() => {
-                    const r = pendingReviews.find((r) => r.groupId === activeGroup?.id)!;
-                    gradeSubjektif(r.id, r.maxPoints);
-                  }}
-                  className="flex flex-col items-center gap-0.5 p-3 rounded-xl border-2 border-zinc-800 bg-zinc-900 text-white hover:bg-zinc-800 transition-all shadow-[3px_3px_0_0_rgba(0,0,0,0.4)] active:shadow-none active:translate-y-0.5"
-                >
-                  <span className="text-[8px] font-black text-white/50 uppercase">Benar</span>
-                  <span className="font-black text-[11px] tracking-wide">TEPAT SEKALI</span>
-                </button>
-              </div>
-            ) : (
-              <div className="bg-zinc-100 border-2 border-dashed border-zinc-300 p-5 rounded-xl text-center">
-                <div className="flex items-center justify-center gap-2">
-                  <Disc3 className="w-5 h-5 text-zinc-700 animate-spin" />
-                  <p className="font-black text-zinc-800 uppercase tracking-widest text-sm">SEDANG DINILAI GURU</p>
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-orange-600 mb-2">
+                   <AlertCircle className="w-4 h-4 animate-pulse" />
+                   <span className="text-[10px] font-black uppercase tracking-widest">Berikan Penilaian Sekarang</span>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <button
+                    onClick={() => gradeSubjektif(pendingReviews.find((r) => r.groupId === activeGroup?.id)!.id, 0)}
+                    className="flex flex-col items-center gap-1 p-4 rounded-2xl border-2 border-red-200 bg-red-50 hover:bg-red-100 transition-all shadow-sm group"
+                  >
+                    <XCircle className="w-6 h-6 text-red-500 group-hover:scale-110 transition-transform" />
+                    <span className="font-black text-red-700 text-[10px] tracking-tight uppercase">Salah</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      const r = pendingReviews.find((r) => r.groupId === activeGroup?.id)!;
+                      gradeSubjektif(r.id, Math.floor(r.maxPoints / 2));
+                    }}
+                    className="flex flex-col items-center gap-1 p-4 rounded-2xl border-2 border-orange-200 bg-orange-50 hover:bg-orange-100 transition-all shadow-sm group"
+                  >
+                    <div className="w-6 h-6 rounded-full border-2 border-orange-400 border-t-transparent animate-spin-slow group-hover:animate-none" />
+                    <span className="font-black text-orange-700 text-[10px] tracking-tight uppercase">Sebagian</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      const r = pendingReviews.find((r) => r.groupId === activeGroup?.id)!;
+                      gradeSubjektif(r.id, r.maxPoints);
+                    }}
+                    className="flex flex-col items-center gap-1 p-4 rounded-2xl border-2 border-emerald-200 bg-emerald-50 hover:bg-emerald-100 transition-all shadow-sm group"
+                  >
+                    <CheckCircle2 className="w-6 h-6 text-emerald-500 group-hover:scale-110 transition-transform" />
+                    <span className="font-black text-emerald-700 text-[10px] tracking-tight uppercase">Tepat</span>
+                  </button>
                 </div>
               </div>
+            ) : (
+              <motion.div 
+                animate={{ scale: [1, 1.02, 1] }}
+                transition={{ duration: 2, repeat: Infinity }}
+                className="bg-orange-50 border-2 border-orange-200 p-8 rounded-[2rem] text-center shadow-xl shadow-orange-500/5"
+              >
+                <div className="flex flex-col items-center gap-4">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-orange-400 rounded-full blur-xl opacity-20 animate-pulse" />
+                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-lg border border-orange-100 relative z-10">
+                      <Disc3 className="w-8 h-8 text-orange-500 animate-spin-slow" />
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-orange-400 uppercase tracking-[0.3em] mb-2">PROSES PENILAIAN</p>
+                    <h4 className="text-xl font-black text-orange-900 tracking-tight">Menunggu Guru Menilai...</h4>
+                    <p className="text-xs font-medium text-orange-600/70 mt-2 leading-relaxed">
+                      Jawaban tim kamu sudah terkirim.<br/>Jangan tutup halaman ini ya!
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
             )}
           </div>
         )}
       </div>
     </div>
+  );
+}
+
+function LeaderboardOverlay({ groups }: { groups: Group[] }) {
+  const sortedGroups = [...groups].sort((a, b) => b.score - a.score);
+  const winner = sortedGroups[0];
+  const runnersUp = sortedGroups.slice(1);
+
+  useEffect(() => {
+    const duration = 5 * 1000;
+    const animationEnd = Date.now() + duration;
+    const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 500 }; // Higher zIndex for front confetti
+
+    function randomInRange(min: number, max: number) {
+      return Math.random() * (max - min) + min;
+    }
+
+    const interval: any = setInterval(function() {
+      const timeLeft = animationEnd - Date.now();
+
+      if (timeLeft <= 0) {
+        return clearInterval(interval);
+      }
+
+      const particleCount = 50 * (timeLeft / duration);
+      confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } });
+      confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } });
+    }, 250);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="fixed inset-0 z-100 bg-black/20 backdrop-blur-[2px] flex items-center justify-center p-6"
+    >
+      <motion.div 
+        initial={{ scale: 0.9, y: 20, opacity: 0 }}
+        animate={{ scale: 1, y: 0, opacity: 1 }}
+        className="max-w-xl w-full min-h-[80vh] bg-slate-900/95 backdrop-blur-3xl border-2 border-white/10 rounded-[3.5rem] p-10 md:p-14 shadow-[0_50px_100px_rgba(0,0,0,0.6)] flex flex-col items-center relative overflow-hidden"
+      >
+        {/* Decorative Glow inside Dialog */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-80 h-80 bg-blue-500/20 blur-[100px] -z-10" />
+        
+        {/* Winner Section - Expanded */}
+        <motion.div
+          initial={{ y: 30, opacity: 0, scale: 0.9 }}
+          animate={{ y: 0, opacity: 1, scale: 1 }}
+          transition={{ type: "spring", delay: 0.5 }}
+          className="text-center mb-12 relative pt-8"
+        >
+          <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+             <motion.div
+               animate={{ rotate: [0, -10, 10, 0], scale: [1, 1.2, 1] }}
+               transition={{ duration: 2, repeat: Infinity }}
+             >
+               <Trophy className="w-10 h-10 text-yellow-400 filter drop-shadow-[0_0_20px_rgba(250,204,21,0.5)]" />
+             </motion.div>
+          </div>
+          <p className="text-yellow-400 font-black tracking-[0.5em] uppercase text-[10px] mb-4">SANG JUARA</p>
+          <h1 className="text-xl md:text-3xl font-black text-white tracking-tighter mb-4 filter drop-shadow-xl">
+            {winner.name}
+          </h1>
+          <div className="inline-flex items-center gap-3 bg-white/10 px-6 py-2 rounded-full border border-white/20 backdrop-blur-md">
+            <span className="text-xl font-black text-white">{winner.score}</span>
+            <span className="text-[11px] font-bold text-white/50 uppercase tracking-widest">Total Poin</span>
+          </div>
+        </motion.div>
+
+        {/* Ranking List - Taller and More Spacious */}
+        <div className="w-full flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-3 mb-8">
+          {runnersUp.map((group, index) => (
+            <motion.div
+              key={group.id}
+              initial={{ x: -20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: 0.8 + index * 0.1 }}
+              className="bg-white/5 border border-white/10 p-4 rounded-2xl flex items-center justify-between hover:bg-white/10 transition-colors group"
+            >
+              <div className="flex items-center gap-6">
+                <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center border border-white/10 group-hover:border-white/30 transition-all">
+                  <span className="text-lg font-black text-white/40 group-hover:text-white transition-colors">
+                    {index + 2}
+                  </span>
+                </div>
+                <div>
+                  <h4 className="text-lg font-bold text-white tracking-tight">{group.name}</h4>
+                  <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em]">Peringkat {index + 2}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="text-right">
+                  <span className="text-xl font-black text-white">{group.score}</span>
+                  <p className="text-[9px] font-bold text-white/30 uppercase">Poin</p>
+                </div>
+                <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
+                   <ChevronRight className="w-4 h-4 text-white/20" />
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+
+        <motion.button
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.5 }}
+          onClick={() => window.location.href = '/'}
+          className="mt-10 px-8 py-3 bg-white text-slate-900 rounded-xl font-black tracking-widest uppercase text-xs hover:scale-105 transition-transform shadow-2xl"
+        >
+          Kembali ke Menu
+        </motion.button>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -942,7 +1118,7 @@ function LegendItem({
 }) {
   return (
     <div className="flex items-center gap-3">
-      <div className="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center flex-shrink-0">
+      <div className="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center shrink-0">
         {icon}
       </div>
       <span className={`text-xs font-black uppercase tracking-widest ${color}`}>{label}</span>
@@ -950,115 +1126,110 @@ function LegendItem({
   );
 }
 
-function Dice({
-  size,
-  value,
-  isRolling,
-  onClick,
-  isMyTurn,
-}: {
-  size: number;
-  value: number;
-  isRolling: boolean;
-  onClick?: () => void;
-  isMyTurn?: boolean;
-}) {
-  const faceRotations: Record<number, { rotateX: number; rotateY: number }> = {
-    1: { rotateX: 0, rotateY: 0 },
-    2: { rotateX: 0, rotateY: -90 },
-    3: { rotateX: -90, rotateY: 0 },
-    4: { rotateX: 90, rotateY: 0 },
-    5: { rotateX: 0, rotateY: 90 },
-    6: { rotateX: 0, rotateY: 180 },
+function Dice({ size, value, isRolling, onClick, isMyTurn }: { size: number; value: number; isRolling: boolean; onClick?: () => void; isMyTurn?: boolean }) {
+  const [shuffleVal, setShuffleVal] = useState(1);
+
+  const faceRotations: Record<number, { x: number; y: number; z: number }> = {
+    1: { x: 0, y: 0, z: 0 },
+    2: { x: 0, y: -90, z: 0 },
+    3: { x: -90, y: 0, z: 0 },
+    4: { x: 90, y: 0, z: 0 },
+    5: { x: 0, y: 90, z: 0 },
+    6: { x: 0, y: 180, z: 0 },
   };
 
-  const [shuffleValue, setShuffleValue] = useState(value);
+  const targetRotation = faceRotations[value] || faceRotations[1];
 
   useEffect(() => {
-    let interval: ReturnType<typeof setInterval>;
+    let interval: any;
     if (isRolling) {
-      interval = setInterval(
-        () => setShuffleValue(Math.floor(Math.random() * 6) + 1),
-        100,
-      );
+      interval = setInterval(() => {
+        setShuffleVal(Math.floor(Math.random() * 6) + 1);
+      }, 60);
     }
     return () => clearInterval(interval);
   }, [isRolling]);
 
-  const displayValue = isRolling ? shuffleValue : (value || 1);
-
   return (
     <div
-      className={`relative flex items-center justify-center ${isMyTurn ? "cursor-pointer pointer-events-auto group" : "pointer-events-none"}`}
-      style={{ perspective: "1000px", width: size, height: size }}
+      className={`relative flex items-center justify-center transition-all duration-500 ${isMyTurn ? "cursor-pointer pointer-events-auto" : "pointer-events-none opacity-90"}`}
+      style={{ perspective: "1500px", width: size, height: size }}
       onClick={onClick}
     >
+      {/* Dock Spotlight */}
+      <div className="absolute inset-[-40px] bg-blue-500/10 rounded-full blur-[40px] pointer-events-none" />
+
+      {/* Bounce Layer */}
       <motion.div
-        animate={
-          isRolling
-            ? { rotateX: [0, 360, 720], rotateY: [0, 360, 720], rotateZ: [0, 90, 180], y: [-50, 0, -50, 0], scale: [1, 1.1, 0.9, 1] }
-            : { ...faceRotations[displayValue] || faceRotations[1], rotateZ: 0, y: 0, scale: 1 }
-        }
-        whileHover={isMyTurn ? { scale: 1.1 } : {}}
-        whileTap={isMyTurn ? { scale: 0.9 } : {}}
-        transition={
-          isRolling
-            ? { duration: 1, repeat: Infinity, ease: "linear" }
-            : { type: "spring", stiffness: 150, damping: 15 }
-        }
-        className="relative w-full h-full z-10"
+        animate={isRolling ? { y: [0, -30, 0] } : { y: 0 }}
+        transition={isRolling ? { duration: 0.4, repeat: Infinity, ease: "easeInOut" } : { type: "spring", stiffness: 300, damping: 20 }}
+        className="relative w-full h-full"
         style={{ transformStyle: "preserve-3d" }}
       >
-        <DieFace val={1} size={size} transform={`translateZ(${size / 2}px)`} />
-        <DieFace val={6} size={size} transform={`rotateY(180deg) translateZ(${size / 2}px)`} />
-        <DieFace val={2} size={size} transform={`rotateY(90deg) translateZ(${size / 2}px)`} />
-        <DieFace val={5} size={size} transform={`rotateY(-90deg) translateZ(${size / 2}px)`} />
-        <DieFace val={3} size={size} transform={`rotateX(90deg) translateZ(${size / 2}px)`} />
-        <DieFace val={4} size={size} transform={`rotateX(-90deg) translateZ(${size / 2}px)`} />
+        {/* Rotation Layer */}
+        <motion.div
+          animate={
+            isRolling
+              ? { 
+                  rotateX: [0, 360], 
+                  rotateY: [0, 360],
+                  scale: 1.1
+                }
+              : { 
+                  rotateX: targetRotation.x, 
+                  rotateY: targetRotation.y, 
+                  rotateZ: 0,
+                  scale: 1
+                }
+          }
+          transition={
+            isRolling
+              ? { rotateX: { duration: 0.5, repeat: Infinity, ease: "linear" }, rotateY: { duration: 0.7, repeat: Infinity, ease: "linear" }, scale: { duration: 0.2 } }
+              : { type: "spring", stiffness: 180, damping: 15, mass: 1 }
+          }
+          className="w-full h-full bg-slate-200 rounded-lg"
+          style={{ transformStyle: "preserve-3d" }}
+        >
+          {/* We use (size/2 - 0.2) to make the faces sit slightly inside/snug */}
+          <DieFace val={isRolling ? shuffleVal : 1} size={size + 1} transform={`translateZ(${(size / 2) - 0.2}px)`} />
+          <DieFace val={isRolling ? shuffleVal : 6} size={size + 1} transform={`rotateY(180deg) translateZ(${(size / 2) - 0.2}px)`} />
+          <DieFace val={isRolling ? shuffleVal : 2} size={size + 1} transform={`rotateY(90deg) translateZ(${(size / 2) - 0.2}px)`} />
+          <DieFace val={isRolling ? shuffleVal : 5} size={size + 1} transform={`rotateY(-90deg) translateZ(${(size / 2) - 0.2}px)`} />
+          <DieFace val={isRolling ? shuffleVal : 3} size={size + 1} transform={`rotateX(90deg) translateZ(${(size / 2) - 0.2}px)`} />
+          <DieFace val={isRolling ? shuffleVal : 4} size={size + 1} transform={`rotateX(-90deg) translateZ(${(size / 2) - 0.2}px)`} />
+        </motion.div>
       </motion.div>
 
-      <motion.div
-        animate={isRolling ? { scale: [1, 0.5, 1], opacity: [0.2, 0.05, 0.2] } : { scale: 1, opacity: 0.2 }}
-        className="absolute -bottom-10 w-1/2 h-4 bg-black/40 blur-xl rounded-full"
-      />
-
-      {isMyTurn && (
-        <div className="absolute -bottom-14 whitespace-nowrap text-xs font-black text-blue-400 tracking-widest uppercase opacity-0 group-hover:opacity-100 transition-opacity">
-          Klik untuk Putar!
-        </div>
-      )}
+      {/* Static Subtle Shadow */}
+      <div className="absolute -bottom-8 w-full h-4 bg-black/5 blur-[10px] rounded-full" />
     </div>
   );
 }
 
 function DieFace({ val, size, transform }: { val: number; size: number; transform: string }) {
   const dotPositions: Record<number, number[]> = {
-    1: [4],
-    2: [0, 8],
-    3: [0, 4, 8],
-    4: [0, 2, 6, 8],
-    5: [0, 2, 4, 6, 8],
-    6: [0, 2, 3, 5, 6, 8],
+    1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8],
   };
   const dots = dotPositions[val] || [];
 
   return (
     <div
-      className="absolute inset-0 bg-white border-4 border-zinc-200 rounded-3xl flex flex-wrap items-center justify-center p-3 shadow-inner"
+      className="absolute inset-0 bg-white border-2 border-slate-100 rounded-lg flex items-center justify-center p-2 lg:p-2.5 shadow-[inset_0_-3px_6px_rgba(0,0,0,0.05),0_3px_8px_rgba(0,0,0,0.1)]"
       style={{ transform, backfaceVisibility: "hidden" }}
     >
-      <div className="grid grid-cols-3 grid-rows-3 gap-1 w-full h-full place-items-center">
+      <div className="grid grid-cols-3 grid-rows-3 gap-1 lg:gap-1.5 w-full h-full place-items-center">
         {Array.from({ length: 9 }).map((_, i) => (
           <div
             key={i}
-            className={`rounded-full ${dots.includes(i) ? "bg-zinc-900 scale-100" : "bg-transparent scale-0"}`}
-            style={{ width: "22%", height: "22%" }}
+            className={`rounded-full transition-all duration-75 ${dots.includes(i) ? "bg-slate-900 scale-100" : "bg-transparent scale-0"}`}
+            style={{ width: "28%", height: "28%" }}
           />
         ))}
       </div>
     </div>
   );
 }
+
 
 function ResultNotification({ result, onClose }: { result: AnswerResult; onClose: () => void }) {
   const { clearLastResult } = useGameStore();

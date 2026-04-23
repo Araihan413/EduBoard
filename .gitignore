@@ -43,6 +43,9 @@ next-env.d.ts
 # ai agent
 .gemini/
 .agents/
+.claude/
+.qwen/
+.windsurf/
 PRD.md
 AGENTS.md
 CLAUDE.md

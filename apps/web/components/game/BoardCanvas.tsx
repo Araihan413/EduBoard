@@ -42,10 +42,10 @@ export default function BoardCanvas({ groups }: BoardCanvasProps) {
   useEffect(() => {
     const handleResize = () => {
       const width = window.innerWidth;
-      if (width > 1280) setTileSize(74);
-      else if (width > 1024) setTileSize(64);
-      else if (width > 768) setTileSize(54);
-      else setTileSize(44);
+      if (width > 1280) setTileSize(82);
+      else if (width > 1024) setTileSize(72);
+      else if (width > 768) setTileSize(58);
+      else setTileSize(48);
     };
 
     handleResize();
@@ -71,9 +71,18 @@ export default function BoardCanvas({ groups }: BoardCanvasProps) {
   const startPos = { x: 1, y: 1 };
 
   return (
-    <div className="relative p-3 lg:p-6 bg-white rounded-[3rem] shadow-2xl border-2 border-slate-50 overflow-hidden">
-      {/* Texture Background for the board itself */}
-      <div className="absolute inset-0 bg-grid opacity-10 pointer-events-none" />
+    <div className="relative p-6 bg-[#f8fafc] rounded-[3rem] shadow-[0_0_0_12px_#ffffff,0_0_0_14px_#e2e8f0,0_20px_50px_rgba(0,0,0,0.1)] overflow-hidden">
+      {/* 1. BOARD SURFACE TEXTURE */}
+      <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')]" />
+      
+      {/* 2. PHYSICAL FOLDING SEAMS (Lipatan Papan) */}
+      <div className="absolute inset-0 flex pointer-events-none">
+        <div className="w-1/2 h-full border-r border-black/[0.03] shadow-[1px_0_0_rgba(255,255,255,0.5)]" />
+        <div className="w-full h-1/2 absolute top-0 border-b border-black/[0.03] shadow-[0_1px_0_rgba(255,255,255,0.5)]" />
+      </div>
+
+      {/* 3. BOARD INNER BEVEL (Efek Kedalaman Pinggiran) */}
+      <div className="absolute inset-0 rounded-[3rem] shadow-[inset_0_4px_12px_rgba(0,0,0,0.05),inset_0_-4px_12px_rgba(255,255,255,0.8)] pointer-events-none" />
 
       <div 
         className="relative grid" 
@@ -235,13 +244,32 @@ function PlayerPion({ group, gIdx, tiles, tileSize, gap, startPos }: {
         zIndex: 100 + gIdx
       }}
     >
-      <div 
-        className={`w-5 h-5 lg:w-7 lg:h-7 rounded-full border-4 border-white shadow-2xl ${
+      <div className="relative group">
+        {/* Real-time Glow Aura */}
+        <div className={`absolute inset-[-8px] rounded-full blur-xl opacity-40 animate-pulse ${
           gIdx === 0 ? "bg-[#2c49c5]" : gIdx === 1 ? "bg-red-500" : gIdx === 2 ? "bg-purple-500" : "bg-emerald-500"
-        }`}
-        title={group.name}
-      >
-         <div className="absolute inset-0 bg-white/10 rounded-xl" />
+        }`} />
+        
+        {/* The 3D Token Body */}
+        <div 
+          className={`w-7 h-7 lg:w-9 lg:h-9 rounded-full relative z-10 border-2 border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.3),inset_0_-4px_6px_rgba(0,0,0,0.2)] transition-transform duration-500 ${
+            gIdx === 0 ? "bg-gradient-to-br from-blue-400 to-[#2c49c5]" : 
+            gIdx === 1 ? "bg-gradient-to-br from-red-400 to-red-600" : 
+            gIdx === 2 ? "bg-gradient-to-br from-purple-400 to-purple-600" : 
+            "bg-gradient-to-br from-emerald-400 to-emerald-600"
+          }`}
+        >
+          {/* Glossy Reflection Overlay */}
+          <div className="absolute top-1 left-1.5 w-1/2 h-1/3 bg-white/30 rounded-full blur-[1px]" />
+          
+          {/* Center Indicator */}
+          <div className="absolute inset-0 flex items-center justify-center">
+             <div className="w-1.5 h-1.5 bg-white/80 rounded-full shadow-inner" />
+          </div>
+        </div>
+
+        {/* Drop Shadow on the board */}
+        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-1 bg-black/30 blur-sm rounded-full" />
       </div>
     </motion.div>
   );
