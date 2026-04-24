@@ -12,6 +12,8 @@ export interface Group {
   score: number;
   position: number;
   status: GroupStatus;
+  avatar?: string;
+  color?: string;
 }
 
 export interface QuestionCard {
@@ -56,6 +58,7 @@ export interface SessionHistory {
   winner: string;
   winnerScore: number;
   totalGroups: number;
+  leaderboard: Group[];
 }
 
 interface GameState {
@@ -82,9 +85,13 @@ interface GameState {
   logs: string[];
   myGroupName: string | null;
   lastResult: AnswerResult | null;
+  isMuted: boolean;
+  countdown: number | null;
 
+  toggleMute: () => void;
+  setCountdown: (val: number | null) => void;
   createRoom: (config: RoomConfig) => void;
-  joinRoom: (roomCode: string, name: string) => void;
+  joinRoom: (roomCode: string, name: string, avatar?: string, color?: string) => void;
   startGame: () => void;
   endGame: () => void;
   resetToIdle: () => void;
@@ -103,6 +110,9 @@ interface GameState {
   nextTurn: () => void;
   decrementTimer: () => void;
   clearLastResult: () => void;
+  
+  updateGroups: (groups: Group[]) => void;
+  updateGroup: (groupId: string, updates: Partial<Group>) => void;
   
   // Sync
   setStateFromSync: (state: Partial<GameState>) => void;
@@ -161,8 +171,8 @@ export const useGameStore = create<GameState>((set, get) => {
       set(newState);
     });
     
-    socket.on("game:timer_sync", (data: { timer: number, globalTimer: number }) => {
-       set({ timer: data.timer, globalTimer: data.globalTimer });
+    socket.on("game:timer_sync", (data: { timer: number, globalTimer: number, countdown: number | null }) => {
+       set({ timer: data.timer, globalTimer: data.globalTimer, countdown: data.countdown });
        
        // Handle global timeout
        if (data.globalTimer <= 0 && get().gameStatus === 'PLAYING') {
@@ -192,7 +202,8 @@ export const useGameStore = create<GameState>((set, get) => {
       roomCode: currentState.roomCode,
       winner: topGroup.name,
       winnerScore: topGroup.score,
-      totalGroups: groups.length
+      totalGroups: groups.length,
+      leaderboard: sorted // Already sorted by score
     };
     
     return {
@@ -228,58 +239,91 @@ export const useGameStore = create<GameState>((set, get) => {
     questions: DUMMY_QUESTIONS,
     pendingReviews: [],
     sessionHistory: [
-      { id: 'old1', date: '12 April 2026, 09:00', roomCode: 'X99ABC', winner: 'Kelompok Khadijah', winnerScore: 120, totalGroups: 4 }
+      { id: 'old1', date: '12 April 2026, 09:00', roomCode: 'X99ABC', winner: 'Kelompok Khadijah', winnerScore: 120, totalGroups: 4, leaderboard: [
+        { id: 'g1', name: 'Kelompok Khadijah', score: 120, position: 28, status: 'ACTIVE' },
+        { id: 'g2', name: 'Kelompok Fatimah', score: 90, position: 24, status: 'ACTIVE' },
+        { id: 'g3', name: 'Kelompok Aisyah', score: 85, position: 20, status: 'ACTIVE' },
+        { id: 'g4', name: 'Kelompok Maryam', score: 40, position: 12, status: 'ACTIVE' },
+      ] }
     ],
     
     winner: null,
     logs: [],
     myGroupName: null,
     lastResult: null,
+    isMuted: false,
+    countdown: null,
+
+    toggleMute: () => set((state) => ({ isMuted: !state.isMuted })),
+    setCountdown: (val) => syncSet({ countdown: val }),
+
+    updateGroups: (groups) => syncSet({ groups }),
+
+    updateGroup: (groupId, updates) => syncSet((state) => ({
+      groups: state.groups.map(g => g.id === groupId ? { ...g, ...updates } : g)
+    })),
 
     setStateFromSync: (newState) => set(newState),
 
-    createRoom: (config) => syncSet((state) => {
+    createRoom: (config) => {
       const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(`eduboard_role_${newCode}`, 'guru');
-      }
-      if (socket) socket.emit("room:join", { roomCode: newCode, role: 'guru' });
-      return {
+      
+      // Update local state first to ensure UI is ready
+      set((state) => ({
         gameStatus: 'LOBBY',
         roomCode: newCode,
         roomConfig: config,
         groups: [],
         winner: null,
         logs: [`Room ${newCode} dibuat. Menunggu peserta bergabung...`, ...state.logs]
-      };
-    }),
+      }));
 
-    joinRoom: (typedRoomCode: string, name: string) => {
+      // Persist role
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(`eduboard_role_${newCode}`, 'guru');
+      }
+
+      // Join and then Sync the config to server
+      if (socket) {
+        socket.emit("room:join", { roomCode: newCode, role: 'guru', roomConfig: config });
+        // Sync the config specifically to ensure server has it
+        socket.emit("game:sync_state", { 
+          roomCode: newCode, 
+          state: { roomConfig: config, gameStatus: 'LOBBY' } 
+        });
+      }
+    },
+
+    joinRoom: (typedRoomCode: string, name: string, avatar?: string, color?: string) => {
+      // Save local identity and room code immediately
+      set({ myGroupName: name, roomCode: typedRoomCode });
+
       if (typeof window !== 'undefined') {
         localStorage.setItem(`eduboard_name_${typedRoomCode}`, name);
         localStorage.setItem(`eduboard_role_${typedRoomCode}`, 'siswa');
       }
-      if (socket) socket.emit("room:join", { roomCode: typedRoomCode, role: 'siswa', groupName: name });
-      
-      // Save local identity
-      set({ myGroupName: name });
+      if (socket) socket.emit("room:join", { 
+        roomCode: typedRoomCode, 
+        role: 'siswa', 
+        groupName: name,
+        avatar,
+        color
+      });
     },
 
-    startGame: () => syncSet((state) => {
+    startGame: () => {
+      const state = get();
       const activeGroups = (state.groups || []).map(g => ({ ...g, status: 'ACTIVE' as GroupStatus }));
-      if (socket) socket.emit("game:start", state.roomCode);
-      return {
-        gameStatus: 'PLAYING',
-        groups: activeGroups,
-        activeGroupIndex: 0,
-        currentTurn: 1,
-        globalTimer: state.roomConfig.gameDurationSec,
-        isGlobalTimerRunning: true,
-        timer: 0,
-        isTimerRunning: false,
-        logs: ["Permainan dimulai!", ...state.logs]
-      };
-    }),
+      if (socket) {
+        // First sync the active groups
+        socket.emit("game:sync_state", { 
+          roomCode: state.roomCode, 
+          state: { groups: activeGroups } 
+        });
+        // Then tell server to start (which triggers countdown)
+        socket.emit("game:start", state.roomCode);
+      }
+    },
 
     endGame: () => syncSet((state) => {
       const sorted = [...state.groups].sort((a,b) => b.score - a.score);
@@ -293,7 +337,8 @@ export const useGameStore = create<GameState>((set, get) => {
            roomCode: state.roomCode,
            winner: winner.name,
            winnerScore: winner.score,
-           totalGroups: state.groups.length
+           totalGroups: state.groups.length,
+           leaderboard: sorted
         });
       }
 
@@ -323,7 +368,7 @@ export const useGameStore = create<GameState>((set, get) => {
     })),
 
     addQuestion: (q) => syncSet((state) => ({
-      questions: [{ ...q, id: `q-${Date.now()}` }, ...state.questions]
+      questions: [{ ...q, id: `q-${Date.now()}-${Math.floor(Math.random() * 10000)}` }, ...state.questions]
     })),
 
     updateQuestion: (id, updatedQ) => syncSet((state) => ({
