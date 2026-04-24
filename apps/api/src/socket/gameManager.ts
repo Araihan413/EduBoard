@@ -22,6 +22,7 @@ interface ActiveRoom {
   currentCard: any | null;
   pendingReviews: any[];
   logs: string[];
+  countdown: number | null;
   intervalId?: NodeJS.Timeout;
 }
 
@@ -29,14 +30,14 @@ const activeRooms = new Map<string, ActiveRoom>();
 
 export function handleSocketEvents(io: Server, socket: Socket) {
   
-  socket.on("room:join", (data: { roomCode: string, groupName: string, role?: string }) => {
+  socket.on("room:join", (data: { roomCode: string, groupName: string, role?: string, roomConfig?: any }) => {
     socket.join(data.roomCode);
     console.log(`Socket ${socket.id} joined ${data.roomCode} as ${data.role || 'siswa'}`);
     
     // Initialize room if not exists
     if (!activeRooms.has(data.roomCode)) {
       activeRooms.set(data.roomCode, {
-        roomConfig: { gameDurationSec: 600, maxGroups: 6 },
+        roomConfig: data.roomConfig || { gameDurationSec: 600, maxGroups: 4 },
         groups: [],
         activeGroupIndex: 0,
         timer: 0,
@@ -48,7 +49,8 @@ export function handleSocketEvents(io: Server, socket: Socket) {
         winner: null,
         currentCard: null,
         pendingReviews: [],
-        logs: ["Room dibuat."]
+        logs: ["Room dibuat."],
+        countdown: null
       });
     }
 
@@ -56,14 +58,16 @@ export function handleSocketEvents(io: Server, socket: Socket) {
 
     // Add group if role is siswa
     if (data.role !== 'guru' && data.groupName) {
-      const maxG = room.roomConfig?.maxGroups || 6;
+      const maxG = room.roomConfig?.maxGroups || 4;
       if (room.groups.length < maxG && !room.groups.find((g: any) => g.name === data.groupName)) {
         room.groups.push({
           id: `g-${Date.now()}`,
           name: data.groupName,
           score: 0,
           position: 0,
-          status: 'WAITING'
+          status: 'WAITING',
+          avatar: (data as any).avatar,
+          color: (data as any).color
         });
         
         if (room.logs) {
@@ -83,9 +87,9 @@ export function handleSocketEvents(io: Server, socket: Socket) {
     const room = activeRooms.get(roomCode);
     if (!room) return;
 
-    room.gameStatus = 'PLAYING';
-    room.isGlobalTimerRunning = true;
-    room.globalTimer = room.roomConfig?.gameDurationSec || 600;
+    room.gameStatus = 'LOBBY'; // Keep in lobby during countdown
+    room.countdown = 3; 
+    room.isGlobalTimerRunning = false;
     room.timer = 0;
     room.isTimerRunning = false;
     
@@ -96,6 +100,18 @@ export function handleSocketEvents(io: Server, socket: Socket) {
       if (!liveRoom) return;
       
       let updated = false;
+
+      // Tick Countdown
+      if (liveRoom.countdown !== null && liveRoom.countdown > 0) {
+        liveRoom.countdown--;
+        updated = true;
+      } else if (liveRoom.countdown === 0) {
+        liveRoom.countdown = null;
+        liveRoom.gameStatus = 'PLAYING';
+        liveRoom.isGlobalTimerRunning = true;
+        liveRoom.globalTimer = liveRoom.roomConfig?.gameDurationSec || 600;
+        updated = true;
+      }
 
       // Tick Global Timer
       if (liveRoom.isGlobalTimerRunning && liveRoom.globalTimer > 0) {
@@ -112,8 +128,15 @@ export function handleSocketEvents(io: Server, socket: Socket) {
       if (updated) {
         io.to(roomCode).emit("game:timer_sync", {
           timer: liveRoom.timer,
-          globalTimer: liveRoom.globalTimer
+          globalTimer: liveRoom.globalTimer,
+          countdown: liveRoom.countdown
         });
+        
+        // Also sync state if status changed
+        if (liveRoom.gameStatus === 'PLAYING' && liveRoom.countdown === null) {
+           const { intervalId, ...roomData } = liveRoom;
+           io.to(roomCode).emit("game:state", roomData);
+        }
       }
 
       // Auto end game if global timer reaches 0

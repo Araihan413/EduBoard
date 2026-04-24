@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import {
   useGameStore,
@@ -20,12 +20,10 @@ import {
   BookOpen,
   Target,
   Flame,
-  Moon,
   Info,
   CheckCircle2,
   XCircle,
   X,
-  HelpCircle,
   AlertCircle,
   Clock,
   LayoutDashboard,
@@ -33,6 +31,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
+import NextImage from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import confetti from "canvas-confetti";
 
@@ -67,19 +66,25 @@ export default function BoardPageWrapper() {
 // Main Board Page
 function BoardPage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const role = searchParams?.get("role") || "siswa";
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsMounted(true);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
 
   const {
     groups,
     activeGroupIndex,
     timer,
     globalTimer,
-    roomConfig,
     gameStatus,
-    winner,
     roomCode,
     isTimerRunning,
-    isGlobalTimerRunning,
     currentCard,
     myGroupName,
     submitAnswerObjektif,
@@ -104,34 +109,65 @@ function BoardPage() {
   const [cardPhase, setCardPhase] = useState<CardPhase>("idle");
   const cardPhaseRef = useRef<CardPhase>("idle");
 
-  if (currentCard && currentCard !== stickyCardData) {
-    setStickyCardData(currentCard);
-  }
+
 
   const updatePhase = (phase: CardPhase) => {
     cardPhaseRef.current = phase;
     setCardPhase(phase);
   };
 
-  useEffect(() => {
-    const curr = currentCard;
-    const phase = cardPhaseRef.current;
+  const activeGroup = groups[activeGroupIndex];
+  const isUnderReview = pendingReviews.some((r) => r.groupId === activeGroup?.id);
 
-    if (curr) {
-      if (phase === "idle") {
-        updatePhase("drawing");
-        const t = setTimeout(() => updatePhase("revealed"), 550);
-        return () => clearTimeout(t);
-      }
-    } else if (!curr && (phase === "revealed" || phase === "drawing")) {
-      updatePhase("returning");
-      const t = setTimeout(() => {
-        setStickyCardData(null);
-        updatePhase("idle");
-      }, 800);
-      return () => clearTimeout(t);
+  // Card State Machine — single effect, ref-driven to prevent race conditions
+  const syncTimerRef    = useRef<NodeJS.Timeout | null>(null);
+  const drawTimerRef    = useRef<NodeJS.Timeout | null>(null);
+  const revealTimerRef  = useRef<NodeJS.Timeout | null>(null);
+  const returnTimerRef  = useRef<NodeJS.Timeout | null>(null);
+
+  const clearAllCardTimers = () => {
+    if (syncTimerRef.current)   { clearTimeout(syncTimerRef.current);   syncTimerRef.current   = null; }
+    if (drawTimerRef.current)   { clearTimeout(drawTimerRef.current);   drawTimerRef.current   = null; }
+    if (revealTimerRef.current) { clearTimeout(revealTimerRef.current); revealTimerRef.current = null; }
+    if (returnTimerRef.current) { clearTimeout(returnTimerRef.current); returnTimerRef.current = null; }
+  };
+
+  useEffect(() => {
+    // Sync sticky data (deferred to avoid synchronous setState warning)
+    if (currentCard && currentCard !== stickyCardData) {
+      if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+      syncTimerRef.current = setTimeout(() => setStickyCardData(currentCard), 0);
     }
-  }, [currentCard]);
+
+    if (currentCard && !isMoving) {
+      // New card is ready — cancel any pending return and start drawing
+      if (returnTimerRef.current) {
+        clearTimeout(returnTimerRef.current);
+        returnTimerRef.current = null;
+      }
+      if (cardPhaseRef.current === "idle" || cardPhaseRef.current === "returning") {
+        clearAllCardTimers();
+        updatePhase("drawing");
+        revealTimerRef.current = setTimeout(() => {
+          revealTimerRef.current = null;
+          updatePhase("revealed");
+        }, 550);
+      }
+    } else if (!currentCard && !isUnderReview) {
+      // Card gone — only close if currently open or drawing
+      if (cardPhaseRef.current === "revealed" || cardPhaseRef.current === "drawing") {
+        clearAllCardTimers();
+        updatePhase("returning");
+        returnTimerRef.current = setTimeout(() => {
+          returnTimerRef.current = null;
+          setStickyCardData(null);
+          updatePhase("idle");
+        }, 800);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentCard, isMoving, isUnderReview]);
+
 
   useEffect(() => {
     if (gameStatus !== "FINISHED") return;
@@ -172,8 +208,6 @@ function BoardPage() {
     }
   }, [lastResult, clearLastResult]);
 
-  const activeGroup = groups[activeGroupIndex];
-  const isUnderReview = pendingReviews.some((r) => r.groupId === activeGroup?.id);
   const displayCard = currentCard ?? stickyCardData;
 
   const formatTime = (seconds: number) => {
@@ -182,6 +216,14 @@ function BoardPage() {
     return `${m}:${s.toString().padStart(2, "0")}`;
   };
   const isCardActive = cardPhase !== "idle";
+
+  if (!isMounted) {
+    return (
+      <div className="min-h-screen bg-table-bright flex items-center justify-center">
+        <Disc3 className="w-12 h-12 text-blue-500 animate-spin opacity-20" />
+      </div>
+    );
+  }
 
   if (!activeGroup && gameStatus !== "FINISHED" && gameStatus !== "IDLE") {
     return (
@@ -337,10 +379,13 @@ function BoardPage() {
                   {/* Avatar Section - Smaller */}
                   <div className="relative">
                     <div className={`w-10 h-10 rounded-full overflow-hidden border-2 border-white shadow-md ${colors[g.originalIndex % colors.length]}`}>
-                       <img 
-                         src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${g.name}`} 
+                       <NextImage 
+                         src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${g.avatar || g.name}`} 
                          alt={g.name}
+                         width={40}
+                         height={40}
                          className="w-full h-full object-cover"
+                         unoptimized
                        />
                     </div>
                     {/* Winner Medal */}
@@ -454,13 +499,13 @@ function BoardPage() {
 
       <AnimatePresence>
         {gameStatus === "FINISHED" && (
-          <LeaderboardOverlay groups={groups} />
+          <LeaderboardOverlay groups={groups} role={role} />
         )}
       </AnimatePresence>
 
       <AnimatePresence>
         {lastResult && (
-          <ResultNotification result={lastResult} onClose={clearLastResult} />
+          <ResultNotification result={lastResult} onClose={clearLastResult} role={role} />
         )}
       </AnimatePresence>
 
@@ -652,11 +697,14 @@ function CardOverlay({
   const [isFlipped, setIsFlipped] = useState(false);
 
   useEffect(() => {
-    if (phase === "revealed") {
+    if (phase === "revealed" || isUnderReview) {
       const t = setTimeout(() => setIsFlipped(true), 80);
       return () => clearTimeout(t);
+    } else {
+      const t = setTimeout(() => setIsFlipped(false), 0);
+      return () => clearTimeout(t);
     }
-  }, [phase]);
+  }, [phase, isUnderReview]);
 
   const flipped = (phase === "revealed" || isUnderReview) ? isFlipped : false;
   const cardType = displayCard?.type ?? "DASAR";
@@ -991,7 +1039,8 @@ function CardFrontFace({
   );
 }
 
-function LeaderboardOverlay({ groups }: { groups: Group[] }) {
+function LeaderboardOverlay({ groups, role }: { groups: Group[]; role: string }) {
+  const router = useRouter();
   const sortedGroups = [...groups].sort((a, b) => b.score - a.score);
   const winner = sortedGroups[0];
   const runnersUp = sortedGroups.slice(1);
@@ -1097,34 +1146,17 @@ function LeaderboardOverlay({ groups }: { groups: Group[] }) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 1.5 }}
-          onClick={() => window.location.href = '/'}
+          onClick={() => router.push(role === "guru" ? "/dashboard" : "/lobby")}
           className="mt-10 px-8 py-3 bg-white text-slate-900 rounded-xl font-black tracking-widest uppercase text-xs hover:scale-105 transition-transform shadow-2xl"
         >
-          Kembali ke Menu
+          {role === "guru" ? "Kembali ke Dashboard" : "Kembali ke Lobby"}
         </motion.button>
       </motion.div>
     </motion.div>
   );
 }
 
-function LegendItem({
-  icon,
-  label,
-  color,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  color: string;
-}) {
-  return (
-    <div className="flex items-center gap-3">
-      <div className="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center shrink-0">
-        {icon}
-      </div>
-      <span className={`text-xs font-black uppercase tracking-widest ${color}`}>{label}</span>
-    </div>
-  );
-}
+
 
 function Dice({ size, value, isRolling, onClick, isMyTurn }: { size: number; value: number; isRolling: boolean; onClick?: () => void; isMyTurn?: boolean }) {
   const [shuffleVal, setShuffleVal] = useState(1);
@@ -1231,7 +1263,7 @@ function DieFace({ val, size, transform }: { val: number; size: number; transfor
 }
 
 
-function ResultNotification({ result, onClose }: { result: AnswerResult; onClose: () => void }) {
+function ResultNotification({ result, onClose, role }: { result: AnswerResult; onClose: () => void; role: string }) {
   const { clearLastResult } = useGameStore();
   const isSuccess = result.type === 'SUCCESS';
   const isFailure = result.type === 'FAILURE';
@@ -1244,13 +1276,15 @@ function ResultNotification({ result, onClose }: { result: AnswerResult; onClose
       className="fixed inset-0 z-[200] flex items-center justify-center p-6 pointer-events-none"
     >
       <div className="bg-white/95 backdrop-blur-3xl border-2 border-slate-100 rounded-[2.5rem] p-10 shadow-[0_40px_100px_rgba(0,0,0,0.15)] flex flex-col items-center max-w-sm w-full text-center relative overflow-hidden pointer-events-auto">
-        {/* Close Button */}
-        <button 
-          onClick={() => onClose ? onClose() : clearLastResult()}
-          className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600"
-        >
-          <X className="w-5 h-5" />
-        </button>
+        {/* Close Button — only visible for students, not teacher */}
+        {role !== "guru" && (
+          <button 
+            onClick={() => onClose ? onClose() : clearLastResult()}
+            className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        )}
 
         {/* Glow Background */}
         <div className={`absolute inset-0 opacity-10 blur-3xl pointer-events-none ${isSuccess ? 'bg-emerald-500' : isFailure ? 'bg-red-500' : 'bg-blue-500'}`} />
