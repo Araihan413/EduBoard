@@ -1,22 +1,22 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import NextImage from "next/image";
 import { 
   Users, 
-  Loader2, 
-  Sparkles, 
+  Loader2,
   Volume2, 
   VolumeX, 
   ChevronRight, 
   ChevronLeft,
   Paintbrush,
-  UserCircle2,
   Rocket,
   Hash,
   Gamepad2,
-  Check
+  Check,
+  Disc3,
+  LogOut
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGameStore } from "../../../store/gameStore";
@@ -53,116 +53,84 @@ export default function LobbyPage() {
     countdown,
     myGroupName,
     roomCode: storeRoomCode,
-    setStateFromSync,
-    updateGroups
+    updateGroup,
+    leaveRoom
   } = useGameStore();
   
-  // Form State
-  const [roomCode, setRoomCode] = useState("");
-  const [groupName, setGroupName] = useState("");
-  
-  // Step 1: Entry, Step 2: Lobby
+  const [roomCodeInput, setRoomCodeInput] = useState("");
+  const [groupNameInput, setGroupNameInput] = useState("");
+  const [isJoining, setIsJoining] = useState(false);
   const [step, setStep] = useState(1);
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsMounted(true);
-    }, 0);
-    return () => clearTimeout(timer);
-  }, []);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
   
-  // Customization (local while joining, then synced)
+  // Modern React 18 hydration detection (Avoids cascading renders)
+  const isMounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
+  
   const [avatarIndex, setAvatarIndex] = useState(0);
   const [selectedColor, setSelectedColor] = useState(PREMIUM_COLORS[0]);
-  
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Auto-step if already joined and set unique defaults
+  // Auto-recovery & Sync local customization with store
   useEffect(() => {
-    if (myGroupName && storeRoomCode) {
-      // Use setTimeout to avoid synchronous setState warning (cascading renders)
-      const timer = setTimeout(() => {
-        if (step === 1) setStep(2);
+    if (!isMounted) return;
+
+    // Break the synchronous render chain to avoid cascading renders warning
+    const recoveryTimer = setTimeout(() => {
+      if (myGroupName && storeRoomCode && gameStatus !== 'FINISHED' && gameStatus !== 'IDLE') {
+        setStep(2);
         
         const me = groups.find(g => g.name === myGroupName);
-        const myIndexInGroups = groups.findIndex(g => g.name === myGroupName);
-
         if (me) {
-          // If we have synced data, use it
           if (me.avatar) {
             const idx = AVATAR_SEEDS.indexOf(me.avatar);
             if (idx !== -1 && avatarIndex !== idx) setAvatarIndex(idx);
-          } else if (myIndexInGroups !== -1) {
-            // If no synced avatar yet, set a unique default based on join order
-            const defaultIdx = myIndexInGroups % 10;
-            if (avatarIndex !== defaultIdx) {
-              setAvatarIndex(defaultIdx);
-            }
-            
-            // Also set a unique default color
-            const colorIdx = myIndexInGroups % PREMIUM_COLORS.length;
-            const defaultColor = PREMIUM_COLORS[colorIdx];
-            if (selectedColor.hex !== defaultColor.hex) {
-              setSelectedColor(defaultColor);
-            }
-
-            // Sync these defaults immediately
-            const { updateGroup } = useGameStore.getState();
-            updateGroup(me.id, { 
-              avatar: AVATAR_SEEDS[defaultIdx], 
-              color: defaultColor.hex 
-            });
           }
-
           if (me.color) {
             const col = PREMIUM_COLORS.find(c => c.hex === me.color);
-            if (col && selectedColor.hex !== col.hex) {
-              setSelectedColor(col);
-            }
+            if (col && selectedColor.hex !== col.hex) setSelectedColor(col);
           }
         }
-      }, 0);
+      } else {
+        setStep(1);
+      }
+    }, 0);
 
-      return () => clearTimeout(timer);
-    }
-  }, [myGroupName, storeRoomCode, groups, step, avatarIndex, selectedColor]);
+    return () => clearTimeout(recoveryTimer);
+  }, [isMounted, myGroupName, storeRoomCode, groups, gameStatus, avatarIndex, selectedColor]);
 
-  // Monitor status to auto-redirect
   useEffect(() => {
     if (gameStatus === 'PLAYING') {
       router.push("/board");
     }
   }, [gameStatus, router]);
 
-  // Audio Logic
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.muted = isMuted;
-      if (!isMuted) {
-        audioRef.current.play().catch(() => {});
-      }
-    }
-  }, [isMuted]);
-
-  const handleJoin = (e: React.FormEvent) => {
+  const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Join without explicit avatar/color to let the Lobby logic assign unique defaults
-    joinRoom(
-      roomCode.trim().toUpperCase(), 
-      groupName
-    );
-    setStep(2);
+    setIsJoining(true);
+    try {
+      await joinRoom(
+        roomCodeInput.trim().toUpperCase(), 
+        groupNameInput,
+        AVATAR_SEEDS[avatarIndex],
+        selectedColor.hex
+      );
+      setStep(2);
+    } catch (err) {
+      // Error is handled in store via toast
+    } finally {
+      setIsJoining(false);
+    }
   };
 
   const updateProfile = (newAvatarIdx: number, newColor: typeof PREMIUM_COLORS[0]) => {
     setAvatarIndex(newAvatarIdx);
     setSelectedColor(newColor);
     
-    // Sync to other players via a more specific update
     const me = groups.find(g => g.name === myGroupName);
     if (me) {
-      const { updateGroup } = useGameStore.getState();
       updateGroup(me.id, { 
         avatar: AVATAR_SEEDS[newAvatarIdx], 
         color: newColor.hex 
@@ -179,13 +147,6 @@ export default function LobbyPage() {
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-100/40 blur-[100px] rounded-full" />
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-100/40 blur-[100px] rounded-full" />
       </div>
-
-      {/* Audio Element */}
-      <audio 
-        ref={audioRef} 
-        loop 
-        src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3" 
-      />
 
       {/* Control Bar */}
       <div className="fixed top-24 right-6 flex items-center gap-3 z-50">
@@ -205,51 +166,56 @@ export default function LobbyPage() {
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 1.02 }}
-              className="bg-white border border-slate-200/60 p-6 rounded-3xl shadow-xl shadow-slate-200/40 relative"
+              className="bg-white border border-slate-200/60 p-8 rounded-3xl shadow-xl shadow-slate-200/40 relative"
             >
-              <div className="flex flex-col items-center mb-6">
-                <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-3">
-                  <Gamepad2 size={24} />
+              <div className="flex flex-col items-center mb-8">
+                <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-4 shadow-sm border border-blue-100">
+                  <Gamepad2 size={32} />
                 </div>
-                <h1 className="text-lg font-bold text-slate-800">Masuk ke Ruang Game</h1>
-                <p className="text-sm text-slate-500">Masukkan kode untuk bergabung dengan teman.</p>
+                <h1 className="text-2xl font-black text-slate-800 tracking-tight">Akses Misi Siswa</h1>
+                <p className="text-sm text-slate-500 font-medium">Gunakan kode dari Guru untuk memulai petualangan.</p>
               </div>
 
-              <form onSubmit={handleJoin} className="space-y-5">
+              <form onSubmit={handleJoin} className="space-y-6">
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider ml-1 flex items-center gap-1.5">
-                    <Hash size={12} className="text-blue-500" /> Kode Room
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-1.5">
+                    <Hash size={14} className="text-blue-500" /> Kode Ruang
                   </label>
                   <input 
                     type="text" 
-                    value={roomCode}
-                    onChange={(e) => setRoomCode(e.target.value)}
+                    value={roomCodeInput}
+                    onChange={(e) => setRoomCodeInput(e.target.value)}
                     placeholder="XXXXXX"
                     maxLength={6}
                     required
-                    className="w-full h-12 text-center text-lg tracking-[0.3em] font-mono font-bold uppercase rounded-xl border border-slate-200 bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                    className="w-full h-14 text-center text-2xl tracking-[0.4em] font-mono font-black uppercase rounded-2xl border border-slate-200 bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-200"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider ml-1 flex items-center gap-1.5">
-                    <Users size={12} className="text-blue-500" /> Nama Tim
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-1.5">
+                    <Users size={14} className="text-blue-500" /> Nama Kelompok / Siswa
                   </label>
                   <input 
                     type="text" 
-                    value={groupName}
-                    onChange={(e) => setGroupName(e.target.value)}
-                    placeholder="Contoh: Tim Rajawali"
+                    value={groupNameInput}
+                    onChange={(e) => setGroupNameInput(e.target.value)}
+                    placeholder="Contoh: Tim Abu Bakar"
                     required
-                    className="w-full h-12 px-4 text-sm font-medium rounded-xl border border-slate-200 bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                    className="w-full h-14 px-6 text-lg font-bold rounded-2xl border border-slate-200 bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
                   />
                 </div>
 
                 <button 
                   type="submit"
-                  className="w-full h-12 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-black transition-all active:scale-[0.98] shadow-lg shadow-slate-900/10 flex items-center justify-center gap-2 group"
+                  disabled={isJoining}
+                  className="w-full h-14 bg-slate-900 text-white rounded-2xl font-black text-base hover:bg-black transition-all active:scale-[0.98] shadow-lg shadow-slate-900/10 flex items-center justify-center gap-3 group disabled:opacity-70"
                 >
-                  Masuk Lobby <ChevronRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
+                  {isJoining ? (
+                    <Disc3 className="w-6 h-6 animate-spin" />
+                  ) : (
+                    <>Masuk Arena <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" /></>
+                  )}
                 </button>
               </form>
             </motion.div>
@@ -261,54 +227,53 @@ export default function LobbyPage() {
               className="space-y-6"
             >
               {/* Profile Customization Section */}
-              <div className="bg-white border border-slate-200/60 p-6 rounded-3xl shadow-xl shadow-slate-200/40">
-                <div className="flex flex-col md:flex-row gap-6 items-center">
-                  {/* Avatar Picker */}
-                  <div className="relative group">
-                    <div className={`w-28 h-28 rounded-2xl ${selectedColor.bg} ${selectedColor.shadow} shadow-md transition-all duration-500 relative z-10 overflow-hidden`}>
+              <div className="bg-white border border-slate-200/60 p-8 rounded-[2.5rem] shadow-xl shadow-slate-200/40">
+                <div className="flex flex-col md:flex-row gap-8 items-center">
+                  <div className="relative">
+                    <div className={`w-32 h-32 rounded-[2rem] ${selectedColor.bg} ${selectedColor.shadow} shadow-lg transition-all duration-500 relative z-10 overflow-hidden`}>
                       <NextImage 
                         src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${AVATAR_SEEDS[avatarIndex]}`} 
-                        alt="My Avatar" 
-                        width={112}
-                        height={112}
-                        className="w-full h-full object-cover scale-110 translate-y-2"
-                        unoptimized // SVGs don't need optimization and dicebear returns SVGs
+                        alt="Avatar" 
+                        width={128}
+                        height={128}
+                        className="w-full h-full object-cover scale-110 translate-y-3"
+                        unoptimized
                       />
                     </div>
                     
                     <button 
                       onClick={() => updateProfile(avatarIndex > 0 ? avatarIndex - 1 : AVATAR_SEEDS.length - 1, selectedColor)}
-                      className="absolute left-[-12px] top-1/2 -translate-y-1/2 w-8 h-8 bg-white border border-slate-200 rounded-full shadow-md flex items-center justify-center z-20 hover:bg-slate-50"
+                      className="absolute left-[-16px] top-1/2 -translate-y-1/2 w-10 h-10 bg-white border border-slate-200 rounded-full shadow-md flex items-center justify-center z-20 hover:bg-slate-50 transition-colors"
                     >
-                      <ChevronLeft size={16} />
+                      <ChevronLeft size={20} className="text-slate-400" />
                     </button>
                     <button 
                       onClick={() => updateProfile(avatarIndex < AVATAR_SEEDS.length - 1 ? avatarIndex + 1 : 0, selectedColor)}
-                      className="absolute right-[-12px] top-1/2 -translate-y-1/2 w-8 h-8 bg-white border border-slate-200 rounded-full shadow-md flex items-center justify-center z-20 hover:bg-slate-50"
+                      className="absolute right-[-16px] top-1/2 -translate-y-1/2 w-10 h-10 bg-white border border-slate-200 rounded-full shadow-md flex items-center justify-center z-20 hover:bg-slate-50 transition-colors"
                     >
-                      <ChevronRight size={16} />
+                      <ChevronRight size={20} className="text-slate-400" />
                     </button>
                   </div>
 
-                  <div className="flex-1 space-y-4 text-center md:text-left w-full">
+                  <div className="flex-1 space-y-5 text-center md:text-left w-full">
                     <div>
-                      <h2 className="text-base font-bold text-slate-800">{myGroupName}</h2>
-                      <p className="text-[10px] text-slate-500">Sesuaikan identitas tim kamu</p>
+                      <h2 className="text-2xl font-black text-slate-800 tracking-tight">{myGroupName}</h2>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Identitas Petualang</p>
                     </div>
 
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-1.5 justify-center md:justify-start">
-                        <Paintbrush size={12} className="text-slate-400" />
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Warna Tim</span>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 justify-center md:justify-start">
+                        <Paintbrush size={14} className="text-blue-500" />
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tema Warna Tim</span>
                       </div>
-                      <div className="flex flex-wrap gap-2 justify-center md:justify-start">
+                      <div className="flex flex-wrap gap-2.5 justify-center md:justify-start">
                         {PREMIUM_COLORS.map((c) => (
                           <button
                             key={c.name}
                             onClick={() => updateProfile(avatarIndex, c)}
-                            className={`w-6 h-6 rounded-full ${c.bg} transition-all relative ${selectedColor.hex === c.hex ? 'ring-2 ring-slate-100 ring-offset-2 scale-110' : 'opacity-60 hover:opacity-100'}`}
+                            className={`w-7 h-7 rounded-full ${c.bg} transition-all relative ${selectedColor.hex === c.hex ? 'ring-4 ring-white shadow-md scale-125 z-10' : 'opacity-40 hover:opacity-100 hover:scale-110'}`}
                           >
-                            {selectedColor.hex === c.hex && <Check size={12} className="text-white absolute inset-0 m-auto" />}
+                            {selectedColor.hex === c.hex && <Check size={14} className="text-white absolute inset-0 m-auto" />}
                           </button>
                         ))}
                       </div>
@@ -318,23 +283,22 @@ export default function LobbyPage() {
               </div>
 
               {/* Lobby Status Section */}
-              <div className="bg-slate-50/50 border border-slate-200/40 p-6 rounded-3xl">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex flex-col">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Ruang Tunggu</span>
-                      </div>
-                      <div className="flex items-center gap-1 mt-1">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Room:</span>
-                        <span className="text-sm font-black text-blue-600 tracking-widest font-mono">{storeRoomCode}</span>
-                      </div>
+              <div className="bg-slate-50/80 border border-slate-200/40 p-8 rounded-[2.5rem] backdrop-blur-sm">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping" />
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Sinyal Terhubung</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className="text-xs font-bold text-slate-400">ROOM ID:</span>
+                      <span className="text-lg font-black text-blue-600 tracking-widest font-mono">{storeRoomCode}</span>
                     </div>
                   </div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-white px-2 py-1 rounded-lg border border-slate-100">
-                    {groups.length} / {roomConfig.maxGroups} Tim
-                  </span>
+                  <div className="px-4 py-2 bg-white rounded-2xl border border-slate-100 shadow-sm flex items-center gap-2">
+                    <Users size={14} className="text-blue-500" />
+                    <span className="text-xs font-black text-slate-700">{groups.length} / {roomConfig.maxGroups}</span>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -344,42 +308,77 @@ export default function LobbyPage() {
                       key={g.id}
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      className="bg-white border border-slate-200 p-2 rounded-2xl flex items-center gap-3"
+                      className="bg-white border border-slate-100 p-3 rounded-2xl flex items-center gap-3 shadow-sm"
                     >
                       <div 
-                        className="w-8 h-8 rounded-lg flex-shrink-0" 
-                        style={{ backgroundColor: g.color || '#e2e8f0' }}
+                        className="w-10 h-10 rounded-xl flex-shrink-0 overflow-hidden" 
+                        style={{ backgroundColor: `${g.color || '#e2e8f0'}20` }}
                       >
                         <NextImage 
                           src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${g.avatar || g.name}`} 
                           alt={g.name}
-                          width={32}
-                          height={32}
-                          className="w-full h-full object-cover rounded-lg"
+                          width={40}
+                          height={40}
+                          className="w-full h-full object-cover scale-110 translate-y-1"
                           unoptimized
                         />
                       </div>
-                      <span className="text-xs font-bold text-slate-700 truncate">{g.name}</span>
+                      <span className="text-xs font-black text-slate-700 truncate">{g.name}</span>
                     </motion.div>
                   ))}
                   {Array.from({ length: Math.max(0, 3 - groups.length) }).map((_, i) => (
-                    <div key={i} className="border border-dashed border-slate-200 p-2 rounded-2xl flex items-center gap-3 opacity-40">
-                      <div className="w-8 h-8 bg-slate-100 rounded-lg" />
-                      <div className="h-2 w-12 bg-slate-100 rounded" />
+                    <div key={i} className="border-2 border-dashed border-slate-200/50 p-3 rounded-2xl flex items-center gap-3 opacity-30">
+                      <div className="w-10 h-10 bg-slate-100 rounded-xl" />
+                      <div className="h-2 w-12 bg-slate-100 rounded-full" />
                     </div>
                   ))}
                 </div>
 
-                <div className="mt-6 flex flex-col items-center">
-                  <Loader2 className="w-5 h-5 text-blue-500 animate-spin mb-2" />
-                  <p className="text-xs text-slate-400 font-medium italic">Menunggu instruksi Guru untuk memulai...</p>
+                <div className="mt-10 flex flex-col items-center">
+                  <div className="relative mb-4">
+                    <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+                    <Rocket className="w-4 h-4 text-blue-600 absolute inset-0 m-auto animate-pulse" />
+                  </div>
+                  <p className="text-sm text-slate-500 font-bold italic text-center mb-8">Menunggu Guru meluncurkan misi...</p>
+                  
+                  <AnimatePresence mode="wait">
+                    {!showExitConfirm ? (
+                      <button 
+                        onClick={() => setShowExitConfirm(true)}
+                        className="px-8 py-3 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-2xl transition-all text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 shadow-sm border border-red-100"
+                      >
+                        <LogOut size={12} /> Keluar dari Ruang
+                      </button>
+                    ) : (
+                      <motion.div 
+                        key="confirm-exit"
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 5 }}
+                        className="flex items-center gap-3 p-1.5 bg-red-50 rounded-2xl border border-red-100"
+                      >
+                        <button 
+                          onClick={() => {
+                            if (storeRoomCode && myGroupName) {
+                              leaveRoom(storeRoomCode, myGroupName);
+                            }
+                            setShowExitConfirm(false);
+                            setStep(1);
+                          }}
+                          className="px-5 py-3 bg-red-600 text-white font-black rounded-xl text-[10px] uppercase tracking-widest hover:bg-red-700 transition-all"
+                        >
+                          Ya, Keluar
+                        </button>
+                        <button 
+                          onClick={() => setShowExitConfirm(false)}
+                          className="px-5 py-3 bg-white text-slate-500 font-black rounded-xl text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all"
+                        >
+                          Batal
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
-              </div>
-
-              {/* Tip */}
-              <div className="flex items-center justify-center gap-2 text-slate-300">
-                <Sparkles size={14} />
-                <p className="text-[10px] font-bold uppercase tracking-widest">Tip: Pastikan volume kamu aktif!</p>
               </div>
             </motion.div>
           )}
@@ -393,24 +392,29 @@ export default function LobbyPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-md flex flex-col items-center justify-center text-white"
+            className="fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-xl flex flex-col items-center justify-center text-white"
           >
             <motion.div
               key={countdown}
-              initial={{ scale: 0.5, opacity: 0 }}
+              initial={{ scale: 0, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 1.5, opacity: 0 }}
-              transition={{ duration: 0.5 }}
-              className="text-8xl font-black italic tracking-tighter"
+              exit={{ scale: 2, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 200 }}
+              className="text-9xl font-black italic tracking-tighter"
             >
-              {countdown === 0 ? "MULAI!" : countdown}
+              {countdown === 0 ? "GO!" : countdown}
             </motion.div>
-            <motion.div 
-              initial={{ width: 0 }}
-              animate={{ width: "200px" }}
-              className="h-1 bg-blue-500 mt-8 rounded-full"
-            />
-            <p className="mt-4 text-xs font-bold uppercase tracking-[0.3em] text-slate-400">Menyiapkan Arena</p>
+            <div className="mt-12 flex flex-col items-center gap-4">
+              <div className="w-48 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                <motion.div 
+                  initial={{ width: 0 }}
+                  animate={{ width: "100%" }}
+                  transition={{ duration: 3, ease: "linear" }}
+                  className="h-full bg-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.5)]"
+                />
+              </div>
+              <p className="text-xs font-black uppercase tracking-[0.4em] text-blue-400">Sinkronisasi Arena</p>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

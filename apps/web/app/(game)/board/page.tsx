@@ -29,6 +29,7 @@ import {
   LayoutDashboard,
   Trophy,
   ChevronRight,
+  Rocket,
 } from "lucide-react";
 import Link from "next/link";
 import NextImage from "next/image";
@@ -99,7 +100,12 @@ function BoardPage() {
     joinRoom,
     lastResult,
     clearLastResult,
+    fetchQuestions,
   } = useGameStore();
+
+  useEffect(() => {
+    fetchQuestions();
+  }, [fetchQuestions]);
 
   const [tantanganText, setTantanganText] = useState("");
   const [isInfoOpen, setIsInfoOpen] = useState(false);
@@ -117,7 +123,10 @@ function BoardPage() {
   };
 
   const activeGroup = groups[activeGroupIndex];
-  const isUnderReview = pendingReviews.some((r) => r.groupId === activeGroup?.id);
+  const myGroup = groups.find(g => g.name === myGroupName);
+  const isUnderReview = role === "guru"
+    ? pendingReviews.length > 0
+    : pendingReviews.some((r) => r.groupId === activeGroup?.id || r.groupId === myGroup?.id);
 
   // Card State Machine — single effect, ref-driven to prevent race conditions
   const syncTimerRef    = useRef<NodeJS.Timeout | null>(null);
@@ -184,29 +193,26 @@ function BoardPage() {
     const queryRoom = searchParams?.get("roomCode");
     const queryRole = searchParams?.get("role");
 
-    if (queryRoom && !roomCode) {
+    if (queryRoom) {
       if (queryRole === "guru") {
+        // Guru always re-joins the socket room on board load.
         socket?.emit("room:join", { roomCode: queryRoom, role: "guru" });
       } else {
-        const savedName = localStorage.getItem(`eduboard_name_${queryRoom}`);
+        // Student re-joins. 
+        // We use the name from state (Zustand persist) or local storage.
+        const savedName = myGroupName || localStorage.getItem(`eduboard_name_${queryRoom}`);
         if (savedName) {
           joinRoom(queryRoom, savedName);
         } else {
+          // Fallback if no name found, just join the room to get updates
           socket?.emit("room:join", { roomCode: queryRoom, role: "siswa" });
         }
       }
     }
-  }, [searchParams, roomCode, joinRoom]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
-  // Auto-clear last result
-  useEffect(() => {
-    if (lastResult) {
-      const t = setTimeout(() => {
-        clearLastResult();
-      }, 2000);
-      return () => clearTimeout(t);
-    }
-  }, [lastResult, clearLastResult]);
+
 
   const displayCard = currentCard ?? stickyCardData;
 
@@ -355,7 +361,7 @@ function BoardPage() {
             .map((g, i) => ({ ...g, originalIndex: i }))
             .sort((a, b) => b.score - a.score)
             .map((g, rank) => {
-              const isMyTurn = activeGroupIndex === g.originalIndex;
+              const isMyTurn = gameStatus === "PLAYING" && activeGroupIndex === g.originalIndex;
               const isLeader = rank === 0 && g.score > 0;
               const colors = ["bg-blue-500", "bg-red-500", "bg-purple-500", "bg-emerald-500"];
               
@@ -436,11 +442,11 @@ function BoardPage() {
               value={diceValue}
               isRolling={isRolling}
               onClick={() => {
-                if (role === "siswa" && activeGroup.name === myGroupName && !isRolling && !isMoving && !currentCard && !isUnderReview) {
+                if (role === "siswa" && activeGroup?.name === myGroupName && !isRolling && !isMoving && !currentCard && !isUnderReview) {
                   rollDice();
                 }
               }}
-              isMyTurn={role === "siswa" && activeGroup.name === myGroupName && !isRolling && !isMoving && !currentCard && !isUnderReview}
+              isMyTurn={role === "siswa" && activeGroup?.name === myGroupName && !isRolling && !isMoving && !currentCard && !isUnderReview}
             />
           </div>
 
@@ -452,7 +458,7 @@ function BoardPage() {
         </div>
 
         <div className="flex items-center gap-4">
-          {role === "guru" && !currentCard && !isCardActive && (
+          {role === "guru" && (
             <button
               onClick={nextTurn}
               className="px-5 py-2.5 bg-slate-900 text-white font-black text-[9px] tracking-widest uppercase rounded-xl hover:bg-slate-800 transition-all shadow-xl flex items-center gap-2"
@@ -888,7 +894,8 @@ function CardFrontFace({
           {isUnderReview ? (
             <div className="space-y-6">
               {pendingReviews
-                .filter((r) => r.groupId === activeGroup?.id)
+                .filter((r) => r.groupId === activeGroup?.id || pendingReviews.length === 1)
+                .slice(0, 1) // Only show one at a time for focus
                 .map((review) => (
                   <div key={review.id} className="space-y-6">
                     {/* Focus on the Student Answer */}
@@ -903,7 +910,7 @@ function CardFrontFace({
                       </div>
                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] mb-2 text-center">ISI JAWABAN:</p>
                       <p className="text-xl font-bold text-slate-800 italic leading-relaxed text-center relative z-10">
-                        &ldquo;{review.answerText}&rdquo;
+                        &ldquo;{review.answer}&rdquo;
                       </p>
                     </div>
                   </div>
@@ -932,23 +939,35 @@ function CardFrontFace({
                     </div>
                   ) : currentCard?.type === "TANTANGAN" ? (
                     <div className="space-y-3">
-                      <textarea
-                        autoFocus
-                        className="w-full min-h-[100px] bg-white border-2 border-zinc-900 rounded-xl px-5 py-4 text-zinc-900 text-base font-bold focus:outline-none focus:ring-4 focus:ring-orange-500/15 resize-none shadow-inner"
-                        placeholder="Ketik jawabanmu..."
-                        value={tantanganText}
-                        onChange={(e) => setTantanganText(e.target.value)}
-                      />
-                      <button
-                        onClick={() => {
-                          submitAnswerSubjektif(activeGroup.id, tantanganText);
-                          setTantanganText("");
-                        }}
-                        disabled={!tantanganText.trim()}
-                        className="w-full py-3.5 rounded-xl bg-zinc-900 text-white font-black tracking-[0.2em] uppercase hover:bg-zinc-800 disabled:opacity-20 transition-all shadow-[4px_4px_0_0_rgba(0,0,0,0.2)]"
-                      >
-                        KIRIM JAWABAN
-                      </button>
+                      {isUnderReview ? (
+                        <div className="flex flex-col items-center justify-center py-10 bg-orange-50 rounded-2xl border-2 border-dashed border-orange-200 animate-pulse">
+                          <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mb-4">
+                            <Rocket className="w-6 h-6 text-orange-600 animate-bounce" />
+                          </div>
+                          <p className="text-orange-900 font-black text-center uppercase tracking-widest text-xs">Menunggu Penilaian Guru</p>
+                          <p className="text-orange-600/60 font-bold text-[10px] mt-1 italic">Jawabanmu sedang ditinjau...</p>
+                        </div>
+                      ) : (
+                        <>
+                          <textarea
+                            autoFocus
+                            className="w-full min-h-[100px] bg-white border-2 border-zinc-900 rounded-xl px-5 py-4 text-zinc-900 text-base font-bold focus:outline-none focus:ring-4 focus:ring-orange-500/15 resize-none shadow-inner"
+                            placeholder="Ketik jawabanmu..."
+                            value={tantanganText}
+                            onChange={(e) => setTantanganText(e.target.value)}
+                          />
+                          <button
+                            onClick={() => {
+                              submitAnswerSubjektif(activeGroup.id, tantanganText);
+                              setTantanganText("");
+                            }}
+                            disabled={!tantanganText.trim()}
+                            className="w-full py-3.5 rounded-xl bg-zinc-900 text-white font-black tracking-[0.2em] uppercase hover:bg-zinc-800 disabled:opacity-20 transition-all shadow-[4px_4px_0_0_rgba(0,0,0,0.2)]"
+                          >
+                            KIRIM JAWABAN
+                          </button>
+                        </>
+                      )}
                     </div>
                   ) : (
                     <button
@@ -975,13 +994,47 @@ function CardFrontFace({
           <div className="mt-6 pt-6 border-t-2 border-zinc-100">
             {role === "guru" ? (
               <div className="space-y-4">
-                <div className="flex items-center gap-2 text-orange-600 mb-2">
-                   <AlertCircle className="w-4 h-4 animate-pulse" />
-                   <span className="text-[10px] font-black uppercase tracking-widest">Berikan Penilaian Sekarang</span>
-                </div>
-                <div className="grid grid-cols-3 gap-3">
+                  <div className="flex items-center gap-2 text-orange-600 mb-2">
+                     <AlertCircle className="w-4 h-4 animate-pulse" />
+                     <span className="text-[10px] font-black uppercase tracking-widest">Berikan Penilaian Sekarang</span>
+                  </div>
+
+                  {(() => {
+                    // CRITICAL FIX: Don't just look for activeGroup.id, look for ANY pending review if the teacher needs to grade.
+                    // This prevents "hidden" answers due to turn-sync issues.
+                    const review = pendingReviews.find((r) => r.groupId === activeGroup?.id) || pendingReviews[0];
+                    if (!review) return null;
+                    
+                    return (
+                      <div className="space-y-3 p-4 bg-orange-50 border-2 border-orange-200 rounded-xl text-left">
+                        <div className="flex items-center justify-between mb-1">
+                           <p className="text-[9px] font-black text-orange-400 uppercase tracking-widest">Pertanyaan:</p>
+                           <span className="text-[8px] font-black px-1.5 py-0.5 bg-orange-200 text-orange-700 rounded uppercase">Tim: {review.groupName}</span>
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-orange-900 leading-tight">
+                            {review.question || "Pertanyaan Tantangan"}
+                          </p>
+                        </div>
+                        <div className="pt-2 border-t border-orange-200">
+                          <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-1">Jawaban Siswa:</p>
+                          <p className="text-lg font-black text-blue-900 italic leading-tight">
+                            &ldquo;{review.answer || "Tidak ada jawaban"}&rdquo;
+                          </p>
+                        </div>
+                        <div className="pt-1 flex justify-end">
+                          <span className="text-[8px] font-black text-orange-300 uppercase">Max {review.points || 10} PT</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  <div className="grid grid-cols-3 gap-3">
                   <button
-                    onClick={() => gradeSubjektif(pendingReviews.find((r) => r.groupId === activeGroup?.id)!.id, 0)}
+                    onClick={() => {
+                      const review = pendingReviews.find((r) => r.groupId === activeGroup?.id) || pendingReviews[0];
+                      if (review) gradeSubjektif(review.id, 0);
+                    }}
                     className="flex flex-col items-center gap-1 p-4 rounded-2xl border-2 border-red-200 bg-red-50 hover:bg-red-100 transition-all shadow-sm group"
                   >
                     <XCircle className="w-6 h-6 text-red-500 group-hover:scale-110 transition-transform" />
@@ -989,23 +1042,23 @@ function CardFrontFace({
                   </button>
                   <button
                     onClick={() => {
-                      const r = pendingReviews.find((r) => r.groupId === activeGroup?.id)!;
-                      gradeSubjektif(r.id, Math.floor(r.maxPoints / 2));
+                      const r = pendingReviews.find((r) => r.groupId === activeGroup?.id) || pendingReviews[0];
+                      if (r) gradeSubjektif(r.id, Math.floor((r.points || 10) / 2));
                     }}
                     className="flex flex-col items-center gap-1 p-4 rounded-2xl border-2 border-orange-200 bg-orange-50 hover:bg-orange-100 transition-all shadow-sm group"
                   >
                     <div className="w-6 h-6 rounded-full border-2 border-orange-400 border-t-transparent animate-spin-slow group-hover:animate-none" />
-                    <span className="font-black text-orange-700 text-[10px] tracking-tight uppercase">Sebagian</span>
+                    <span className="font-black text-orange-700 text-[10px] tracking-tight uppercase">Sebagian (+{Math.floor(( (pendingReviews.find((r) => r.groupId === activeGroup?.id) || pendingReviews[0])?.points || 10) / 2)})</span>
                   </button>
                   <button
                     onClick={() => {
-                      const r = pendingReviews.find((r) => r.groupId === activeGroup?.id)!;
-                      gradeSubjektif(r.id, r.maxPoints);
+                      const r = pendingReviews.find((r) => r.groupId === activeGroup?.id) || pendingReviews[0];
+                      if (r) gradeSubjektif(r.id, r.points || 10);
                     }}
                     className="flex flex-col items-center gap-1 p-4 rounded-2xl border-2 border-emerald-200 bg-emerald-50 hover:bg-emerald-100 transition-all shadow-sm group"
                   >
                     <CheckCircle2 className="w-6 h-6 text-emerald-500 group-hover:scale-110 transition-transform" />
-                    <span className="font-black text-emerald-700 text-[10px] tracking-tight uppercase">Tepat</span>
+                    <span className="font-black text-emerald-700 text-[10px] tracking-tight uppercase">Tepat (+{(pendingReviews.find((r) => r.groupId === activeGroup?.id) || pendingReviews[0])?.points || 10})</span>
                   </button>
                 </div>
               </div>
@@ -1267,6 +1320,8 @@ function ResultNotification({ result, onClose, role }: { result: AnswerResult; o
   const { clearLastResult } = useGameStore();
   const isSuccess = result.type === 'SUCCESS';
   const isFailure = result.type === 'FAILURE';
+
+
   
   return (
     <motion.div

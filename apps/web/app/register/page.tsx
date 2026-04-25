@@ -2,11 +2,44 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Sparkles, UserPlus, Mail, Lock, ShieldCheck, User, School, Eye, EyeOff } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Sparkles, UserPlus, Mail, Lock, ShieldCheck, User, Eye, EyeOff, Disc3 } from "lucide-react";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
+import { api } from "../../lib/api";
 
 export default function RegisterPage() {
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    password: "",
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      const data = await api.post("/api/auth/register", formData);
+      
+      localStorage.setItem("eduboard_token", data.token);
+      localStorage.setItem("eduboard_user", JSON.stringify(data.user));
+      
+      toast.success("Akun berhasil dibuat! Mengalihkan...");
+      
+      setTimeout(() => {
+        router.push("/dashboard");
+      }, 1500);
+    } catch (err: any) {
+      toast.error(err.message || "Gagal mendaftarkan akun");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-[#fafafa] p-4 pt-24 pb-12 relative overflow-hidden font-sans">
@@ -22,13 +55,11 @@ export default function RegisterPage() {
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-md bg-white border border-slate-200/60 p-6 rounded-3xl shadow-xl shadow-slate-200/40 relative z-10"
       >
-        {/* Back Link */}
         <Link href="/login" className="inline-flex items-center text-xs font-bold text-slate-400 hover:text-blue-600 mb-6 transition-all group uppercase tracking-widest">
           <ArrowLeft size={16} className="mr-1.5 group-hover:-translate-x-1 transition-transform" />
           Kembali ke Login
         </Link>
 
-        {/* Header Section */}
         <div className="flex items-center gap-4 mb-8">
           <div className="w-10 h-10 bg-blue-50 rounded-2xl flex items-center justify-center border border-blue-100 shadow-sm">
             <UserPlus size={20} className="text-blue-600" />
@@ -43,8 +74,7 @@ export default function RegisterPage() {
           </div>
         </div>
 
-        {/* Register Form */}
-        <form className="space-y-5" action="/dashboard">
+        <form className="space-y-5" onSubmit={handleSubmit}>
           <div className="space-y-2">
             <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-1.5">
               <User size={14} className="text-blue-500" /> Nama Lengkap
@@ -53,6 +83,8 @@ export default function RegisterPage() {
               type="text" 
               placeholder="Ustadz Ahmad Raihan"
               required
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="w-full h-12 px-5 text-base font-medium rounded-xl border border-slate-200 bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-300" 
             />
           </div>
@@ -65,18 +97,8 @@ export default function RegisterPage() {
               type="email" 
               placeholder="guru@sekolah.com"
               required
-              className="w-full h-12 px-5 text-base font-medium rounded-xl border border-slate-200 bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-300" 
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-1.5">
-              <School size={14} className="text-blue-500" /> Nama Sekolah / Instansi
-            </label>
-            <input 
-              type="text" 
-              placeholder="SDIT Permata Hati"
-              required
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               className="w-full h-12 px-5 text-base font-medium rounded-xl border border-slate-200 bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-300" 
             />
           </div>
@@ -90,6 +112,8 @@ export default function RegisterPage() {
                 type={showPassword ? "text" : "password"} 
                 placeholder="••••••••"
                 required
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 className="w-full h-12 px-5 text-base font-medium rounded-xl border border-slate-200 bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-300 pr-12" 
               />
               <button
@@ -105,9 +129,14 @@ export default function RegisterPage() {
           <div className="pt-2">
             <button 
               type="submit" 
-              className="w-full h-12 inline-flex items-center justify-center rounded-xl bg-slate-900 text-white text-base font-bold hover:bg-black shadow-lg shadow-slate-900/10 transition-all active:scale-[0.98] tracking-wide gap-2"
+              disabled={isLoading}
+              className="w-full h-12 inline-flex items-center justify-center rounded-xl bg-slate-900 text-white text-base font-bold hover:bg-black shadow-lg shadow-slate-900/10 transition-all active:scale-[0.98] tracking-wide gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              Daftar Sekarang <Sparkles size={18} className="text-amber-400" />
+              {isLoading ? (
+                <Disc3 className="w-5 h-5 animate-spin" />
+              ) : (
+                <>Daftar Sekarang <Sparkles size={18} className="text-amber-400" /></>
+              )}
             </button>
           </div>
 
@@ -121,7 +150,6 @@ export default function RegisterPage() {
           </div>
         </form>
 
-        {/* Footer Info */}
         <div className="mt-8 pt-6 border-t border-slate-100">
           <div className="flex items-center gap-3 bg-slate-50/50 p-3 rounded-2xl border border-slate-100">
             <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center border border-slate-100 shadow-sm">

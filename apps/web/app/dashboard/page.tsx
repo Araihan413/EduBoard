@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { useGameStore } from "../../store/gameStore";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -18,21 +18,19 @@ import MobileLogOverlay from "@/components/dashboard/MobileLogOverlay";
 
 export default function DashboardPage() {
   const { 
-    gameStatus, logs, resetToIdle, pendingReviews
+    gameStatus, logs, resetToIdle, pendingReviews, roomCode
   } = useGameStore();
 
   const [activeTab, setActiveTab] = useState<'SESI' | 'SOAL' | 'RIWAYAT'>('SESI');
   const [showMobileLog, setShowMobileLog] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
+  // Modern React 18 hydration detection (Avoids components disappearing on refresh)
+  const isMounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsMounted(true);
-    }, 0);
-    return () => clearTimeout(timer);
-  }, []);
-
-  if (!isMounted) return null;
+  if (!isMounted) return <div className="min-h-screen bg-[#fafafa]" />;
 
   return (
     <div className="min-h-screen bg-[#fafafa] flex flex-col">
@@ -60,8 +58,9 @@ export default function DashboardPage() {
                   className="grid grid-cols-1 lg:grid-cols-3 gap-12"
                 >
                   <div className="lg:col-span-2 space-y-12">
-                    {gameStatus === 'IDLE' && <RoomSetupHub />}
-                    {(gameStatus === 'LOBBY' || gameStatus === 'PLAYING') && <MissionControl />}
+                    {gameStatus === 'IDLE' && !roomCode && <RoomSetupHub />}
+                    {((gameStatus === 'LOBBY' || gameStatus === 'PLAYING') || roomCode) && gameStatus !== 'FINISHED' && gameStatus !== 'IDLE' && <MissionControl />}
+                    {gameStatus === 'IDLE' && roomCode && <MissionControl />}
                     {gameStatus === 'FINISHED' && <FinishedState />}
                     
                     {/* Separate Grading Panel */}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, X, Type, Star, Layers, CheckCircle2, ListFilter } from "lucide-react";
+import { Plus, X, Type, Star, Layers, CheckCircle2, ListFilter, Disc3 } from "lucide-react";
 import { useGameStore, QuestionCard, QuestionType } from "../../store/gameStore";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
@@ -43,7 +43,9 @@ export default function QuestionModal({ isOpen, onClose, editingQuestion }: Ques
     }
   }, [editingQuestion, isOpen]);
 
-  const handleSave = () => {
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSave = async () => {
     if (!newQ.text) {
       toast.error("Pertanyaan tidak boleh kosong!");
       return;
@@ -54,14 +56,21 @@ export default function QuestionModal({ isOpen, onClose, editingQuestion }: Ques
       return;
     }
 
-    if (editingQuestion) {
-      updateQuestion(editingQuestion.id, newQ);
-      toast.success("Pertanyaan diperbarui!");
-    } else {
-      addQuestion(newQ);
-      toast.success("Pertanyaan baru ditambahkan!");
+    setIsSaving(true);
+    try {
+      if (editingQuestion) {
+        await updateQuestion(editingQuestion.id, newQ);
+        toast.success("Pertanyaan diperbarui!");
+      } else {
+        await addQuestion(newQ);
+        toast.success("Pertanyaan baru ditambahkan!");
+      }
+      onClose();
+    } catch (err: any) {
+      toast.error(err.message || "Gagal menyimpan soal");
+    } finally {
+      setIsSaving(false);
     }
-    onClose();
   };
 
   if (!isOpen) return null;
@@ -206,9 +215,10 @@ export default function QuestionModal({ isOpen, onClose, editingQuestion }: Ques
           </button>
           <button 
             onClick={handleSave} 
-            className="flex-1 py-4 bg-[#2c49c5] hover:bg-[#1a34a8] text-white rounded-2xl font-black shadow-xl shadow-blue-500/20 transition-all active:scale-95 text-xs tracking-widest"
+            disabled={isSaving}
+            className="flex-1 py-4 bg-[#2c49c5] hover:bg-[#1a34a8] text-white rounded-2xl font-black shadow-xl shadow-blue-500/20 transition-all active:scale-95 text-xs tracking-widest disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            SIMPAN SOAL
+            {isSaving ? <Disc3 className="w-4 h-4 animate-spin" /> : 'SIMPAN SOAL'}
           </button>
         </div>
       </motion.div>

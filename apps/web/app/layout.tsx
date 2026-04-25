@@ -19,6 +19,7 @@ export const metadata: Metadata = {
 
 import { Toaster } from "sonner";
 import Navbar from "@/components/Navbar";
+import SocketInitializer from "@/components/SocketInitializer";
 
 export default function RootLayout({
   children,
@@ -31,9 +32,10 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-grid-premium">
+        <SocketInitializer />
         <Navbar />
         {children}
-        <Toaster richColors position="top-center" />
+        <Toaster richColors position="top-center" duration={4000} closeButton />
       </body>
     </html>
   );

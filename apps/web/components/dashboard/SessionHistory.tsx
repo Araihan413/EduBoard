@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { useGameStore, SessionHistory as SessionType } from "../../store/gameStore";
+import { useState, useEffect, useCallback } from "react";
 import { 
   Calendar, 
   Trophy, 
@@ -12,16 +11,68 @@ import {
   Medal,
   Clock,
   History as HistoryIcon,
-  Search
+  Search,
+  Disc3
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { api } from "../../lib/api";
+import { toast } from "sonner";
+
+interface SessionType {
+  id: string;
+  date: string;
+  roomCode: string;
+  winner: string;
+  winnerScore: number;
+  totalGroups: number;
+  leaderboard: any[];
+}
 
 export default function SessionHistory() {
-  const { sessionHistory } = useGameStore();
+  const [history, setHistory] = useState<SessionType[]>([]);
   const [selectedSession, setSelectedSession] = useState<SessionType | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
 
-  const filteredHistory = sessionHistory.filter(s => 
+  const fetchHistory = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const data = await api.get("/api/rooms/history");
+      
+      const transformed: SessionType[] = data.map((room: any) => {
+        const sortedGroups = [...room.groups].sort((a, b) => b.score - a.score);
+        const winner = sortedGroups[0];
+        
+        return {
+          id: room.id,
+          date: new Date(room.createdAt).toLocaleDateString('id-ID', { 
+            day: 'numeric', 
+            month: 'long', 
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          }),
+          roomCode: room.code,
+          winner: winner?.name || 'N/A',
+          winnerScore: winner?.score || 0,
+          totalGroups: room.groups.length,
+          leaderboard: sortedGroups
+        };
+      });
+
+      setHistory(transformed);
+    } catch (err) {
+      toast.error("Gagal mengambil riwayat sesi");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchHistory();
+  }, [fetchHistory]);
+
+  const filteredHistory = history.filter(s => 
     s.roomCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
     s.winner.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -43,7 +94,6 @@ export default function SessionHistory() {
           {/* Summary Card */}
           <div className="lg:col-span-1 space-y-6">
             <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/40 relative overflow-hidden">
-               {/* Decorative Background */}
                <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-40 h-40 bg-blue-50 rounded-full blur-3xl opacity-50" />
                
                <div className="relative z-10">
@@ -150,67 +200,74 @@ export default function SessionHistory() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
-        <AnimatePresence mode="popLayout">
-          {filteredHistory.length === 0 ? (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="bg-white py-24 rounded-[2rem] border-2 border-dashed border-slate-100 flex flex-col items-center justify-center text-center"
-            >
-               <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center mb-6 text-slate-200">
-                  <HistoryIcon size={40} />
-               </div>
-               <h4 className="text-xl font-black text-slate-900">Belum Ada Riwayat</h4>
-               <p className="text-slate-400 font-medium mt-2 max-w-xs px-6">Selesaikan satu permainan untuk melihat statistik performa di sini.</p>
-            </motion.div>
-          ) : (
-            filteredHistory.map((ses, idx) => (
+      {isLoading ? (
+        <div className="py-24 flex flex-col items-center justify-center gap-4 text-slate-400">
+           <Disc3 className="w-10 h-10 animate-spin text-blue-500" />
+           <p className="text-xs font-black uppercase tracking-[0.2em]">Mengambil Arsip...</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4">
+          <AnimatePresence mode="popLayout">
+            {filteredHistory.length === 0 ? (
               <motion.div 
-                key={ses.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.05 }}
-                onClick={() => setSelectedSession(ses)}
-                className="group cursor-pointer"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="bg-white py-24 rounded-[2rem] border-2 border-dashed border-slate-100 flex flex-col items-center justify-center text-center"
               >
-                <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 hover:border-blue-100 transition-all flex flex-col md:flex-row justify-between items-center gap-6">
-                  <div className="flex items-center gap-6 w-full md:w-auto">
-                    <div className="w-16 h-16 bg-slate-50 text-slate-400 group-hover:bg-blue-50 group-hover:text-[#2c49c5] rounded-2xl flex items-center justify-center transition-colors shrink-0">
-                       <Hash size={24} />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-3 mb-2">
-                        <span className="text-[10px] font-black text-white bg-slate-900 px-2.5 py-1 rounded-lg uppercase tracking-widest">{ses.roomCode}</span>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                           <Calendar size={12} /> {ses.date}
-                        </span>
-                      </div>
-                      <h4 className="text-xl font-black text-slate-900 tracking-tight group-hover:text-[#2c49c5] transition-colors">
-                        Juara: {ses.winner}
-                      </h4>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between md:justify-end w-full md:w-auto gap-8 border-t md:border-t-0 pt-6 md:pt-0 border-slate-50">
-                    <div className="text-left md:text-right">
-                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Skor</p>
-                       <p className="text-2xl font-black text-slate-900">{ses.winnerScore} <span className="text-[10px] text-slate-300">PTS</span></p>
-                    </div>
-                    <div className="text-left md:text-right border-l pl-8 border-slate-100">
-                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Partisipan</p>
-                       <p className="text-2xl font-black text-slate-900">{ses.totalGroups} <span className="text-[10px] text-slate-300">TIM</span></p>
-                    </div>
-                    <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-300 group-hover:bg-[#2c49c5] group-hover:text-white transition-all transform group-hover:translate-x-1">
-                       <ChevronRight size={20} />
-                    </div>
-                  </div>
-                </div>
+                 <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center mb-6 text-slate-200">
+                    <HistoryIcon size={40} />
+                 </div>
+                 <h4 className="text-xl font-black text-slate-900">Belum Ada Riwayat</h4>
+                 <p className="text-slate-400 font-medium mt-2 max-w-xs px-6">Selesaikan satu permainan untuk melihat statistik performa di sini.</p>
               </motion.div>
-            ))
-          )}
-        </AnimatePresence>
-      </div>
+            ) : (
+              filteredHistory.map((ses, idx) => (
+                <motion.div 
+                  key={ses.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.05 }}
+                  onClick={() => setSelectedSession(ses)}
+                  className="group cursor-pointer"
+                >
+                  <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 hover:border-blue-100 transition-all flex flex-col md:flex-row justify-between items-center gap-6">
+                    <div className="flex items-center gap-6 w-full md:w-auto">
+                      <div className="w-16 h-16 bg-slate-50 text-slate-400 group-hover:bg-blue-50 group-hover:text-[#2c49c5] rounded-2xl flex items-center justify-center transition-colors shrink-0">
+                         <Hash size={24} />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-3 mb-2">
+                          <span className="text-[10px] font-black text-white bg-slate-900 px-2.5 py-1 rounded-lg uppercase tracking-widest">{ses.roomCode}</span>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                             <Calendar size={12} /> {ses.date}
+                          </span>
+                        </div>
+                        <h4 className="text-xl font-black text-slate-900 tracking-tight group-hover:text-[#2c49c5] transition-colors">
+                          Juara: {ses.winner}
+                        </h4>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between md:justify-end w-full md:w-auto gap-8 border-t md:border-t-0 pt-6 md:pt-0 border-slate-50">
+                      <div className="text-left md:text-right">
+                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Skor</p>
+                         <p className="text-2xl font-black text-slate-900">{ses.winnerScore} <span className="text-[10px] text-slate-300">PTS</span></p>
+                      </div>
+                      <div className="text-left md:text-right border-l pl-8 border-slate-100">
+                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Partisipan</p>
+                         <p className="text-2xl font-black text-slate-900">{ses.totalGroups} <span className="text-[10px] text-slate-300">TIM</span></p>
+                      </div>
+                      <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-300 group-hover:bg-[#2c49c5] group-hover:text-white transition-all transform group-hover:translate-x-1">
+                         <ChevronRight size={20} />
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              ))
+            )}
+          </AnimatePresence>
+        </div>
+      )}
     </div>
   );
 }

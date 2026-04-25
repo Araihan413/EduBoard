@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import NextImage from "next/image";
 import { 
   Users, CheckCircle2, Copy, Play, Loader2, Activity, LogOut 
@@ -13,9 +13,10 @@ import { toast } from "sonner";
 export default function MissionControl() {
   const { 
     gameStatus, groups, roomCode, roomConfig, countdown, 
-    startGame, endGame 
+    startGame, endGame, resetToIdle, cancelRoom 
   } = useGameStore();
   const [copied, setCopied] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(roomCode);
@@ -109,10 +110,10 @@ export default function MissionControl() {
                       </div>
                     </div>
                     <div 
-                      className="w-2 h-2 rounded-full animate-pulse" 
+                      className={`w-2 h-2 rounded-full ${(g.status === 'ACTIVE' || gameStatus === 'LOBBY') ? "animate-pulse" : ""}`} 
                       style={{ 
-                        backgroundColor: g.color || '#10b981',
-                        boxShadow: `0 0 8px ${g.color || '#10b981'}`
+                        backgroundColor: (g.status === 'ACTIVE' || gameStatus === 'LOBBY') ? (g.color || '#10b981') : '#cbd5e1',
+                        boxShadow: (g.status === 'ACTIVE' || gameStatus === 'LOBBY') ? `0 0 8px ${g.color || '#10b981'}` : 'none'
                       }} 
                     />
                   </div>
@@ -136,21 +137,63 @@ export default function MissionControl() {
                 </div>
               </div>
               
-              <button 
-                onClick={startGame} 
-                disabled={groups.length === 0 || countdown !== null} 
-                className="w-full md:w-auto px-12 py-5 bg-[#2c49c5] hover:bg-[#1a34a8] text-white font-black rounded-2xl shadow-xl shadow-blue-500/20 disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-4 text-base uppercase tracking-widest group"
-              >
-                {countdown !== null ? (
-                  <>
-                    <Loader2 className="animate-spin w-5 h-5"/> {countdown} DETIK MENUJU MULAI
-                  </>
-                ) : (
-                  <>
-                    <Play size={20} className="fill-current group-hover:scale-110 transition-transform" /> MULAI MISI SEKARANG
-                  </>
-                )}
-              </button>
+              <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+                <div className="relative group">
+                  <AnimatePresence mode="wait">
+                    {!showCancelConfirm ? (
+                      <motion.button 
+                        key="btn-cancel"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setShowCancelConfirm(true)}
+                        className="w-full md:w-auto px-6 py-5 bg-slate-100 hover:bg-red-50 hover:text-red-600 text-slate-600 font-black rounded-2xl transition-all flex items-center justify-center gap-3 text-xs uppercase tracking-widest"
+                      >
+                        <Activity size={16} /> Ganti Room
+                      </motion.button>
+                    ) : (
+                      <motion.div 
+                        key="confirm-cancel"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        className="flex items-center gap-2 p-1 bg-red-50 rounded-2xl border border-red-100"
+                      >
+                        <button 
+                          onClick={() => {
+                            cancelRoom(roomCode);
+                            setShowCancelConfirm(false);
+                          }}
+                          className="px-4 py-4 bg-red-600 text-white font-black rounded-xl text-[10px] uppercase tracking-widest hover:bg-red-700 transition-all"
+                        >
+                          Ya, Ganti
+                        </button>
+                        <button 
+                          onClick={() => setShowCancelConfirm(false)}
+                          className="px-4 py-4 bg-white text-slate-500 font-black rounded-xl text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all"
+                        >
+                          Tutup
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+                <button 
+                  onClick={startGame} 
+                  disabled={groups.length === 0 || countdown !== null} 
+                  className="w-full md:w-auto px-12 py-5 bg-[#2c49c5] hover:bg-[#1a34a8] text-white font-black rounded-2xl shadow-xl shadow-blue-500/20 disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-4 text-base uppercase tracking-widest group"
+                >
+                  {countdown !== null ? (
+                    <>
+                      <Loader2 className="animate-spin w-5 h-5"/> {countdown} DETIK
+                    </>
+                  ) : (
+                    <>
+                      <Play size={20} className="fill-current group-hover:scale-110 transition-transform" /> MULAI MISI
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

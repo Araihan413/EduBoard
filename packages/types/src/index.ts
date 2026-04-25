@@ -8,7 +8,9 @@ export type LoginInput = z.infer<typeof LoginSchema>;
 
 export const CreateRoomSchema = z.object({
   durationMinutes: z.number().min(1),
-  timePerTurnSeconds: z.number().min(10).max(120),
+  turnDurationDasar: z.number().min(10).max(120),
+  turnDurationTantangan: z.number().min(10).max(300),
+  turnDurationAksi: z.number().min(5).max(120),
   maxGroups: z.number().min(2).max(6),
 });
 export type CreateRoomInput = z.infer<typeof CreateRoomSchema>;

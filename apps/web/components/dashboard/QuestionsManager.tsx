@@ -9,7 +9,7 @@ import QuestionModal from "./QuestionModal";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function QuestionsManager() {
-  const { questions, deleteQuestion, addQuestion } = useGameStore();
+  const { questions, deleteQuestion, addQuestion, fetchQuestions } = useGameStore();
   const [showModal, setShowModal] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<QuestionCard | null>(null);
   
@@ -26,6 +26,10 @@ export default function QuestionsManager() {
     window.addEventListener('click', handleGlobalClick);
     return () => window.removeEventListener('click', handleGlobalClick);
   }, []);
+
+  useEffect(() => {
+    fetchQuestions();
+  }, [fetchQuestions]);
 
   const handleEdit = (q: QuestionCard) => {
     setEditingQuestion(q);
@@ -349,7 +353,16 @@ export default function QuestionsManager() {
                           <Pencil size={18}/>
                         </button>
                         <button 
-                          onClick={() => deleteQuestion(q.id)} 
+                          onClick={async () => {
+                            if (confirm("Hapus soal ini?")) {
+                              try {
+                                await deleteQuestion(q.id);
+                                toast.success("Soal berhasil dihapus");
+                              } catch (err) {
+                                toast.error("Gagal menghapus soal");
+                              }
+                            }
+                          }} 
                           className="p-3 bg-white border border-slate-100 text-slate-400 hover:text-red-500 hover:border-red-100 hover:bg-red-50 rounded-xl transition-all shadow-sm"
                         >
                           <Trash2 size={18}/>
@@ -397,7 +410,16 @@ export default function QuestionsManager() {
                       <Pencil size={16}/>
                     </button>
                     <button 
-                      onClick={() => deleteQuestion(q.id)} 
+                      onClick={async () => {
+                        if (confirm("Hapus soal ini?")) {
+                          try {
+                            await deleteQuestion(q.id);
+                            toast.success("Soal berhasil dihapus");
+                          } catch (err) {
+                            toast.error("Gagal menghapus soal");
+                          }
+                        }
+                      }} 
                       className="p-2.5 text-slate-400 hover:text-red-500 transition-colors"
                     >
                       <Trash2 size={16}/>

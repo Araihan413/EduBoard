@@ -6,18 +6,21 @@ import { prisma } from "@repo/db";
 import fastifyJwt from "@fastify/jwt";
 import authRoutes from "./routes/auth";
 import questionRoutes from "./routes/questions";
+import roomRoutes from "./routes/rooms";
 import { handleSocketEvents } from "./socket/gameManager";
 
 const fastify = Fastify({ logger: true });
 
 // Register Plugins
+// Register Plugins
 fastify.register(cors, {
-  origin: ["http://localhost:3000"],
+  origin: true, 
   credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 });
 
 fastify.register(fastifyJwt, {
-  secret: "supersekretkeyygdijagabenerbener", // In prod, use process.env.JWT_SECRET
+  secret: process.env.JWT_SECRET || "supersekretkeyygdijagabenerbener", 
 });
 
 fastify.get("/health", async () => {
@@ -26,6 +29,7 @@ fastify.get("/health", async () => {
 
 fastify.register(authRoutes, { prefix: "/api/auth" });
 fastify.register(questionRoutes, { prefix: "/api/questions" });
+fastify.register(roomRoutes, { prefix: "/api/rooms" });
 
 const start = async () => {
   try {

@@ -1,5 +1,8 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { io, Socket } from 'socket.io-client';
+import { toast } from 'sonner';
+import { api } from '../lib/api';
 
 // Types
 export type GroupStatus = 'ACTIVE' | 'SKIP_NEXT' | 'WAITING';
@@ -25,30 +28,22 @@ export interface QuestionCard {
   answerKey?: string;
 }
 
-export interface PendingReview {
-  id: string;
-  groupId: string;
-  groupName: string;
-  questionText: string;
-  answerText: string;
-  maxPoints: number;
-  type: QuestionType;
-}
-
-export interface AnswerResult {
-  type: 'SUCCESS' | 'FAILURE' | 'NEUTRAL';
-  title: string;
-  message: string;
-  points: number;
-  groupName: string;
-}
-
 export interface RoomConfig {
   gameDurationSec: number;
   turnDurationDasar: number;
   turnDurationTantangan: number;
   turnDurationAksi: number;
   maxGroups: number;
+}
+
+export interface PendingReview {
+  id: string;
+  groupId: string;
+  groupName: string;
+  question: string;
+  answer: string;
+  points: number;
+  dbAnswerId?: string;
 }
 
 export interface SessionHistory {
@@ -61,6 +56,14 @@ export interface SessionHistory {
   leaderboard: Group[];
 }
 
+export interface AnswerResult {
+  type: 'SUCCESS' | 'FAILURE' | 'INFO';
+  title: string;
+  message: string;
+  points: number;
+  groupName: string;
+}
+
 interface GameState {
   gameStatus: GameStatus;
   roomCode: string;
@@ -68,10 +71,10 @@ interface GameState {
   groups: Group[];
   activeGroupIndex: number;
   currentTurn: number;
-  timer: number; // Card countdown
-  globalTimer: number; // Session countdown
-  isTimerRunning: boolean; // Card countdown active
-  isGlobalTimerRunning: boolean; // Session countdown active
+  timer: number;
+  globalTimer: number;
+  isTimerRunning: boolean;
+  isGlobalTimerRunning: boolean;
   currentCard: QuestionCard | null;
   diceValue: number;
   isRolling: boolean;
@@ -87,54 +90,55 @@ interface GameState {
   lastResult: AnswerResult | null;
   isMuted: boolean;
   countdown: number | null;
+}
 
+interface GameActions {
   toggleMute: () => void;
   setCountdown: (val: number | null) => void;
-  createRoom: (config: RoomConfig) => void;
+  createRoom: (config: RoomConfig) => Promise<void>;
   joinRoom: (roomCode: string, name: string, avatar?: string, color?: string) => void;
   startGame: () => void;
   endGame: () => void;
   resetToIdle: () => void;
 
   // Actions - Pertanyaan
-  addQuestion: (q: Omit<QuestionCard, 'id'>) => void;
-  updateQuestion: (id: string, q: Partial<QuestionCard>) => void;
-  deleteQuestion: (id: string) => void;
+  addQuestion: (q: Omit<QuestionCard, 'id'>) => Promise<void>;
+  updateQuestion: (id: string, q: Partial<QuestionCard>) => Promise<void>;
+  deleteQuestion: (id: string) => Promise<void>;
+  fetchQuestions: () => Promise<void>;
 
   // Actions - Mekanik Permainan
   drawCard: (type?: QuestionType) => void;
+  rollDice: () => void;
+  moveGroup: (groupId: string, steps: number) => void;
   submitAnswerObjektif: (groupId: string, answer: string) => void;
   submitAnswerSubjektif: (groupId: string, answerText: string) => void;
-  gradeSubjektif: (reviewId: string, score: number) => void;
-  rollDice: () => void;
+  reviewSubmission: (reviewId: string, score: number) => void;
+  gradeSubjektif: (reviewId: string, score: number) => void; // alias for reviewSubmission (used in board/page.tsx)
   nextTurn: () => void;
   decrementTimer: () => void;
   clearLastResult: () => void;
   
   updateGroups: (groups: Group[]) => void;
   updateGroup: (groupId: string, updates: Partial<Group>) => void;
+  leaveRoom: (roomCode: string, name: string) => void;
+  cancelRoom: (roomCode: string) => void;
   
   // Sync
   setStateFromSync: (state: Partial<GameState>) => void;
 }
 
-// Dummy Soal Bank Awal
-const DUMMY_QUESTIONS: QuestionCard[] = [
-  { id: 'q1', type: 'DASAR', text: 'Apa hukum tajwid dari Nun Sukun bertemu huruf Ba?', points: 10, options: ['Ikhfa', 'Iqlab', 'Izhar', 'Idgham Bighunnah'], answerKey: 'Iqlab' },
-  { id: 'q2', type: 'DASAR', text: 'Malaikat yang bertugas membagi rezeki adalah...', points: 10, options: ['Mikail', 'Jibril', 'Israfil', 'Izrail'], answerKey: 'Mikail' },
-  { id: 'q4', type: 'TANTANGAN', text: 'Sebutkan 3 rukun haji yang kamu ketahui! (Guru akan menilai 0-30 poin)', points: 30 },
-  { id: 'q5', type: 'AKSI', text: 'Maju 2 petak karena kamu membantu teman mengaji hari ini!', points: 10 },
-  { id: 'q6', type: 'DASAR', text: 'Surah pendek pertama dalam urutan juz 30 adalah...', points: 10, options: ['An-Naba', 'An-Naziat', 'Al-Mursalat', 'Abasa'], answerKey: 'An-Naba' },
-];
+
 
 export let socket: Socket | null = null;
 if (typeof window !== 'undefined') {
   socket = io(process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:4000');
 }
 
-// Tile Type Helper (Shared between Store and UI logic)
+let resultTimeoutId: NodeJS.Timeout | null = null;
+
 export const getTileTypeAt = (index: number): QuestionType | "SKIP" => {
-  if (index === 0) return "DASAR"; // Fallback for start zone if needed, though usually index starts at 1
+  if (index === 0) return "DASAR";
   const patterns: (QuestionType | "SKIP")[] = [
     "DASAR", "DASAR", "AKSI", "TANTANGAN", "SKIP", 
     "DASAR", "DASAR", "TANTANGAN", "AKSI", "TANTANGAN", "AKSI",
@@ -145,505 +149,403 @@ export const getTileTypeAt = (index: number): QuestionType | "SKIP" => {
   return patterns[(index - 1) % 30];
 };
 
-export const useGameStore = create<GameState>((set, get) => {
-  
-  const syncSet = (partialOrFn: Partial<GameState> | ((state: GameState) => Partial<GameState>)) => {
-    set((state) => {
-      const nextPartial = typeof partialOrFn === 'function' ? partialOrFn(state) : partialOrFn;
-      
-      // Emit only the partial update to the server
-      if (socket) {
-        socket.emit("game:sync_state", { 
-          roomCode: nextPartial.roomCode || state.roomCode, 
-          state: nextPartial 
-        });
-      }
-      
-      // CRITICAL: Return the MERGED state, not just the partial
-      return { ...state, ...nextPartial };
-    });
-  };
-
-  if (socket) {
-    socket.on("game:state", (newState: Partial<GameState>) => {
-      // In the new atomic model, we simply apply the state.
-      // The UI (BoardCanvas) will detect position changes and animate accordingly.
-      set(newState);
-    });
-    
-    socket.on("game:timer_sync", (data: { timer: number, globalTimer: number, countdown: number | null }) => {
-       set({ timer: data.timer, globalTimer: data.globalTimer, countdown: data.countdown });
-       
-       // Handle global timeout
-       if (data.globalTimer <= 0 && get().gameStatus === 'PLAYING') {
-          const winState = calculateWinner(get().groups, get());
-          if (winState) {
-            syncSet({ ...winState, isTimerRunning: false, isGlobalTimerRunning: false });
+export const useGameStore = create<GameState & GameActions>()(
+  persist(
+    (set, get) => {
+      const syncSet = (partialOrFn: Partial<GameState> | ((state: GameState) => Partial<GameState>)) => {
+        set((state) => {
+          const nextPartial = typeof partialOrFn === 'function' ? partialOrFn(state) : partialOrFn;
+          if (socket) {
+            socket.emit("game:sync_state", { 
+              roomCode: nextPartial.roomCode || state.roomCode, 
+              state: nextPartial 
+            });
           }
-       }
-       
-       // Handle card timeout (Answer Timer)
-       if (data.timer <= 0 && get().isTimerRunning) {
-          get().decrementTimer(); // logic for auto-wrong
-       }
-    });
-  }
-
-  const calculateWinner = (groups: Group[], currentState: GameState): Partial<GameState> | null => {
-    if (groups.length === 0) return null;
-    
-    // Sort by score descending
-    const sorted = [...groups].sort((a, b) => b.score - a.score);
-    const topGroup = sorted[0];
-    
-    const historyItem: SessionHistory = {
-      id: `ses-${Date.now()}`,
-      date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
-      roomCode: currentState.roomCode,
-      winner: topGroup.name,
-      winnerScore: topGroup.score,
-      totalGroups: groups.length,
-      leaderboard: sorted // Already sorted by score
-    };
-    
-    return {
-      gameStatus: 'FINISHED',
-      winner: topGroup,
-      sessionHistory: [historyItem, ...currentState.sessionHistory],
-      logs: [`WAKTU HABIS! ${topGroup.name} menang dengan ${topGroup.score} poin!`, ...currentState.logs]
-    };
-  }
-
-  return {
-    gameStatus: 'IDLE',
-    roomCode: '',
-    roomConfig: { 
-      gameDurationSec: 600, 
-      turnDurationDasar: 30, 
-      turnDurationTantangan: 60, 
-      turnDurationAksi: 15, 
-      maxGroups: 4
-    },
-    groups: [],
-    activeGroupIndex: 0,
-    currentTurn: 1,
-    timer: 0,
-    globalTimer: 0,
-    isTimerRunning: false,
-    isGlobalTimerRunning: false,
-    currentCard: null,
-    diceValue: 1,
-    isRolling: false,
-    isMoving: false,
-    
-    questions: DUMMY_QUESTIONS,
-    pendingReviews: [],
-    sessionHistory: [
-      { id: 'old1', date: '12 April 2026, 09:00', roomCode: 'X99ABC', winner: 'Kelompok Khadijah', winnerScore: 120, totalGroups: 4, leaderboard: [
-        { id: 'g1', name: 'Kelompok Khadijah', score: 120, position: 28, status: 'ACTIVE' },
-        { id: 'g2', name: 'Kelompok Fatimah', score: 90, position: 24, status: 'ACTIVE' },
-        { id: 'g3', name: 'Kelompok Aisyah', score: 85, position: 20, status: 'ACTIVE' },
-        { id: 'g4', name: 'Kelompok Maryam', score: 40, position: 12, status: 'ACTIVE' },
-      ] }
-    ],
-    
-    winner: null,
-    logs: [],
-    myGroupName: null,
-    lastResult: null,
-    isMuted: false,
-    countdown: null,
-
-    toggleMute: () => set((state) => ({ isMuted: !state.isMuted })),
-    setCountdown: (val) => syncSet({ countdown: val }),
-
-    updateGroups: (groups) => syncSet({ groups }),
-
-    updateGroup: (groupId, updates) => syncSet((state) => ({
-      groups: state.groups.map(g => g.id === groupId ? { ...g, ...updates } : g)
-    })),
-
-    setStateFromSync: (newState) => set(newState),
-
-    createRoom: (config) => {
-      const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-      
-      // Update local state first to ensure UI is ready
-      set((state) => ({
-        gameStatus: 'LOBBY',
-        roomCode: newCode,
-        roomConfig: config,
-        groups: [],
-        winner: null,
-        logs: [`Room ${newCode} dibuat. Menunggu peserta bergabung...`, ...state.logs]
-      }));
-
-      // Persist role
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(`eduboard_role_${newCode}`, 'guru');
-      }
-
-      // Join and then Sync the config to server
-      if (socket) {
-        socket.emit("room:join", { roomCode: newCode, role: 'guru', roomConfig: config });
-        // Sync the config specifically to ensure server has it
-        socket.emit("game:sync_state", { 
-          roomCode: newCode, 
-          state: { roomConfig: config, gameStatus: 'LOBBY' } 
+          return { ...state, ...nextPartial };
         });
-      }
-    },
+      };
 
-    joinRoom: (typedRoomCode: string, name: string, avatar?: string, color?: string) => {
-      // Save local identity and room code immediately
-      set({ myGroupName: name, roomCode: typedRoomCode });
-
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(`eduboard_name_${typedRoomCode}`, name);
-        localStorage.setItem(`eduboard_role_${typedRoomCode}`, 'siswa');
-      }
-      if (socket) socket.emit("room:join", { 
-        roomCode: typedRoomCode, 
-        role: 'siswa', 
-        groupName: name,
-        avatar,
-        color
-      });
-    },
-
-    startGame: () => {
-      const state = get();
-      const activeGroups = (state.groups || []).map(g => ({ ...g, status: 'ACTIVE' as GroupStatus }));
       if (socket) {
-        // First sync the active groups
-        socket.emit("game:sync_state", { 
-          roomCode: state.roomCode, 
-          state: { groups: activeGroups } 
+        socket.on("game:state", (newState: Partial<GameState>) => {
+          // If another client advanced the turn and cleared the result, cancel our local timeout
+          if (newState.lastResult === null && resultTimeoutId) {
+            clearTimeout(resultTimeoutId);
+            resultTimeoutId = null;
+          }
+          set(newState);
         });
-        // Then tell server to start (which triggers countdown)
-        socket.emit("game:start", state.roomCode);
-      }
-    },
-
-    endGame: () => syncSet((state) => {
-      const sorted = [...state.groups].sort((a,b) => b.score - a.score);
-      const winner = sorted[0] || null;
-      
-      const sessionHistory = [...state.sessionHistory];
-      if (winner && state.gameStatus === 'PLAYING') {
-        sessionHistory.unshift({
-           id: `ses-${Date.now()}`,
-           date: new Date().toLocaleDateString('id-ID'),
-           roomCode: state.roomCode,
-           winner: winner.name,
-           winnerScore: winner.score,
-           totalGroups: state.groups.length,
-           leaderboard: sorted
+        
+        socket.on("game:timer_sync", (data: { timer: number, globalTimer: number, countdown: number | null }) => {
+           set({ timer: data.timer, globalTimer: data.globalTimer, countdown: data.countdown });
+           if (data.timer <= 0 && get().isTimerRunning) {
+              get().decrementTimer();
+           }
         });
       }
 
       return {
-        gameStatus: 'FINISHED',
-        winner,
+        gameStatus: 'IDLE',
+        roomCode: '',
+        roomConfig: { 
+          gameDurationSec: 600, 
+          turnDurationDasar: 30, 
+          turnDurationTantangan: 60, 
+          turnDurationAksi: 15, 
+          maxGroups: 4
+        },
+        groups: [],
+        activeGroupIndex: 0,
+        currentTurn: 1,
+        timer: 0,
+        globalTimer: 0,
         isTimerRunning: false,
         isGlobalTimerRunning: false,
-        globalTimer: 0,
-        sessionHistory,
-        logs: ["Game diakhiri oleh Guru secara manual.", ...state.logs]
-      }
-    }),
-
-    resetToIdle: () => syncSet(() => ({
-       gameStatus: 'IDLE',
-       roomCode: '',
-       groups: [],
-       activeGroupIndex: 0,
-       currentTurn: 1,
-       timer: 0,
-       isTimerRunning: false,
-       currentCard: null,
-       pendingReviews: [],
-       winner: null,
-       logs: ["Sistem sedia..."]
-    })),
-
-    addQuestion: (q) => syncSet((state) => ({
-      questions: [{ ...q, id: `q-${Date.now()}-${Math.floor(Math.random() * 10000)}` }, ...state.questions]
-    })),
-
-    updateQuestion: (id, updatedQ) => syncSet((state) => ({
-      questions: state.questions.map(q => q.id === id ? { ...q, ...updatedQ } : q)
-    })),
-
-    deleteQuestion: (id) => syncSet((state) => ({
-      questions: state.questions.filter(q => q.id !== id)
-    })),
-
-    drawCard: (type?: QuestionType) => syncSet((state) => {
-      let pool = state.questions && state.questions.length > 0 ? state.questions : DUMMY_QUESTIONS;
-      
-      if (type) {
-        const filtered = pool.filter(q => q.type === type);
-        if (filtered.length > 0) pool = filtered;
-      }
-
-      const randIdx = Math.floor(Math.random() * pool.length);
-      const card = pool[randIdx];
-      
-      // Use dynamic timers from roomConfig
-      const conf = state.roomConfig;
-      const cardT = card.type === 'TANTANGAN' ? (conf.turnDurationTantangan || 60) :
-                  (card.type === 'AKSI' ? (conf.turnDurationAksi || 15) : (conf.turnDurationDasar || 30));
-
-      return { 
-        currentCard: card,
-        timer: cardT,
-        isTimerRunning: true,
-        logs: [`${state.groups[state.activeGroupIndex]?.name} mengambil Kartu ${card.type}.`, ...(state.logs || [])]
-      };
-    }),
-
-    submitAnswerObjektif: (groupId, answer) => syncSet((state) => {
-      const card = state.currentCard;
-      if (!card) return {};
-
-      let earnedPoints = 0;
-      let stepsToMove = 0;
-      const newGroupStatus: GroupStatus = 'ACTIVE';
-      const groupName = state.groups.find(g => g.id === groupId)?.name || '';
-      let logMsg = '';
-
-      if (card.type === 'DASAR') {
-        if (answer === card.answerKey) {
-          earnedPoints = card.points;
-          logMsg = `(DASAR) ${groupName} Benar! +${earnedPoints} poin.`;
-        } else {
-          // Movement penalty removed as requested
-          stepsToMove = 0;
-          logMsg = `(DASAR) ${groupName} SALAH! Tidak ada poin didapat.`;
-        }
-      } else if (card.type === 'AKSI') {
-        earnedPoints = card.points;
-        logMsg = `(AKSI) ${groupName} mengeksekusi instruksi aksi.`;
-      }
-      
-      const newGroups = state.groups.map(g => {
-        if (g.id !== groupId) return g;
-        
-        // Loop logic for 1-30: ((pos + steps - 1) % 30) + 1
-        // For position 0 (Start), we treat it as starting from 0 for the first jump
-        let targetPos = g.position;
-        if (targetPos === 0) {
-           targetPos = Math.max(1, stepsToMove); // Can't move negative from start
-        } else {
-           targetPos = ((g.position + stepsToMove - 1 + 30) % 30) + 1;
-        }
-
-        return { ...g, score: g.score + earnedPoints, position: targetPos, status: newGroupStatus };
-      });
-
-      // No winner check here anymore, we wait for timer to run out.
-
-      // Auto next turn after 5 seconds
-      setTimeout(() => {
-         get().nextTurn();
-      }, 5000);
-
-      return {
-        groups: newGroups,
         currentCard: null,
-        lastResult: card.type === 'DASAR' ? {
-          type: answer === card.answerKey ? 'SUCCESS' : 'FAILURE',
-          title: answer === card.answerKey ? 'BENAR!' : 'SALAH!',
-          message: answer === card.answerKey ? `Kamu mendapatkan ${earnedPoints} poin.` : `Jawaban yang benar adalah: ${card.answerKey}`,
-          points: earnedPoints,
-          groupName
-        } : {
-          type: 'SUCCESS',
-          title: 'BERHASIL!',
-          message: 'Instruksi aksi telah dijalankan.',
-          points: earnedPoints,
-          groupName
+        diceValue: 1,
+        isRolling: false,
+        isMoving: false,
+        questions: [],
+        pendingReviews: [],
+        sessionHistory: [],
+        winner: null,
+        logs: [],
+        myGroupName: null,
+        lastResult: null,
+        isMuted: false,
+        countdown: null,
+
+        toggleMute: () => set((state) => ({ isMuted: !state.isMuted })),
+        setCountdown: (val) => syncSet({ countdown: val }),
+        updateGroups: (groups) => syncSet({ groups }),
+        updateGroup: (groupId, updates) => syncSet((state) => ({
+          groups: state.groups.map(g => g.id === groupId ? { ...g, ...updates } : g)
+        })),
+        leaveRoom: (roomCode, name) => {
+          if (socket) {
+            socket.emit("room:leave", { roomCode, groupName: name });
+          }
+          get().resetToIdle();
         },
-        // isTimerRunning remains true for global timer
-        logs: [logMsg, ...(state.logs || [])]
-      };
-    }),
-
-    submitAnswerSubjektif: (groupId, answerText) => syncSet((state) => {
-      const card = state.currentCard;
-      if (!card || card.type !== 'TANTANGAN') return {};
-      
-      const groupName = state.groups.find(g => g.id === groupId)?.name || '';
-      
-      const newReview: PendingReview = {
-        id: `rev-${Date.now()}`,
-        groupId,
-        groupName,
-        questionText: card.text,
-        answerText,
-        maxPoints: card.points,
-        type: card.type
-      };
-
-      return {
-        currentCard: null,
-        isTimerRunning: false,
-        pendingReviews: [...state.pendingReviews, newReview],
-        logs: [`(TANTANGAN) ${groupName} mensubmit jawaban. Menunggu evaluasi Guru...`, ...state.logs]
-      };
-    }),
-
-    gradeSubjektif: (reviewId, score) => syncSet((state) => {
-      const review = state.pendingReviews.find(r => r.id === reviewId);
-      if (!review) return {};
-
-      // Removed automatic movement reward for TANTANGAN
-      const stepsToMove = 0;
-      
-      const newGroups = state.groups.map(g => {
-        if (g.id !== review.groupId) return g;
-        
-        let targetPos = g.position;
-        if (targetPos === 0) {
-           targetPos = Math.max(1, stepsToMove);
-        } else {
-           targetPos = ((g.position + stepsToMove - 1 + 30) % 30) + 1;
-        }
-
-        return { ...g, score: g.score + score, position: targetPos };
-      });
-      
-      const cleanedReviews = state.pendingReviews.filter(r => r.id !== reviewId);
-      
-      const logMsg = `Guru menilai jawaban ${review.groupName}: ${score}/${review.maxPoints} poin.`;
-
-      // Auto next turn after grading
-      setTimeout(() => {
-         get().nextTurn();
-      }, 2000);
-
-      return {
-        groups: newGroups,
-        pendingReviews: cleanedReviews,
-        lastResult: {
-          type: score >= review.maxPoints ? 'SUCCESS' : score > 0 ? 'NEUTRAL' : 'FAILURE',
-          title: score >= review.maxPoints ? 'SEMPURNA!' : score > 0 ? 'BAGUS!' : 'KURANG TEPAT!',
-          message: `Nilai: ${score}/${review.maxPoints} poin.`,
-          points: score,
-          groupName: review.groupName
+        cancelRoom: (roomCode) => {
+          if (socket) {
+            socket.emit("room:cancel", roomCode);
+          }
+          get().resetToIdle();
         },
-        logs: [logMsg, ...state.logs]
-      };
-    }),
+        setStateFromSync: (newState) => set(newState),
 
-    nextTurn: () => syncSet((state) => {
-      if (state.groups.length === 0) return {};
+        createRoom: async (config) => {
+          try {
+            const room = await api.post("/api/rooms", {
+              durationMinutes: config.gameDurationSec / 60,
+              turnDurationDasar: config.turnDurationDasar,
+              turnDurationTantangan: config.turnDurationTantangan,
+              turnDurationAksi: config.turnDurationAksi,
+              maxGroups: config.maxGroups
+            });
+            const newCode = room.code;
+            set((state) => ({
+              gameStatus: 'LOBBY',
+              roomCode: newCode,
+              roomConfig: config,
+              groups: [],
+              winner: null,
+              logs: [`Ruang ${newCode} berhasil dibuat.`, ...state.logs]
+            }));
+            if (typeof window !== 'undefined') {
+              localStorage.setItem(`eduboard_role_${newCode}`, 'guru');
+            }
+            if (socket) {
+              socket.emit("room:join", { roomCode: newCode, role: 'guru', roomConfig: config });
+            }
+          } catch (err: any) {
+            console.error(err);
+          }
+        },
 
-      // Logika Sanksi (Lewat giliran) -> reset ke active
-      const currentActive = state.groups[state.activeGroupIndex];
-      let updatedGroups = [...state.groups];
-      if (currentActive?.status === 'SKIP_NEXT') {
-         updatedGroups = updatedGroups.map(g => g.id === currentActive.id ? { ...g, status: 'ACTIVE' } : g);
-      }
+        joinRoom: async (typedRoomCode: string, name: string, avatar?: string, color?: string) => {
+          try {
+            const roomData = await api.get(`/api/rooms/${typedRoomCode}`);
+            if (roomData.status === 'ENDED') {
+              throw new Error("Ruang permainan ini sudah berakhir.");
+            }
 
-      const nextIndex = (state.activeGroupIndex + 1) % state.groups.length;
-      
-      return { 
-        groups: updatedGroups,
-        activeGroupIndex: nextIndex,
-        currentTurn: state.currentTurn + 1,
-        currentCard: null,
-        timer: 0,
-        isTimerRunning: false,
-        lastResult: null
-      };
-    }),
+            set({ myGroupName: name, roomCode: typedRoomCode });
+            if (socket) {
+              socket.emit("room:join", { 
+                roomCode: typedRoomCode, 
+                groupName: name,
+                avatar,
+                color
+              });
+            }
+          } catch (err: any) {
+            toast.error(err.message || "Gagal bergabung ke ruang");
+            throw err;
+          }
+        },
 
-    rollDice: () => {
-      const state = get();
-      if (state.isRolling || state.isMoving) return;
+        startGame: () => {
+          const { roomCode } = get();
+          if (socket) socket.emit("game:start", roomCode);
+        },
 
-      const dice = Math.floor(Math.random() * 6) + 1;
+        endGame: () => {
+          syncSet({ gameStatus: 'FINISHED' });
+        },
 
-      // 1. Mulai animasi dadu - Sinkronkan ke semua client
-      syncSet({
-        isRolling: true,
-        diceValue: dice,
-        logs: [`${state.groups[state.activeGroupIndex].name} melempar dadu...`, ...state.logs],
-      });
+        resetToIdle: () => {
+          set({
+            gameStatus: 'IDLE',
+            roomCode: '',
+            groups: [],
+            winner: null,
+            logs: [],
+            currentCard: null,
+            myGroupName: null,
+            isMoving: false,
+            isRolling: false
+          });
+        },
 
-      // 2. Berhenti bergulir dan update posisi secara ATOMIK setelah 1.5 detik
-      setTimeout(() => {
-        const currentState = get();
-        const activeIdx = currentState.activeGroupIndex;
-        const currentPos = currentState.groups[activeIdx].position;
-        
-        // Loop logic 1-30:
-        // if 0 -> just dice
-        // if > 0 -> ((pos + dice - 1) % 30) + 1
-        const targetPos = currentPos === 0 ? dice : ((currentPos + dice - 1) % 30) + 1;
-        
-        // Update posisi secara langsung di Store (Hanya satu kali sinkronisasi)
-        syncSet({ 
-          isRolling: false, 
-          isMoving: true,
-          groups: currentState.groups.map((g, i) => 
-            i === activeIdx ? { ...g, position: targetPos } : g
-          )
-        });
+        addQuestion: async (q) => {
+          const newQ = await api.post("/api/questions", q);
+          syncSet((state) => ({ questions: [newQ, ...state.questions] }));
+        },
+        updateQuestion: async (id, updatedQ) => {
+          const newQ = await api.put(`/api/questions/${id}`, updatedQ);
+          syncSet((state) => ({ questions: state.questions.map(q => q.id === id ? newQ : q) }));
+        },
+        deleteQuestion: async (id) => {
+          await api.delete(`/api/questions/${id}`);
+          syncSet((state) => ({ questions: state.questions.filter(q => q.id !== id) }));
+        },
+        fetchQuestions: async () => {
+          const data = await api.get("/api/questions");
+          set({ questions: data });
+        },
 
-        // 3. Berikan waktu untuk UI melakukan animasi "melompat" sebelum membuka kartu
-        // Estimasi: 500ms per petak + buffer 500ms
-        const animationDuration = (dice * 500) + 500;
-        
-        setTimeout(() => {
-          // Hanya active player yang men-trigger aksi petak / penarikan kartu
-          if (get().myGroupName === state.groups[activeIdx].name || (state.myGroupName === null && typeof window !== 'undefined')) {
+        drawCard: (type) => syncSet((state) => {
+          // Use only database questions
+          let pool = state.questions && state.questions.length > 0 ? state.questions : [];
+
+          if (type) {
+            pool = pool.filter(q => q.type === type);
+          }
+
+          if (pool.length === 0) {
+            toast.error("Tidak ada soal tersedia untuk tipe ini. Tambahkan soal di Dashboard terlebih dahulu!");
+            return {};
+          }
+
+          const card = pool[Math.floor(Math.random() * pool.length)];
+
+          return {
+            currentCard: card,
+            lastResult: null,
+            timer: card.type === 'TANTANGAN' ? state.roomConfig.turnDurationTantangan :
+                   card.type === 'AKSI' ? state.roomConfig.turnDurationAksi :
+                   state.roomConfig.turnDurationDasar,
+            isTimerRunning: true,
+            logs: [`Kartu ${card.type} ditarik: ${card.text}`, ...state.logs]
+          };
+        }),
+
+        rollDice: () => {
+          const val = Math.floor(Math.random() * 6) + 1;
+          syncSet({ diceValue: val, isRolling: true, logs: [`Dadu dikocok... hasil: ${val}`, ...get().logs] });
+          setTimeout(() => {
+            syncSet({ isRolling: false });
+            get().moveGroup(get().groups[get().activeGroupIndex].id, val);
+          }, 1500);
+        },
+
+        moveGroup: (groupId, steps) => {
+          const state = get();
+          const group = state.groups.find(g => g.id === groupId);
+          if (!group) return;
+          let newPos = group.position + steps;
+          if (newPos > 30) {
+            newPos = newPos % 30;
+            if (newPos === 0) newPos = 30; // 30 is the last tile, 1 is the first. 0 is only for start.
+          }
+          syncSet((s) => ({
+            isMoving: true,
+            groups: s.groups.map(g => g.id === groupId ? { ...g, position: newPos } : g),
+            logs: [`${group.name} melangkah ${steps} petak ke posisi ${newPos}`, ...s.logs]
+          }));
+          setTimeout(() => {
             syncSet({ isMoving: false });
-            
-            const finalType = getTileTypeAt(targetPos);
+            const finalType = getTileTypeAt(newPos);
             if (finalType === "SKIP") {
-              syncSet((s) => ({
-                logs: [`${s.groups[s.activeGroupIndex].name} mendarat di petak SKIP!`, ...s.logs],
-              }));
+              syncSet((s) => ({ logs: [`${group.name} mendarat di SKIP!`, ...s.logs] }));
               setTimeout(() => get().nextTurn(), 1000);
             } else {
               get().drawCard(finalType as QuestionType);
             }
-          } else {
-             // Observer hanya mematikan flag isMoving lokal
-             set({ isMoving: false });
+          }, steps * 500);
+        },
+
+        submitAnswerObjektif: (groupId, answer) => {
+          const state = get();
+          const card = state.currentCard;
+          if (!card) return;
+
+          // Special handling for info/action cards that just need "SELESAI"
+          const isInfoCard = answer === "SELESAI";
+          const isCorrect = isInfoCard ? true : (card.answerKey === answer);
+          
+          // Action cards should give points when completed
+          const score = (isInfoCard && card.type === 'AKSI') ? (card.points || 10) : (isCorrect ? (card.points || 10) : 0);
+          
+          if (socket) {
+            socket.emit("student:submit_objektif", {
+              roomCode: state.roomCode,
+              groupId,
+              questionId: card.id,
+              answer,
+              isCorrect: isInfoCard ? true : isCorrect,
+              score: score,
+              turnNumber: state.currentTurn
+            });
           }
-        }, animationDuration);
 
-      }, 1500);
-    },
+          // Step 1: Close the card immediately → triggers the 800ms return animation
+          syncSet({ currentCard: null, isTimerRunning: false });
 
-    executeMovement: () => {
-      /* Diprepsiasi: Logika gerakan sekarang ditangani secara visual di UI */
-    },
+          // Step 2: After card has finished closing, show the result toast
+          setTimeout(() => {
+            const group = get().groups.find(g => g.id === groupId);
+            syncSet({
+              lastResult: { 
+                type: isInfoCard ? (card.type === 'AKSI' ? 'SUCCESS' : 'INFO') : (isCorrect ? 'SUCCESS' : 'FAILURE'),
+                title: isInfoCard ? (card.type === 'AKSI' ? 'BERHASIL!' : 'LANJUT!') : (isCorrect ? 'BENAR!' : 'SALAH!'),
+                message: isInfoCard 
+                  ? (card.type === 'AKSI' ? `Aksi berhasil dilakukan!` : `Giliran tim ${group?.name} selesai.`)
+                  : (isCorrect ? `Selamat! Jawaban kamu tepat.` : `Yah, kurang tepat. Jawabannya adalah: ${card.answerKey}`),
+                points: score,
+                groupName: group?.name || 'Siswa'
+              }
+            });
+            // Step 3: Auto-advance after toast is shown (3s)
+            if (resultTimeoutId) clearTimeout(resultTimeoutId);
+            resultTimeoutId = setTimeout(() => get().nextTurn(), 3000);
+          }, 850); // 800ms card animation + 50ms buffer
+        },
 
-    decrementTimer: () => {
-      const state = get();
-      // Handle Card Timer timeout (Auto-Wrong)
-      if (state.timer <= 0 && state.isTimerRunning) {
-        const activeG = state.groups[state.activeGroupIndex];
-        if (!activeG) return;
+        submitAnswerSubjektif: (groupId, answerText) => {
+          const state = get();
+          const card = state.currentCard;
+          if (socket && card) {
+            socket.emit("student:submit_answer", {
+              roomCode: state.roomCode,
+              groupId,
+              questionId: card.id,
+              answerText,
+              points: card.points || 10,
+              turnNumber: state.currentTurn
+            });
+          }
+          syncSet((s) => ({
+            isTimerRunning: false,
+            logs: [`Menunggu penilaian Guru untuk jawaban ${s.groups.find(g => g.id === groupId)?.name || "Siswa"}`, ...s.logs]
+          }));
+        },
 
-        if (state.currentCard?.type === 'DASAR') {
-          get().submitAnswerObjektif(activeG.id, "WAKTU HABIS");
-        } else if (state.currentCard?.type === 'TANTANGAN') {
-          get().submitAnswerSubjektif(activeG.id, "(WAKTU HABIS)");
-        } else {
-          syncSet({ isTimerRunning: false });
+        reviewSubmission: (reviewId, score) => {
+          const state = get();
+          const review = state.pendingReviews.find(r => r.id === reviewId);
+          if (!review) {
+            console.error(`[gradeSubjektif] Review tidak ditemukan: id=${reviewId}. Daftar review:`, state.pendingReviews);
+            return;
+          }
+
+          if (socket) {
+            socket.emit("teacher:grade_answer", {
+              roomCode: state.roomCode,
+              dbAnswerId: review.dbAnswerId || `dummy-${Date.now()}`,
+              groupId: review.groupId,
+              score,
+              isCorrect: score > 0
+            });
+          }
+
+          // Step 1: Close the card immediately on teacher side → triggers 800ms return animation
+          // This also broadcasts currentCard: null to students via syncSet
+          syncSet({ currentCard: null, isTimerRunning: false });
+
+          // Step 2: After card has finished closing, show the result toast
+          setTimeout(() => {
+            syncSet({
+              lastResult: { 
+                type: score > 0 ? 'SUCCESS' : 'FAILURE',
+                title: score > 0 ? (score >= review.points ? 'TUNTAS!' : 'SEBAGIAN!') : 'BELUM TEPAT!',
+                message: score > 0 
+                  ? `Guru memberikan penilaian: ${score} poin untuk tim ${review.groupName}.`
+                  : `Yah, jawaban tim ${review.groupName} dinilai kurang tepat oleh Guru.`,
+                points: score,
+                groupName: review.groupName
+              }
+            });
+            // Step 3: Auto-advance after toast is shown (3s)
+            if (resultTimeoutId) clearTimeout(resultTimeoutId);
+            resultTimeoutId = setTimeout(() => get().nextTurn(), 3000);
+          }, 850); // 800ms card animation + 50ms buffer
+        },
+
+        gradeSubjektif: (reviewId, score) => {
+          get().reviewSubmission(reviewId, score);
+        },
+
+        nextTurn: () => {
+          const state = get();
+          if (state.groups.length === 0) return;
+
+          if (resultTimeoutId) {
+            clearTimeout(resultTimeoutId);
+            resultTimeoutId = null;
+          }
+
+          syncSet((s) => ({
+            activeGroupIndex: (s.activeGroupIndex + 1) % s.groups.length,
+            currentTurn: s.currentTurn + 1,
+            currentCard: null,
+            lastResult: null, // Clear the toast!
+            timer: 0,
+            isTimerRunning: false,
+            isMoving: false,
+            isRolling: false
+          }));
+        },
+
+        decrementTimer: () => {
+          const state = get();
+          // Only proceed if timer is actually 0 and was previously running
+          if (state.timer <= 0 && state.isTimerRunning) {
+            // Immediately stop timer locally to prevent double calls during the 800ms transition
+            set({ isTimerRunning: false });
+
+            const activeG = state.groups[state.activeGroupIndex];
+            if (state.currentCard?.type === 'DASAR') get().submitAnswerObjektif(activeG.id, "TIMEOUT");
+            else if (state.currentCard?.type === 'TANTANGAN') get().submitAnswerSubjektif(activeG.id, "(Waktu habis, tidak ada jawaban)");
+          }
+        },
+
+
+        clearLastResult: () => {
+          // Manually closing the toast should immediately advance the turn
+          get().nextTurn();
         }
-      }
+      };
     },
-
-    clearLastResult: () => {
-      syncSet({ lastResult: null });
+    {
+      name: 'eduboard-storage',
+      partialize: (state) => ({ 
+        roomCode: state.roomCode, 
+        gameStatus: state.gameStatus,
+        myGroupName: state.myGroupName,
+        roomConfig: state.roomConfig
+      }),
     }
-
-  };
-});
+  )
+);

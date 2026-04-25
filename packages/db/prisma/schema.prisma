@@ -25,8 +25,12 @@ model Room {
   guru               User        @relation(fields: [guruId], references: [id])
   status             RoomStatus  @default(LOBBY)
   durationMinutes    Int
-  timePerTurnSeconds Int         @default(30)
-  maxGroups          Int         @default(6)
+  turnDurationDasar     Int         @default(30)
+  turnDurationTantangan Int         @default(60)
+  turnDurationAksi      Int         @default(15)
+  activeGroupIndex      Int         @default(0)
+  currentTurn           Int         @default(1)
+  maxGroups             Int         @default(6)
   createdAt          DateTime    @default(now())
   groups             Group[]
   session            GameSession?
@@ -36,6 +40,7 @@ enum RoomStatus {
   LOBBY 
   ACTIVE 
   ENDED 
+  CANCELLED
 }
 
 model Group {
@@ -46,6 +51,8 @@ model Group {
   score    Int         @default(0)
   position Int         @default(0)
   status   GroupStatus @default(ACTIVE)
+  avatar   String?
+  color    String?
   answers  Answer[]
 }
 

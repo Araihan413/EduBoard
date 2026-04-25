@@ -49,7 +49,7 @@ export default function TeacherReviewPanel({ pendingReviews, onGrade }: TeacherR
                 </div>
               </div>
               <div className="bg-slate-100 text-slate-500 px-3 py-1.5 md:px-4 md:py-2 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest border border-slate-200 flex-shrink-0">
-                Max {currentReview.maxPoints}
+                Max {currentReview.points}
               </div>
             </div>
 
@@ -59,13 +59,13 @@ export default function TeacherReviewPanel({ pendingReviews, onGrade }: TeacherR
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                     <AlertCircle size={10} className="md:w-3 md:h-3" /> Pertanyaan
                   </span>
-                  <p className="text-slate-800 text-base md:text-lg font-bold leading-snug">{currentReview.questionText}</p>
+                  <p className="text-slate-800 text-base md:text-lg font-bold leading-snug">{currentReview.question}</p>
                </div>
                
                <div className="p-4 md:p-6 bg-slate-50 border border-slate-200 rounded-2xl md:rounded-[2rem] relative shadow-inner">
                   <Bookmark className="absolute top-3 right-3 md:top-4 md:right-4 w-4 h-4 md:w-5 md:h-5 text-slate-200" />
                   <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest block mb-2">Jawaban Siswa:</span>
-                  <p className="text-slate-900 text-lg md:text-2xl font-black italic leading-tight tracking-tight">&quot;{currentReview.answerText}&quot;</p>
+                  <p className="text-slate-900 text-lg md:text-2xl font-black italic leading-tight tracking-tight">&quot;{currentReview.answer}&quot;</p>
                </div>
             </div>
 
@@ -86,24 +86,24 @@ export default function TeacherReviewPanel({ pendingReviews, onGrade }: TeacherR
                 </button>
                 
                 <button 
-                  onClick={() => onGrade(currentReview.id, Math.floor(currentReview.maxPoints / 2))}
+                  onClick={() => onGrade(currentReview.id, Math.floor(currentReview.points / 2))}
                   className="flex flex-col items-center gap-2 md:gap-3 p-3 md:p-5 rounded-2xl md:rounded-3xl bg-white border-2 border-slate-100 hover:border-orange-500 hover:bg-orange-50 transition-all group"
                 >
                     <Star className="w-6 h-6 md:w-8 md:h-8 text-slate-300 group-hover:text-orange-500 transition-colors" />
                     <div className="text-center">
                       <span className="block text-[9px] md:text-xs font-black text-slate-400 group-hover:text-orange-600 uppercase tracking-tighter">Setengah</span>
-                      <span className="text-[8px] md:text-[10px] font-bold text-slate-300 group-hover:text-orange-400 uppercase">{Math.floor(currentReview.maxPoints / 2)} PT</span>
+                      <span className="text-[8px] md:text-[10px] font-bold text-slate-300 group-hover:text-orange-400 uppercase">{Math.floor(currentReview.points / 2)} PT</span>
                     </div>
                 </button>
                 
                 <button 
-                  onClick={() => onGrade(currentReview.id, currentReview.maxPoints)}
+                  onClick={() => onGrade(currentReview.id, currentReview.points)}
                   className="flex flex-col items-center gap-2 md:gap-3 p-3 md:p-5 rounded-2xl md:rounded-3xl bg-white border-2 border-slate-100 hover:border-emerald-500 hover:bg-emerald-50 transition-all group shadow-sm hover:shadow-xl hover:shadow-emerald-500/10"
                 >
                     <CheckCircle2 className="w-6 h-6 md:w-8 md:h-8 text-slate-300 group-hover:text-emerald-500 transition-colors" />
                     <div className="text-center">
                       <span className="block text-[9px] md:text-xs font-black text-slate-400 group-hover:text-emerald-600 uppercase tracking-tighter">Tuntas</span>
-                      <span className="text-[8px] md:text-[10px] font-bold text-slate-300 group-hover:text-emerald-400 uppercase">{currentReview.maxPoints} PT</span>
+                      <span className="text-[8px] md:text-[10px] font-bold text-slate-300 group-hover:text-emerald-400 uppercase">{currentReview.points} PT</span>
                     </div>
                 </button>
               </div>
