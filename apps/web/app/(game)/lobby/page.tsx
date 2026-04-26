@@ -110,12 +110,20 @@ export default function LobbyPage() {
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsJoining(true);
+    
+    // Pilih avatar dan warna acak saat pertama kali masuk
+    const randomAvatarIdx = Math.floor(Math.random() * AVATAR_SEEDS.length);
+    const randomColor = PREMIUM_COLORS[Math.floor(Math.random() * PREMIUM_COLORS.length)];
+    
+    setAvatarIndex(randomAvatarIdx);
+    setSelectedColor(randomColor);
+
     try {
       await joinRoom(
         roomCodeInput.trim().toUpperCase(), 
         groupNameInput,
-        AVATAR_SEEDS[avatarIndex],
-        selectedColor.hex
+        AVATAR_SEEDS[randomAvatarIdx],
+        randomColor.hex
       );
       setStep(2);
     } catch (err) {
