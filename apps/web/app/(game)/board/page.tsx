@@ -185,6 +185,24 @@ function BoardPage() {
   }, [currentCard, isMoving, isUnderReview]);
 
 
+  // Submit timeout logic natively for the active student
+  const lastTimeoutCardRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (role === "siswa" && activeGroup?.name === myGroupName) {
+      if (timer === 0 && currentCard && lastTimeoutCardRef.current !== currentCard.id) {
+        lastTimeoutCardRef.current = currentCard.id;
+        
+        if (currentCard.type === 'DASAR' || currentCard.type === 'AKSI') {
+          submitAnswerObjektif(activeGroup.id, "TIMEOUT");
+        } else if (currentCard.type === 'TANTANGAN') {
+          submitAnswerSubjektif(activeGroup.id, tantanganText.trim() || "(Waktu habis, tidak ada jawaban)");
+        }
+      }
+    }
+  }, [timer, role, activeGroup, myGroupName, currentCard, tantanganText, submitAnswerObjektif, submitAnswerSubjektif]);
+
+
   useEffect(() => {
     if (gameStatus !== "FINISHED") return;
     const end = Date.now() + 3000;

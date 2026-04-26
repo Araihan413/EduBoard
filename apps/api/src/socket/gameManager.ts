@@ -56,10 +56,43 @@ export function handleSocketEvents(io: Server, socket: Socket) {
           const remainingPlayers = room.groups.filter(g => g.status !== 'SURRENDERED');
           if (remainingPlayers.length === 0) {
             await finishGame(data.roomCode);
+          } else {
+            // Jika pemain yang menyerah adalah yang sedang giliran, otomatis lanjut ke pemain berikutnya
+            const activeGroup = room.groups[room.activeGroupIndex];
+            if (activeGroup && activeGroup.name === data.groupName) {
+              let nextIndex = (room.activeGroupIndex + 1) % room.groups.length;
+              let searchCount = 0;
+              
+              while (room.groups[nextIndex].status === 'SURRENDERED' && searchCount < room.groups.length) {
+                nextIndex = (nextIndex + 1) % room.groups.length;
+                searchCount++;
+              }
+              
+              room.activeGroupIndex = nextIndex;
+              room.currentTurn += 1;
+              room.currentCard = null;
+              room.timer = 0;
+              room.isTimerRunning = false;
+              room.logs = [`Giliran dialihkan ke ${room.groups[nextIndex].name} karena ${data.groupName} menyerah.`, ...room.logs];
+              
+              try {
+                await prisma.room.update({
+                  where: { code: data.roomCode },
+                  data: { 
+                    activeGroupIndex: nextIndex,
+                    currentTurn: room.currentTurn
+                  }
+                });
+              } catch (err) {
+                console.error("Gagal update turn saat surrender:", err);
+              }
+            }
           }
         }
       }
-      io.to(data.roomCode).emit("game:state", { groups: room.groups, logs: room.logs });
+      
+      const { intervalId, ...roomData } = room;
+      io.to(data.roomCode).emit("game:state", roomData);
       socket.leave(data.roomCode);
       socketToUser.delete(socket.id);
       console.log(`Group ${data.groupName} left room ${data.roomCode}`);

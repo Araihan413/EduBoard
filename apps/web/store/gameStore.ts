@@ -540,8 +540,23 @@ export const useGameStore = create<GameState & GameActions>()(
             set({ isTimerRunning: false });
 
             const activeG = state.groups[state.activeGroupIndex];
-            if (state.currentCard?.type === 'DASAR') get().submitAnswerObjektif(activeG.id, "TIMEOUT");
-            else if (state.currentCard?.type === 'TANTANGAN') get().submitAnswerSubjektif(activeG.id, "(Waktu habis, tidak ada jawaban)");
+            
+            // Only the Teacher triggers the fallback timeout submission centrally to avoid multiple submissions.
+            const isGuru = typeof window !== 'undefined' && localStorage.getItem(`eduboard_role_${state.roomCode}`) === 'guru';
+            
+            if (isGuru) {
+              // Give the active student a 1.5-second grace period to submit their drafted answer
+              setTimeout(() => {
+                // If the card is STILL open, meaning the student didn't submit it in time (or is offline)
+                if (get().currentCard?.id === state.currentCard?.id) {
+                   if (state.currentCard?.type === 'DASAR' || state.currentCard?.type === 'AKSI') {
+                     get().submitAnswerObjektif(activeG.id, "TIMEOUT");
+                   } else if (state.currentCard?.type === 'TANTANGAN') {
+                     get().submitAnswerSubjektif(activeG.id, "(Waktu habis, siswa tidak merespon)");
+                   }
+                }
+              }, 1500);
+            }
           }
         },
 
