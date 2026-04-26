@@ -59,6 +59,7 @@ model Group {
 enum GroupStatus { 
   ACTIVE 
   SKIP_NEXT 
+  SURRENDERED
 }
 
 model Question {

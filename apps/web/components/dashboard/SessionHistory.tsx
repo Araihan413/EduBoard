@@ -35,7 +35,6 @@ export default function SessionHistory() {
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchHistory = useCallback(async () => {
-    setIsLoading(true);
     try {
       const data = await api.get("/api/rooms/history");
       
@@ -69,7 +68,10 @@ export default function SessionHistory() {
   }, []);
 
   useEffect(() => {
-    fetchHistory();
+    const timer = setTimeout(() => {
+      fetchHistory();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [fetchHistory]);
 
   const filteredHistory = history.filter(s => 
@@ -139,38 +141,48 @@ export default function SessionHistory() {
                
                <div className="p-4 md:p-8">
                   <div className="space-y-3">
-                    {selectedSession.leaderboard?.map((group, idx) => (
-                      <motion.div 
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: idx * 0.1 }}
-                        key={group.id} 
-                        className={`flex items-center justify-between p-5 rounded-2xl border-2 transition-all ${
-                          idx === 0 
-                            ? 'bg-blue-50/30 border-blue-100 shadow-sm' 
-                            : 'bg-white border-slate-50'
-                        }`}
-                      >
-                        <div className="flex items-center gap-5">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm ${
-                            idx === 0 ? 'bg-[#ffda59] text-slate-900' :
-                            idx === 1 ? 'bg-slate-200 text-slate-600' :
-                            idx === 2 ? 'bg-orange-100 text-orange-600' :
-                            'bg-slate-50 text-slate-400'
-                          }`}>
-                            {idx + 1}
+                    {selectedSession.leaderboard?.map((group, idx) => {
+                      const isSurrendered = group.status === 'SURRENDERED';
+                      return (
+                        <motion.div 
+                          initial={{ opacity: 0, x: 20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: idx * 0.1 }}
+                          key={group.id} 
+                          className={`flex items-center justify-between p-5 rounded-2xl border-2 transition-all ${
+                            idx === 0 
+                              ? 'bg-blue-50/30 border-blue-100 shadow-sm' 
+                              : isSurrendered ? 'bg-slate-50/50 border-slate-100 opacity-70' : 'bg-white border-slate-50'
+                          }`}
+                        >
+                          <div className="flex items-center gap-5">
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm ${
+                              idx === 0 ? 'bg-[#ffda59] text-slate-900' :
+                              idx === 1 ? 'bg-slate-200 text-slate-600' :
+                              idx === 2 ? 'bg-orange-100 text-orange-600' :
+                              'bg-slate-50 text-slate-400'
+                            }`}>
+                              {idx + 1}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <p className={`font-black text-slate-800 uppercase tracking-tight ${isSurrendered ? 'line-through opacity-50' : ''}`}>
+                                  {group.name}
+                                </p>
+                                {isSurrendered && (
+                                  <span className="bg-red-100 text-red-600 text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest">OUT</span>
+                                )}
+                              </div>
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Petak Akhir: {group.position}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-black text-slate-800 uppercase tracking-tight">{group.name}</p>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Petak Akhir: {group.position}</p>
+                          <div className="text-right">
+                            <p className={`text-xl font-black ${isSurrendered ? 'text-slate-400' : 'text-slate-900'}`}>{group.score}</p>
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Poin</p>
                           </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xl font-black text-slate-900">{group.score}</p>
-                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Poin</p>
-                        </div>
-                      </motion.div>
-                    ))}
+                        </motion.div>
+                      );
+                    })}
                   </div>
                </div>
             </div>

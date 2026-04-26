@@ -76,49 +76,69 @@ export default function MissionControl() {
                 <p className="text-slate-400 font-bold italic text-sm">Menunggu tim pertama bergabung...</p>
               </div>
             ) : (
-              groups.map((g, idx) => (
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: idx * 0.05 }}
-                  key={g.id} 
-                  className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 transition-all group relative overflow-hidden"
-                  style={{ borderLeft: `4px solid ${g.color || '#2c49c5'}` }}
-                >
-                  <div className="flex items-center gap-4 relative z-10">
-                    <div 
-                      className="w-12 h-12 rounded-xl flex items-center justify-center shadow-inner transition-transform group-hover:scale-110 relative overflow-hidden"
-                      style={{ 
-                        backgroundColor: `${g.color || '#2c49c5'}20`,
-                        color: g.color || '#2c49c5',
-                        border: `1px solid ${g.color || '#2c49c5'}40`
-                      }}
-                    >
-                      <NextImage 
-                        src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${g.avatar || g.name}`} 
-                        alt={g.name}
-                        width={48}
-                        height={48}
-                        className="w-full h-full object-cover scale-110 translate-y-1"
-                        unoptimized
+              groups.map((g, idx) => {
+                const isOffline = g.isOffline;
+                const isSurrendered = g.status === 'SURRENDERED';
+                const isMyTurn = g.status === 'ACTIVE';
+
+                return (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: idx * 0.05 }}
+                    key={g.id} 
+                    className={`bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 transition-all group relative overflow-hidden ${isSurrendered ? 'opacity-50 grayscale' : isOffline ? 'opacity-80' : ''}`}
+                    style={{ borderLeft: `4px solid ${isSurrendered ? '#94a3b8' : (g.color || '#2c49c5')}` }}
+                  >
+                    <div className="flex items-center gap-4 relative z-10">
+                      <div 
+                        className="w-12 h-12 rounded-xl flex items-center justify-center shadow-inner transition-transform group-hover:scale-110 relative overflow-hidden"
+                        style={{ 
+                          backgroundColor: `${isSurrendered ? '#f1f5f9' : (g.color || '#2c49c5') + '20'}`,
+                          color: isSurrendered ? '#94a3b8' : (g.color || '#2c49c5'),
+                          border: `1px solid ${isSurrendered ? '#e2e8f0' : (g.color || '#2c49c5') + '40'}`
+                        }}
+                      >
+                        <NextImage 
+                          src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${g.avatar || g.name}`} 
+                          alt={g.name}
+                          width={48}
+                          height={48}
+                          className="w-full h-full object-cover scale-110 translate-y-1"
+                          unoptimized
+                        />
+
+                        {/* Status Overlays */}
+                        {isOffline && !isSurrendered && (
+                          <div className="absolute inset-0 bg-slate-900/40 flex items-center justify-center">
+                            <span className="text-[7px] font-black text-white uppercase tracking-tighter">OFF</span>
+                          </div>
+                        )}
+                        {isSurrendered && (
+                          <div className="absolute inset-0 bg-red-600/60 flex items-center justify-center">
+                            <span className="text-[7px] font-black text-white uppercase tracking-tighter italic">OUT</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 overflow-hidden">
+                        <h5 className={`font-black text-slate-900 truncate transition-colors ${isSurrendered ? 'line-through' : ''}`}>
+                          {g.name}
+                        </h5>
+                        <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                          Skor: <span className="text-slate-900" style={{ color: isSurrendered ? '#94a3b8' : (g.color || '#2c49c5') }}>{g.score} PT</span>
+                        </div>
+                      </div>
+                      <div 
+                        className={`w-2 h-2 rounded-full ${isMyTurn ? "animate-pulse" : ""}`} 
+                        style={{ 
+                          backgroundColor: isSurrendered ? '#94a3b8' : (isOffline ? '#f59e0b' : (isMyTurn ? (g.color || '#10b981') : '#cbd5e1')),
+                          boxShadow: isMyTurn ? `0 0 8px ${g.color || '#10b981'}` : 'none'
+                        }} 
                       />
                     </div>
-                    <div className="flex-1 overflow-hidden">
-                      <h5 className="font-black text-slate-900 truncate transition-colors">{g.name}</h5>
-                      <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                        Skor: <span className="text-slate-900" style={{ color: g.color || '#2c49c5' }}>{g.score} PT</span>
-                      </div>
-                    </div>
-                    <div 
-                      className={`w-2 h-2 rounded-full ${(g.status === 'ACTIVE' || gameStatus === 'LOBBY') ? "animate-pulse" : ""}`} 
-                      style={{ 
-                        backgroundColor: (g.status === 'ACTIVE' || gameStatus === 'LOBBY') ? (g.color || '#10b981') : '#cbd5e1',
-                        boxShadow: (g.status === 'ACTIVE' || gameStatus === 'LOBBY') ? `0 0 8px ${g.color || '#10b981'}` : 'none'
-                      }} 
-                    />
-                  </div>
-                </motion.div>
-              ))
+                  </motion.div>
+                );
+              })
             )}
           </div>
         </div>

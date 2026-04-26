@@ -9,7 +9,7 @@ interface ActiveRoom {
     turnDurationTantangan?: number;
     turnDurationAksi?: number;
   };
-  groups: any[];
+  groups: (any & { isOffline?: boolean })[];
   activeGroupIndex: number;
   timer: number;
   globalTimer: number;
@@ -26,25 +26,74 @@ interface ActiveRoom {
 }
 
 const activeRooms = new Map<string, ActiveRoom>();
+const socketToUser = new Map<string, { roomCode: string, groupName: string, role: string }>();
 
 export function handleSocketEvents(io: Server, socket: Socket) {
   
   socket.on("room:leave", async (data: { roomCode: string, groupName: string }) => {
     const room = activeRooms.get(data.roomCode);
     if (room) {
-      room.groups = room.groups.filter((g: any) => g.name !== data.groupName);
       if (room.gameStatus === 'LOBBY') {
+        room.groups = room.groups.filter((g: any) => g.name !== data.groupName);
         await prisma.group.deleteMany({
           where: {
             room: { code: data.roomCode },
             name: data.groupName
           }
         });
+      } else {
+        // PLAYING: Mark as SURRENDERED instead of removing
+        const group = room.groups.find(g => g.name === data.groupName);
+        if (group) {
+          group.status = 'SURRENDERED';
+          await prisma.group.update({
+            where: { id: group.id },
+            data: { status: 'SURRENDERED' as any }
+          });
+          room.logs = [`${data.groupName} menyerah dari permainan.`, ...room.logs];
+          
+          // Check if any non-surrendered players are left
+          const remainingPlayers = room.groups.filter(g => g.status !== 'SURRENDERED');
+          if (remainingPlayers.length === 0) {
+            await finishGame(data.roomCode);
+          }
+        }
       }
-      io.to(data.roomCode).emit("game:state", { groups: room.groups });
+      io.to(data.roomCode).emit("game:state", { groups: room.groups, logs: room.logs });
       socket.leave(data.roomCode);
+      socketToUser.delete(socket.id);
       console.log(`Group ${data.groupName} left room ${data.roomCode}`);
     }
+  });
+
+  socket.on("disconnect", async () => {
+    const userData = socketToUser.get(socket.id);
+    if (!userData) return;
+
+    const { roomCode, groupName, role } = userData;
+    const room = activeRooms.get(roomCode);
+
+    if (room) {
+      if (role === 'siswa') {
+        if (room.gameStatus === 'LOBBY') {
+          // In Lobby, treat disconnect as leave
+          room.groups = room.groups.filter(g => g.name !== groupName);
+          await prisma.group.deleteMany({
+            where: { room: { code: roomCode }, name: groupName }
+          });
+        } else {
+          // In Playing, mark as offline
+          const group = room.groups.find(g => g.name === groupName);
+          if (group) {
+            group.isOffline = true;
+            room.logs = [`${groupName} terputus (Offline).`, ...room.logs];
+          }
+        }
+        io.to(roomCode).emit("game:state", { groups: room.groups, logs: room.logs });
+      }
+    }
+    socketToUser.delete(socket.id);
+    console.log(`Socket ${socket.id} disconnected (${groupName} from ${roomCode})`);
   });
 
   socket.on("room:cancel", async (roomCode: string) => {
@@ -67,6 +116,13 @@ export function handleSocketEvents(io: Server, socket: Socket) {
   socket.on("room:join", async (data: { roomCode: string, groupName: string, role?: string, roomConfig?: any, avatar?: string, color?: string }) => {
     socket.join(data.roomCode);
     
+    // Register socket mapping
+    socketToUser.set(socket.id, { 
+      roomCode: data.roomCode, 
+      groupName: data.groupName, 
+      role: data.role || 'siswa' 
+    });
+
     if (!activeRooms.has(data.roomCode)) {
       try {
         const dbRoom = await prisma.room.findUnique({
@@ -142,35 +198,53 @@ export function handleSocketEvents(io: Server, socket: Socket) {
     const room = activeRooms.get(data.roomCode)!;
 
     if (data.role !== 'guru' && data.groupName) {
-      const maxG = room.roomConfig?.maxGroups || 4;
-      if (room.groups.length < maxG && !room.groups.find((g: any) => g.name === data.groupName)) {
-        try {
-          const dbRoom = await prisma.room.findUnique({ where: { code: data.roomCode } });
-          if (dbRoom) {
-            const dbGroup = await prisma.group.create({
-              data: {
-                roomId: dbRoom.id,
+      // 1. Check if the group already exists in memory (for re-join)
+      const existingGroup = room.groups.find((g: any) => g.name === data.groupName);
+      
+      if (existingGroup) {
+        // Reject if they surrendered
+        if (existingGroup.status === 'SURRENDERED') {
+          socket.emit("error", { message: "Anda sudah menyerah dari permainan ini." });
+          socket.leave(data.roomCode);
+          socketToUser.delete(socket.id);
+          return;
+        }
+        // Restore from offline
+        existingGroup.isOffline = false;
+        room.logs = [`${data.groupName} kembali masuk.`, ...room.logs];
+      } else {
+        // 2. New Join
+        const maxG = room.roomConfig?.maxGroups || 4;
+        if (room.groups.length < maxG) {
+          try {
+            const dbRoom = await prisma.room.findUnique({ where: { code: data.roomCode } });
+            if (dbRoom) {
+              const dbGroup = await prisma.group.create({
+                data: {
+                  roomId: dbRoom.id,
+                  name: data.groupName,
+                  score: 0,
+                  position: 0,
+                  avatar: data.avatar,
+                  color: data.color
+                }
+              });
+
+              room.groups.push({
+                id: dbGroup.id,
                 name: data.groupName,
                 score: 0,
                 position: 0,
+                status: 'WAITING',
                 avatar: data.avatar,
-                color: data.color
-              }
-            });
-
-            room.groups.push({
-              id: dbGroup.id,
-              name: data.groupName,
-              score: 0,
-              position: 0,
-              status: 'WAITING',
-              avatar: data.avatar,
-              color: data.color
-            });
-            room.logs = [`${data.groupName} bergabung.`, ...room.logs];
+                color: data.color,
+                isOffline: false
+              });
+              room.logs = [`${data.groupName} bergabung.`, ...room.logs];
+            }
+          } catch (err) {
+            console.error("Gagal menyimpan group ke DB:", err);
           }
-        } catch (err) {
-          console.error("Gagal menyimpan group ke DB:", err);
         }
       }
     }
@@ -315,6 +389,14 @@ export function handleSocketEvents(io: Server, socket: Socket) {
     room.isTimerRunning = false;
     if (room.intervalId) clearInterval(room.intervalId);
 
+    // Filter out surrendered players for winner calculation
+    const eligibleGroups = room.groups.filter(g => g.status !== 'SURRENDERED');
+    const winner = eligibleGroups.length > 0 
+      ? [...eligibleGroups].sort((a, b) => b.score - a.score)[0]
+      : null;
+
+    room.winner = winner;
+
     // Persist results to DB
     try {
       const dbRoom = await prisma.room.update({
@@ -325,25 +407,21 @@ export function handleSocketEvents(io: Server, socket: Socket) {
 
       // Update groups scores and positions in DB
       for (const g of room.groups) {
-        g.status = 'WAITING'; // Update in-memory only
         await prisma.group.update({
           where: { id: g.id },
           data: { 
             score: g.score, 
             position: g.position
-            // Note: do NOT set status here — Prisma enum cast fails with plain string
           }
         });
       }
 
       if (dbRoom.session) {
-        // Find winner
-        const winner = [...room.groups].sort((a, b) => b.score - a.score)[0];
         await prisma.gameSession.update({
           where: { id: dbRoom.session.id },
           data: { 
             endedAt: new Date(),
-            winnerGroupId: winner?.id 
+            winnerGroupId: winner?.id || null
           }
         });
       }

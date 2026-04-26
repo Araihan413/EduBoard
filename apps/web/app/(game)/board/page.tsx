@@ -28,7 +28,6 @@ import {
   Clock,
   LayoutDashboard,
   Trophy,
-  ChevronRight,
   Rocket,
 } from "lucide-react";
 import Link from "next/link";
@@ -98,6 +97,7 @@ function BoardPage() {
     diceValue,
     isMoving,
     joinRoom,
+    leaveRoom,
     lastResult,
     clearLastResult,
     fetchQuestions,
@@ -108,7 +108,14 @@ function BoardPage() {
   }, [fetchQuestions]);
 
   const [tantanganText, setTantanganText] = useState("");
+  const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
+
+  useEffect(() => {
+    if (isMounted && !roomCode && gameStatus === "IDLE") {
+      router.push("/lobby");
+    }
+  }, [isMounted, roomCode, gameStatus, router]);
 
   // State Machine
   const [stickyCardData, setStickyCardData] = useState<QuestionCard | null>(null);
@@ -252,7 +259,7 @@ function BoardPage() {
     return (
        <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-slate-900 text-center">
          <Disc3 className="w-16 h-16 text-slate-300 animate-spin mb-6" />
-         <h2 className="text-xl font-bold text-slate-400">Menghubungkan Kembali...</h2>
+         <h2 className="text-xl font-bold text-slate-400">Mengarahkan ke Lobby...</h2>
        </div>
     );
   }
@@ -323,9 +330,12 @@ function BoardPage() {
                 <LayoutDashboard className="w-5 h-5" />
               </Link>
             ) : (
-              <Link href="/lobby" className="w-10 h-10 bg-white/60 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-xl flex items-center justify-center border border-white transition-all">
-                <LogOut className="w-5 h-5" />
-              </Link>
+              <button 
+                onClick={() => setIsLeaveConfirmOpen(true)}
+                className="w-10 h-10 bg-white/60 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-xl flex items-center justify-center border border-white transition-all shadow-sm group"
+              >
+                <LogOut className="w-5 h-5 transition-transform group-hover:scale-110" />
+              </button>
             )}
           </div>
         </div>
@@ -362,7 +372,9 @@ function BoardPage() {
             .sort((a, b) => b.score - a.score)
             .map((g, rank) => {
               const isMyTurn = gameStatus === "PLAYING" && activeGroupIndex === g.originalIndex;
-              const isLeader = rank === 0 && g.score > 0;
+              const isLeader = rank === 0 && g.score > 0 && g.status !== 'SURRENDERED';
+              const isSurrendered = g.status === 'SURRENDERED';
+              const isOffline = g.isOffline;
               const colors = ["bg-blue-500", "bg-red-500", "bg-purple-500", "bg-emerald-500"];
               
               return (
@@ -374,37 +386,54 @@ function BoardPage() {
                   className={`relative flex items-center gap-3 p-1.5 pr-4 rounded-full border transition-all duration-500 ${
                     isMyTurn 
                       ? "bg-white shadow-lg border-blue-400 scale-105 z-10" 
-                      : "bg-white/40 backdrop-blur-md border-white/30 scale-95 opacity-80"
+                      : isSurrendered
+                        ? "bg-slate-200/50 border-slate-300 scale-90 opacity-60 grayscale"
+                        : "bg-white/40 backdrop-blur-md border-white/30 scale-95 opacity-80"
                   }`}
                 >
                   {/* Turn Indicator Pulse */}
                   {isMyTurn && (
                     <div className="absolute inset-0 rounded-full shadow-[0_0_15px_rgba(59,130,246,0.2)] animate-pulse" />
                   )}
+ 
+                   {/* Avatar Section - Smaller */}
+                   <div className="relative">
+                    <div className={`w-10 h-10 rounded-full overflow-hidden border-2 border-white shadow-md ${isSurrendered ? "bg-slate-400" : colors[g.originalIndex % colors.length]}`}>
+                        <NextImage 
+                          src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${g.avatar || g.name}`} 
+                          alt={g.name}
+                          width={40}
+                          height={40}
+                          className={`w-full h-full object-cover ${isOffline ? "opacity-50 grayscale" : ""}`}
+                          unoptimized
+                        />
+                     </div>
 
-                  {/* Avatar Section - Smaller */}
-                  <div className="relative">
-                    <div className={`w-10 h-10 rounded-full overflow-hidden border-2 border-white shadow-md ${colors[g.originalIndex % colors.length]}`}>
-                       <NextImage 
-                         src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${g.avatar || g.name}`} 
-                         alt={g.name}
-                         width={40}
-                         height={40}
-                         className="w-full h-full object-cover"
-                         unoptimized
-                       />
-                    </div>
-                    {/* Winner Medal */}
-                    {isLeader && (
-                      <div className="absolute -top-1 -right-1 w-5 h-5 bg-yellow-400 rounded-full flex items-center justify-center shadow-lg border border-white">
-                         <Trophy className="w-2.5 h-2.5 text-yellow-900" />
+                    {/* Status Badge */}
+                    {isOffline && !isSurrendered && (
+                      <div className="absolute -bottom-1 -right-1 px-1 bg-slate-900 text-[6px] font-black text-white rounded-full border border-white">
+                        OFF
                       </div>
                     )}
-                  </div>
+                    {isSurrendered && (
+                      <div className="absolute -bottom-1 -right-1 px-1 bg-red-600 text-[6px] font-black text-white rounded-full border border-white">
+                        OUT
+                      </div>
+                    )}
 
-                  {/* Info Section - Compact */}
-                  <div className="flex flex-col min-w-[60px]">
-                     <span className={`text-[11px] font-black tracking-tight ${isMyTurn ? "text-slate-900" : "text-slate-600"}`}>{g.name}</span>
+                     {/* Winner Medal */}
+                     {isLeader && (
+                       <div className="absolute -top-1 -right-1 w-5 h-5 bg-yellow-400 rounded-full flex items-center justify-center shadow-lg border border-white">
+                          <Trophy className="w-2.5 h-2.5 text-yellow-900" />
+                       </div>
+                     )}
+                   </div>
+
+                   {/* Info Section - Compact */}
+                   <div className="flex flex-col min-w-[60px]">
+                     <span className={`text-[11px] font-black tracking-tight ${isMyTurn ? "text-slate-900" : "text-slate-600"} ${isSurrendered ? "line-through opacity-50" : ""}`}>
+                       {g.name}
+                     </span>
                      <div className="flex items-center gap-1">
                         <span className="text-[10px] font-black text-blue-600">{g.score}</span>
                         <span className="text-[7px] font-bold text-slate-400 uppercase tracking-tighter">Pts</span>
@@ -587,6 +616,56 @@ function BoardPage() {
               </div>
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Leave Confirmation Modal */}
+      <AnimatePresence>
+        {isLeaveConfirmOpen && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsLeaveConfirmOpen(false)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative w-full max-w-sm bg-white rounded-[2.5rem] p-8 shadow-[0_40px_100px_rgba(0,0,0,0.3)] border border-white text-center overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 w-full h-2 bg-red-500" />
+              
+              <div className="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-6 text-red-600">
+                <AlertCircle className="w-8 h-8" />
+              </div>
+              
+              <h3 className="text-2xl font-black text-slate-900 tracking-tight mb-3">Yakin ingin keluar?</h3>
+              <p className="text-slate-500 font-medium text-sm leading-relaxed mb-8">
+                Jika kamu keluar sekarang, kamu akan dianggap <span className="text-red-600 font-bold underline">menyerah</span> dan tidak bisa masuk kembali ke permainan ini.
+              </p>
+              
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => {
+                    leaveRoom(roomCode, myGroupName!);
+                    router.push('/lobby');
+                  }}
+                  className="w-full py-4 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-black tracking-widest uppercase text-xs transition-all shadow-lg shadow-red-500/20 active:scale-95"
+                >
+                  Ya, Saya Menyerah
+                </button>
+                <button
+                  onClick={() => setIsLeaveConfirmOpen(false)}
+                  className="w-full py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-2xl font-black tracking-widest uppercase text-xs transition-all active:scale-95"
+                >
+                  Batalkan
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>
@@ -1088,20 +1167,29 @@ function CardFrontFace({
           </div>
         )}
       </div>
+
     </div>
   );
 }
 
 function LeaderboardOverlay({ groups, role }: { groups: Group[]; role: string }) {
   const router = useRouter();
-  const sortedGroups = [...groups].sort((a, b) => b.score - a.score);
-  const winner = sortedGroups[0];
-  const runnersUp = sortedGroups.slice(1);
+  
+  // Sort: Active/Offline first, then Surrendered. Within groups, sort by score.
+  const sortedGroups = [...groups].sort((a, b) => {
+    if (a.status === 'SURRENDERED' && b.status !== 'SURRENDERED') return 1;
+    if (a.status !== 'SURRENDERED' && b.status === 'SURRENDERED') return -1;
+    return b.score - a.score;
+  });
+
+  const winner = sortedGroups[0]?.status !== 'SURRENDERED' ? sortedGroups[0] : null;
+  const runnersUp = winner ? sortedGroups.slice(1) : sortedGroups;
 
   useEffect(() => {
+    if (!winner) return; // No confetti if no winner
     const duration = 5 * 1000;
     const animationEnd = Date.now() + duration;
-    const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 500 }; // Higher zIndex for front confetti
+    const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 500 }; 
 
     function randomInRange(min: number, max: number) {
       return Math.random() * (max - min) + min;
@@ -1109,10 +1197,7 @@ function LeaderboardOverlay({ groups, role }: { groups: Group[]; role: string })
 
     const interval: any = setInterval(function() {
       const timeLeft = animationEnd - Date.now();
-
-      if (timeLeft <= 0) {
-        return clearInterval(interval);
-      }
+      if (timeLeft <= 0) return clearInterval(interval);
 
       const particleCount = 50 * (timeLeft / duration);
       confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } });
@@ -1120,7 +1205,7 @@ function LeaderboardOverlay({ groups, role }: { groups: Group[]; role: string })
     }, 250);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [winner]);
 
   return (
     <motion.div
@@ -1133,66 +1218,76 @@ function LeaderboardOverlay({ groups, role }: { groups: Group[]; role: string })
         animate={{ scale: 1, y: 0, opacity: 1 }}
         className="max-w-xl w-full min-h-[80vh] bg-slate-900/95 backdrop-blur-3xl border-2 border-white/10 rounded-[3.5rem] p-10 md:p-14 shadow-[0_50px_100px_rgba(0,0,0,0.6)] flex flex-col items-center relative overflow-hidden"
       >
-        {/* Decorative Glow inside Dialog */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-80 h-80 bg-blue-500/20 blur-[100px] -z-10" />
         
-        {/* Winner Section - Expanded */}
-        <motion.div
-          initial={{ y: 30, opacity: 0, scale: 0.9 }}
-          animate={{ y: 0, opacity: 1, scale: 1 }}
-          transition={{ type: "spring", delay: 0.5 }}
-          className="text-center mb-12 relative pt-8"
-        >
-          <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-             <motion.div
-               animate={{ rotate: [0, -10, 10, 0], scale: [1, 1.2, 1] }}
-               transition={{ duration: 2, repeat: Infinity }}
-             >
-               <Trophy className="w-10 h-10 text-yellow-400 filter drop-shadow-[0_0_20px_rgba(250,204,21,0.5)]" />
-             </motion.div>
+        {winner ? (
+          <motion.div
+            initial={{ y: 30, opacity: 0, scale: 0.9 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            transition={{ type: "spring", delay: 0.5 }}
+            className="text-center mb-12 relative pt-8"
+          >
+            <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+               <motion.div
+                 animate={{ rotate: [0, -10, 10, 0], scale: [1, 1.2, 1] }}
+                 transition={{ duration: 2, repeat: Infinity }}
+               >
+                 <Trophy className="w-10 h-10 text-yellow-400 filter drop-shadow-[0_0_20px_rgba(250,204,21,0.5)]" />
+               </motion.div>
+            </div>
+            <p className="text-yellow-400 font-black tracking-[0.5em] uppercase text-[10px] mb-4">SANG JUARA</p>
+            <h1 className="text-xl md:text-3xl font-black text-white tracking-tighter mb-4 filter drop-shadow-xl">
+              {winner.name}
+            </h1>
+            <div className="inline-flex items-center gap-3 bg-white/10 px-6 py-2 rounded-full border border-white/20 backdrop-blur-md">
+              <span className="text-xl font-black text-white">{winner.score}</span>
+              <span className="text-[11px] font-bold text-white/50 uppercase tracking-widest">Total Poin</span>
+            </div>
+          </motion.div>
+        ) : (
+          <div className="text-center mb-12 pt-8">
+            <XCircle className="w-12 h-12 text-slate-500 mx-auto mb-4 opacity-50" />
+            <p className="text-slate-400 font-black tracking-[0.5em] uppercase text-[10px] mb-2">SESI BERAKHIR</p>
+            <h1 className="text-2xl font-black text-white tracking-tighter mb-2">Semua Tim Menyerah</h1>
+            <p className="text-slate-500 text-xs font-medium">Tidak ada pemenang dalam sesi ini.</p>
           </div>
-          <p className="text-yellow-400 font-black tracking-[0.5em] uppercase text-[10px] mb-4">SANG JUARA</p>
-          <h1 className="text-xl md:text-3xl font-black text-white tracking-tighter mb-4 filter drop-shadow-xl">
-            {winner.name}
-          </h1>
-          <div className="inline-flex items-center gap-3 bg-white/10 px-6 py-2 rounded-full border border-white/20 backdrop-blur-md">
-            <span className="text-xl font-black text-white">{winner.score}</span>
-            <span className="text-[11px] font-bold text-white/50 uppercase tracking-widest">Total Poin</span>
-          </div>
-        </motion.div>
+        )}
 
-        {/* Ranking List - Taller and More Spacious */}
         <div className="w-full flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-3 mb-8">
-          {runnersUp.map((group, index) => (
-            <motion.div
-              key={group.id}
-              initial={{ x: -20, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ delay: 0.8 + index * 0.1 }}
-              className="bg-white/5 border border-white/10 p-4 rounded-2xl flex items-center justify-between hover:bg-white/10 transition-colors group"
-            >
-              <div className="flex items-center gap-6">
-                <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center border border-white/10 group-hover:border-white/30 transition-all">
-                  <span className="text-lg font-black text-white/40 group-hover:text-white transition-colors">
-                    {index + 2}
-                  </span>
+          {runnersUp.map((group, index) => {
+            const isSurrendered = group.status === 'SURRENDERED';
+            const displayRank = winner ? index + 2 : index + 1;
+
+            return (
+              <motion.div
+                key={group.id}
+                initial={{ x: -20, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ delay: 0.8 + index * 0.1 }}
+                className={`bg-white/5 border border-white/10 p-4 rounded-2xl flex items-center justify-between hover:bg-white/10 transition-colors group ${isSurrendered ? 'opacity-40 grayscale' : ''}`}
+              >
+                <div className="flex items-center gap-6">
+                  <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center border border-white/10 group-hover:border-white/30 transition-all">
+                    <span className="text-lg font-black text-white/40 group-hover:text-white transition-colors">
+                      {isSurrendered ? "—" : displayRank}
+                    </span>
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-bold text-white tracking-tight">{group.name}</h4>
+                    <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em]">
+                      {isSurrendered ? "Menyerah" : `Peringkat ${displayRank}`}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="text-lg font-bold text-white tracking-tight">{group.name}</h4>
-                  <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em]">Peringkat {index + 2}</p>
+                <div className="flex items-center gap-4">
+                  <div className="text-right">
+                    <span className="text-xl font-black text-white">{group.score}</span>
+                    <p className="text-[9px] font-bold text-white/30 uppercase">Poin</p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="text-right">
-                  <span className="text-xl font-black text-white">{group.score}</span>
-                  <p className="text-[9px] font-bold text-white/30 uppercase">Poin</p>
-                </div>
-                <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
-                   <ChevronRight className="w-4 h-4 text-white/20" />
-                </div>
-              </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            );
+          })}
         </div>
 
         <motion.button

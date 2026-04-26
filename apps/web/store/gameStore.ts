@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { api } from '../lib/api';
 
 // Types
-export type GroupStatus = 'ACTIVE' | 'SKIP_NEXT' | 'WAITING';
+export type GroupStatus = 'ACTIVE' | 'SKIP_NEXT' | 'WAITING' | 'SURRENDERED';
 export type GameStatus = 'IDLE' | 'LOBBY' | 'PLAYING' | 'FINISHED';
 export type QuestionType = 'DASAR' | 'AKSI' | 'TANTANGAN';
 
@@ -17,6 +17,7 @@ export interface Group {
   status: GroupStatus;
   avatar?: string;
   color?: string;
+  isOffline?: boolean;
 }
 
 export interface QuestionCard {
@@ -167,6 +168,9 @@ export const useGameStore = create<GameState & GameActions>()(
 
       if (socket) {
         socket.on("game:state", (newState: Partial<GameState>) => {
+          // Abaikan update state dari server jika kita sudah keluar dari room (roomCode kosong)
+          if (!get().roomCode) return;
+
           // If another client advanced the turn and cleared the result, cancel our local timeout
           if (newState.lastResult === null && resultTimeoutId) {
             clearTimeout(resultTimeoutId);
@@ -176,6 +180,7 @@ export const useGameStore = create<GameState & GameActions>()(
         });
         
         socket.on("game:timer_sync", (data: { timer: number, globalTimer: number, countdown: number | null }) => {
+           if (!get().roomCode) return;
            set({ timer: data.timer, globalTimer: data.globalTimer, countdown: data.countdown });
            if (data.timer <= 0 && get().isTimerRunning) {
               get().decrementTimer();
@@ -506,8 +511,17 @@ export const useGameStore = create<GameState & GameActions>()(
             resultTimeoutId = null;
           }
 
+          // Find the next active group index (skipping SURRENDERED)
+          let nextIndex = (state.activeGroupIndex + 1) % state.groups.length;
+          let searchCount = 0;
+          
+          while (state.groups[nextIndex].status === 'SURRENDERED' && searchCount < state.groups.length) {
+            nextIndex = (nextIndex + 1) % state.groups.length;
+            searchCount++;
+          }
+
           syncSet((s) => ({
-            activeGroupIndex: (s.activeGroupIndex + 1) % s.groups.length,
+            activeGroupIndex: nextIndex,
             currentTurn: s.currentTurn + 1,
             currentCard: null,
             lastResult: null, // Clear the toast!
