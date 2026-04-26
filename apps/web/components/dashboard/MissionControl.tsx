@@ -129,7 +129,7 @@ export default function MissionControl() {
                         </div>
                       </div>
                       <div 
-                        className={`w-2 h-2 rounded-full ${isMyTurn ? "animate-pulse" : ""}`} 
+                        className={`w-2 h-2 rounded-full ${(!isOffline && !isSurrendered) ? "animate-pulse" : ""}`} 
                         style={{ 
                           backgroundColor: isSurrendered ? '#94a3b8' : (isOffline ? '#f59e0b' : (g.color || '#10b981')),
                           boxShadow: isMyTurn ? `0 0 8px ${g.color || '#10b981'}` : 'none'
