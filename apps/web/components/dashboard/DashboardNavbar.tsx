@@ -9,6 +9,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 
+import { useGameStore } from "../../store/gameStore";
+
 interface DashboardNavbarProps {
   activeTab: 'SESI' | 'SOAL' | 'RIWAYAT';
   setActiveTab: (tab: 'SESI' | 'SOAL' | 'RIWAYAT') => void;
@@ -23,6 +25,8 @@ export default function DashboardNavbar({
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showConfirmExit, setShowConfirmExit] = useState(false);
+  
+  const { gameStatus, roomCode, endGame, cancelRoom } = useGameStore();
 
   const navItems = [
     { id: 'SESI', label: 'Sesi Aktif', icon: LayoutDashboard },
@@ -31,6 +35,13 @@ export default function DashboardNavbar({
   ] as const;
 
   const handleExit = () => {
+    // Otomatis batalkan atau selesaikan sesi di server
+    if (gameStatus === 'PLAYING') {
+      endGame();
+    } else if (gameStatus === 'LOBBY' && roomCode) {
+      cancelRoom(roomCode);
+    }
+
     resetToIdle();
     setActiveTab('SESI');
     router.push('/');
