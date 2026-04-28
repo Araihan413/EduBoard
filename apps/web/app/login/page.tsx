@@ -6,7 +6,9 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Sparkles, KeyRound, Mail, Lock, ShieldCheck, Eye, EyeOff, Check, Disc3 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { api } from "../../lib/api";
+import { createClient } from "../../lib/supabase/client";
+
+import { GoogleLoginButton } from "../../components/GoogleLoginButton";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -23,8 +25,12 @@ export default function LoginPage() {
   useEffect(() => {
     const savedEmail = localStorage.getItem("eduboard_remembered_email");
     if (savedEmail) {
-      setFormData(prev => ({ ...prev, email: savedEmail }));
-      setRememberMe(true);
+      // Defer state updates to avoid synchronous cascading renders
+      const timer = setTimeout(() => {
+        setFormData(prev => ({ ...prev, email: savedEmail }));
+        setRememberMe(true);
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, []);
 
@@ -33,10 +39,18 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const data = await api.post("/api/auth/login", formData);
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
+      });
+
+      if (error) throw error;
       
-      localStorage.setItem("eduboard_token", data.token);
-      localStorage.setItem("eduboard_user", JSON.stringify(data.user));
+      // Clean up old custom auth tokens if they exist
+      localStorage.removeItem("eduboard_token");
+      localStorage.removeItem("eduboard_user");
+      document.cookie = "eduboard_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
       
       // Handle Remember Me logic
       if (rememberMe) {
@@ -58,7 +72,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-[#fafafa] p-4 pt-24 relative overflow-hidden font-sans">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-[#fafafa] px-4 pt-24 pb-10 relative overflow-hidden font-sans">
       {/* Premium Background Elements */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 left-1/4 w-72 h-72 bg-blue-100/30 blur-[80px] rounded-full" />
@@ -88,6 +102,14 @@ export default function LoginPage() {
               Masuk untuk mengelola ruang belajar digital
             </p>
           </div>
+        </div>
+
+        <GoogleLoginButton />
+        
+        <div className="flex items-center gap-4 mb-5">
+          <div className="flex-1 h-px bg-slate-200"></div>
+          <span className="text-xs font-medium text-slate-400 uppercase tracking-widest">Atau dengan Email</span>
+          <div className="flex-1 h-px bg-slate-200"></div>
         </div>
 
         <form className="space-y-5" onSubmit={handleSubmit}>
@@ -139,7 +161,7 @@ export default function LoginPage() {
               </div>
               <span className={`text-sm font-semibold transition-colors ${rememberMe ? 'text-slate-900' : 'text-slate-400 group-hover:text-slate-600'}`}>Ingat saya</span>
             </button>
-            <button type="button" className="text-sm font-bold text-blue-600 hover:underline">Lupa sandi?</button>
+            <Link href="/forgot-password" className="text-sm font-bold text-blue-600 hover:underline">Lupa sandi?</Link>
           </div>
 
           <div className="pt-2">

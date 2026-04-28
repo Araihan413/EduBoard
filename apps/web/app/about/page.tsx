@@ -36,7 +36,7 @@ export default function AboutPage() {
         </p>
       </motion.div>
 
-      <div className="space-y-40 relative z-10">
+      <div className="space-y-25 relative z-10">
         {/* Story Section */}
         <section className="grid grid-cols-1 md:grid-cols-2 gap-20 items-center">
            <div className="space-y-8">
@@ -106,7 +106,7 @@ export default function AboutPage() {
         </section>
 
         {/* Tech Footer Link */}
-        <section className="text-center pt-20 border-t border-slate-100">
+        <section className="text-center pt-14 border-t border-slate-100">
            <p className="text-slate-400 font-medium mb-8">Siap membuat sesi belajar lebih berwarna?</p>
            <div className="flex justify-center gap-6">
               <Link href="/" className="px-8 py-4 bg-white border border-slate-100 rounded-2xl text-xs font-black uppercase tracking-widest hover:border-[#2c49c5] transition-all flex items-center gap-2">
@@ -119,7 +119,7 @@ export default function AboutPage() {
         </section>
       </div>
 
-      <footer className="mt-40 text-center text-[10px] font-black text-slate-300 uppercase tracking-[0.5em] pb-10">
+      <footer className="mt-40 text-center text-[10px] font-black text-slate-300 uppercase tracking-[0.5em] pb-5">
          EduBoard PAI &bull; Educational Entertainment &bull; 2026
       </footer>
     </main>

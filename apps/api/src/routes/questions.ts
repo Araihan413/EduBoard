@@ -2,16 +2,11 @@ import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma, QuestionType } from "@repo/db";
 import { QuestionSchema } from "@repo/types";
+import { verifySupabaseAuth } from "../supabaseAuth";
 
 export default async function questionRoutes(fastify: FastifyInstance) {
   // Authentication Guard
-  fastify.addHook("onRequest", async (request, reply) => {
-    try {
-      await request.jwtVerify();
-    } catch (err) {
-      reply.code(401).send({ error: "Unauthorized" });
-    }
-  });
+  fastify.addHook("onRequest", verifySupabaseAuth);
 
   // GET All Questions for the authenticated Teacher (RLS enforced)
   fastify.get("/", async (request, reply) => {

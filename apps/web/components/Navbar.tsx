@@ -9,15 +9,28 @@ import {
   LayoutDashboard,
   Menu,
   X,
-  ChevronRight
+  ChevronRight,
+  LogIn
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
+import { createClient } from "../lib/supabase/client";
 
 export default function Navbar() {
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // Check auth state
+  useEffect(() => {
+    const checkAuth = async () => {
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      setIsLoggedIn(!!session);
+    };
+    checkAuth();
+  }, []);
 
   // Prevent scroll when menu is open
   useEffect(() => {
@@ -68,10 +81,18 @@ export default function Navbar() {
 
         {/* Desktop Buttons */}
         <div className="hidden md:flex items-center gap-4">
-          <Link href="/login" className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-[#2c49c5] transition-all px-4 py-2">
-            <LayoutDashboard className="w-4 h-4" />
-            Dashboard
-          </Link>
+          {isLoggedIn ? (
+            <Link href="/dashboard" className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-[#2c49c5] hover:text-[#1a34a8] transition-all px-4 py-2 bg-blue-50 hover:bg-blue-100 rounded-xl">
+              <LayoutDashboard className="w-4 h-4" />
+              Dashboard
+            </Link>
+          ) : (
+            <Link href="/login" className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-[#2c49c5] transition-all px-4 py-2">
+              <LogIn className="w-4 h-4" />
+              Login Guru
+            </Link>
+          )}
+          
           <Link 
             href="/lobby" 
             className="bg-[#2c49c5] text-white px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-[#1a34a8] transition-all shadow-lg shadow-blue-500/25 active:scale-95 flex items-center gap-2"
@@ -98,7 +119,7 @@ export default function Navbar() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-[90] bg-white pt-24 px-6 md:hidden"
+            className="fixed inset-0 z-[90] bg-white pt-24 px-6 md:hidden overflow-y-auto"
           >
             <div className="flex flex-col gap-1">
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-4 ml-2">Navigasi Utama</p>
@@ -135,16 +156,29 @@ export default function Navbar() {
 
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-4 ml-2">Akses Cepat</p>
 
-              <Link 
-                href="/login"
-                onClick={() => setIsMenuOpen(false)}
-                className="flex items-center gap-4 p-4 text-slate-600 active:bg-slate-50 rounded-2xl"
-              >
-                <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center">
-                  <LayoutDashboard size={20} />
-                </div>
-                <span className="font-bold">Dashboard Guru</span>
-              </Link>
+              {isLoggedIn ? (
+                <Link 
+                  href="/dashboard"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="flex items-center gap-4 p-4 text-[#2c49c5] bg-blue-50 active:bg-blue-100 rounded-2xl"
+                >
+                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                    <LayoutDashboard size={20} />
+                  </div>
+                  <span className="font-bold">Dashboard Guru</span>
+                </Link>
+              ) : (
+                <Link 
+                  href="/login"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="flex items-center gap-4 p-4 text-slate-600 active:bg-slate-50 rounded-2xl"
+                >
+                  <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center">
+                    <LogIn size={20} />
+                  </div>
+                  <span className="font-bold">Login Guru</span>
+                </Link>
+              )}
 
               <Link 
                 href="/lobby"

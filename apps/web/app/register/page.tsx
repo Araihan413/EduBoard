@@ -6,7 +6,9 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Sparkles, UserPlus, Mail, Lock, ShieldCheck, User, Eye, EyeOff, Disc3 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { api } from "../../lib/api";
+import { createClient } from "../../lib/supabase/client";
+
+import { GoogleLoginButton } from "../../components/GoogleLoginButton";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -24,10 +26,23 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      const data = await api.post("/api/auth/register", formData);
+      const supabase = createClient();
+      const { data, error } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            full_name: formData.name,
+          }
+        }
+      });
+
+      if (error) throw error;
       
-      localStorage.setItem("eduboard_token", data.token);
-      localStorage.setItem("eduboard_user", JSON.stringify(data.user));
+      // Clean up old custom auth tokens if they exist
+      localStorage.removeItem("eduboard_token");
+      localStorage.removeItem("eduboard_user");
+      document.cookie = "eduboard_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
       
       toast.success("Akun berhasil dibuat! Mengalihkan...");
       
@@ -42,7 +57,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-[#fafafa] p-4 pt-24 pb-12 relative overflow-hidden font-sans">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-[#fafafa] p-4 pt-24 pb-10 relative overflow-hidden font-sans">
       {/* Premium Background Elements */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 right-1/4 w-72 h-72 bg-blue-100/30 blur-[80px] rounded-full" />
@@ -72,6 +87,14 @@ export default function RegisterPage() {
               Mulai kelola kelas digital Anda hari ini
             </p>
           </div>
+        </div>
+
+        <GoogleLoginButton />
+        
+        <div className="flex items-center gap-4 mb-5">
+          <div className="flex-1 h-px bg-slate-200"></div>
+          <span className="text-xs font-medium text-slate-400 uppercase tracking-widest">Atau Daftar Manual</span>
+          <div className="flex-1 h-px bg-slate-200"></div>
         </div>
 
         <form className="space-y-5" onSubmit={handleSubmit}>

@@ -162,9 +162,7 @@ function PlayerPion({ group, gIdx, tiles, tileSize, gap, startPos }: {
   gap: number,
   startPos: { x: number, y: number }
 }) {
-  const [prevPos, setPrevPos] = useState(group.position);
-  const [path, setPath] = useState<{ x: number, y: number }[]>([]);
-
+  const [restPos, setRestPos] = useState(group.position);
   const boardSize = 30;
 
   const getCoords = (pos: number) => {
@@ -173,65 +171,58 @@ function PlayerPion({ group, gIdx, tiles, tileSize, gap, startPos }: {
     return tile ? { x: tile.x, y: tile.y } : startPos;
   };
 
-  if (group.position !== prevPos) {
-    const newPath: { x: number, y: number }[] = [];
-    const diff = group.position - prevPos;
+  // derived state: hitung path secara langsung saat render
+  const isMoving = group.position !== restPos;
+  const currentPath: { x: number, y: number }[] = [];
 
-    if (prevPos === 0) {
-      for (let i = 1; i <= group.position; i++) {
-        newPath.push(getCoords(i));
-      }
+  if (isMoving) {
+    const prev = restPos;
+    const next = group.position;
+    const diff = next - prev;
+
+    if (prev === 0) {
+      for (let i = 1; i <= next; i++) currentPath.push(getCoords(i));
     } else if (diff > 0 && diff <= 6) {
-      for (let i = prevPos; i <= group.position; i++) {
-        newPath.push(getCoords(i));
-      }
+      for (let i = prev; i <= next; i++) currentPath.push(getCoords(i));
     } else if (diff < 0 && diff >= -6) {
-      for (let i = prevPos; i >= group.position; i--) {
-        newPath.push(getCoords(i));
-      }
+      for (let i = prev; i >= next; i--) currentPath.push(getCoords(i));
     } else if (diff < -6) {
-      for (let i = prevPos; i <= boardSize; i++) {
-        newPath.push(getCoords(i));
-      }
-      for (let i = 1; i <= group.position; i++) {
-        newPath.push(getCoords(i));
-      }
+      for (let i = prev; i <= boardSize; i++) currentPath.push(getCoords(i));
+      for (let i = 1; i <= next; i++) currentPath.push(getCoords(i));
     } else if (diff > 6) {
-      for (let i = prevPos; i >= 1; i--) {
-        newPath.push(getCoords(i));
-      }
-      for (let i = boardSize; i >= group.position; i--) {
-        newPath.push(getCoords(i));
-      }
+      for (let i = prev; i >= 1; i--) currentPath.push(getCoords(i));
+      for (let i = boardSize; i >= next; i--) currentPath.push(getCoords(i));
     }
-    
-    setPath(newPath);
-    setPrevPos(group.position);
   }
 
-  const currentPos = getCoords(group.position);
+  // When path animation completes, commit the new rest position
+  const handleAnimationComplete = () => {
+    setRestPos(group.position);
+  };
 
-  const xCoords = path.length > 0 ? path.map(t => t.x * (tileSize + gap)) : [currentPos.x * (tileSize + gap)];
-  const yCoords = path.length > 0 ? path.map(t => t.y * (tileSize + gap)) : [currentPos.y * (tileSize + gap)];
-  const scaleValues = path.length > 0 ? path.map((_, i) => i === 0 || i === path.length - 1 ? 1 : 1.4) : [1];
+  const restCoords = getCoords(restPos);
+  const xCoords = currentPath.length > 1 ? currentPath.map(t => t.x * (tileSize + gap)) : [restCoords.x * (tileSize + gap)];
+  const yCoords = currentPath.length > 1 ? currentPath.map(t => t.y * (tileSize + gap)) : [restCoords.y * (tileSize + gap)];
+  const scaleValues = currentPath.length > 1 ? currentPath.map((_, i) => i === 0 || i === currentPath.length - 1 ? 1 : 1.4) : [1];
 
   return (
     <motion.div
       initial={false}
-      animate={path.length > 1 ? {
+      animate={currentPath.length > 1 ? {
         x: xCoords,
         y: yCoords,
         scale: scaleValues,
       } : {
-        x: currentPos.x * (tileSize + gap),
-        y: currentPos.y * (tileSize + gap),
+        x: restCoords.x * (tileSize + gap),
+        y: restCoords.y * (tileSize + gap),
         scale: 1
       }}
       transition={{
-        duration: path.length > 1 ? (path.length - 1) * 0.4 : 0.4,
+        duration: currentPath.length > 1 ? (currentPath.length - 1) * 0.4 : 0.4,
         ease: "easeInOut",
-        times: path.length > 1 ? path.map((_, i) => i / (path.length - 1)) : [0, 1]
+        times: currentPath.length > 1 ? currentPath.map((_, i) => i / (currentPath.length - 1)) : undefined
       }}
+      onAnimationComplete={handleAnimationComplete}
       style={{
         width: tileSize,
         height: tileSize,
@@ -246,18 +237,15 @@ function PlayerPion({ group, gIdx, tiles, tileSize, gap, startPos }: {
     >
       <div className="relative group">
         {/* Real-time Glow Aura */}
-        <div className={`absolute inset-[-8px] rounded-full blur-xl opacity-40 animate-pulse ${
-          gIdx === 0 ? "bg-[#2c49c5]" : gIdx === 1 ? "bg-red-500" : gIdx === 2 ? "bg-purple-500" : "bg-emerald-500"
-        }`} />
+        <div 
+          className="absolute inset-[-8px] rounded-full blur-xl opacity-40 animate-pulse"
+          style={{ backgroundColor: group.color || '#3b82f6' }}
+        />
         
         {/* The 3D Token Body */}
         <div 
-          className={`w-7 h-7 lg:w-9 lg:h-9 rounded-full relative z-10 border-2 border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.3),inset_0_-4px_6px_rgba(0,0,0,0.2)] transition-transform duration-500 ${
-            gIdx === 0 ? "bg-gradient-to-br from-blue-400 to-[#2c49c5]" : 
-            gIdx === 1 ? "bg-gradient-to-br from-red-400 to-red-600" : 
-            gIdx === 2 ? "bg-gradient-to-br from-purple-400 to-purple-600" : 
-            "bg-gradient-to-br from-emerald-400 to-emerald-600"
-          }`}
+          className="w-7 h-7 lg:w-9 lg:h-9 rounded-full relative z-10 border-2 border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.3),inset_0_-4px_6px_rgba(0,0,0,0.2)] transition-transform duration-500"
+          style={{ background: `linear-gradient(135deg, white 0%, ${group.color || '#3b82f6'} 100%)` }}
         >
           {/* Glossy Reflection Overlay */}
           <div className="absolute top-1 left-1.5 w-1/2 h-1/3 bg-white/30 rounded-full blur-[1px]" />
