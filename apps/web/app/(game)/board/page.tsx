@@ -34,6 +34,7 @@ import Link from "next/link";
 import NextImage from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import confetti from "canvas-confetti";
+import { PREMIUM_COLORS } from "../../../lib/constants";
 
 const BoardCanvas = dynamic(
   () => import("../../../components/game/BoardCanvas"),
@@ -101,19 +102,31 @@ function BoardPage() {
     lastResult,
     clearLastResult,
     fetchQuestions,
+    rejoinAsGuru,
+    isGuru
   } = useGameStore();
 
   useEffect(() => {
-    fetchQuestions();
-  }, [fetchQuestions]);
+    if (isGuru && roomCode) {
+      fetchQuestions();
+    }
+  }, [fetchQuestions, isGuru, roomCode]);
 
   const [tantanganText, setTantanganText] = useState("");
   const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
 
+  // Page protection - only redirect if we are SURE we are not in a room after rehydration
   useEffect(() => {
     if (isMounted && !roomCode && gameStatus === "IDLE") {
-      router.push("/lobby");
+      // Small delay to allow rehydration to complete
+      const timeout = setTimeout(() => {
+        if (!useGameStore.getState().roomCode) {
+           console.log('[DEBUG] [BOARD] No roomCode found after delay. Redirecting to lobby...');
+           router.push("/lobby");
+        }
+      }, 500);
+      return () => clearTimeout(timeout);
     }
   }, [isMounted, roomCode, gameStatus, router]);
 
@@ -216,23 +229,12 @@ function BoardPage() {
 
   useEffect(() => {
     const queryRoom = searchParams?.get("roomCode");
-    const queryRole = searchParams?.get("role");
 
-    if (queryRoom) {
-      if (queryRole === "guru") {
-        // Guru always re-joins the socket room on board load.
-        socket?.emit("room:join", { roomCode: queryRoom, role: "guru" });
-      } else {
-        // Student re-joins. 
-        // We use the name from state (Zustand persist) or local storage.
-        const savedName = myGroupName || localStorage.getItem(`eduboard_name_${queryRoom}`);
-        if (savedName) {
-          joinRoom(queryRoom, savedName);
-        } else {
-          // Fallback if no name found, just join the room to get updates
-          socket?.emit("room:join", { roomCode: queryRoom, role: "siswa" });
-        }
-      }
+    // Only sync the roomCode from URL into the store.
+    // Do NOT emit room:join here — that is handled exclusively by
+    // onRehydrateStorage in gameStore.ts to prevent double joins.
+    if (queryRoom && queryRoom !== roomCode) {
+      useGameStore.setState({ roomCode: queryRoom });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
@@ -393,7 +395,7 @@ function BoardPage() {
               const isLeader = rank === 0 && g.score > 0 && g.status !== 'SURRENDERED';
               const isSurrendered = g.status === 'SURRENDERED';
               const isOffline = g.isOffline;
-              const colors = ["bg-blue-500", "bg-red-500", "bg-purple-500", "bg-emerald-500"];
+              const colorData = PREMIUM_COLORS.find(c => c.hex === g.color);
               
               return (
                 <motion.div 
@@ -414,9 +416,11 @@ function BoardPage() {
                     <div className="absolute inset-0 rounded-full shadow-[0_0_15px_rgba(59,130,246,0.2)] animate-pulse" />
                   )}
  
-                   {/* Avatar Section - Smaller */}
                    <div className="relative">
-                    <div className={`w-10 h-10 rounded-full overflow-hidden border-2 border-white shadow-md ${isSurrendered ? "bg-slate-400" : colors[g.originalIndex % colors.length]}`}>
+                    <div 
+                      className={`w-10 h-10 rounded-full overflow-hidden border-2 border-white shadow-md ${isSurrendered ? "bg-slate-400" : ""}`}
+                      style={!isSurrendered ? { backgroundColor: g.color || '#3b82f6' } : {}}
+                    >
                         <NextImage 
                           src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${g.avatar || g.name}`} 
                           alt={g.name}
@@ -1430,11 +1434,12 @@ function DieFace({ val, size, transform }: { val: number; size: number; transfor
 
 
 function ResultNotification({ result, onClose, role }: { result: AnswerResult; onClose: () => void; role: string }) {
-  const { clearLastResult } = useGameStore();
+  const { clearLastResult, myGroupName } = useGameStore();
   const isSuccess = result.type === 'SUCCESS';
   const isFailure = result.type === 'FAILURE';
 
-
+  // Only the owner of the result (the team that answered) can close it.
+  const canClose = result.groupName === myGroupName;
   
   return (
     <motion.div
@@ -1444,8 +1449,8 @@ function ResultNotification({ result, onClose, role }: { result: AnswerResult; o
       className="fixed inset-0 z-[200] flex items-center justify-center p-6 pointer-events-none"
     >
       <div className="bg-white/95 backdrop-blur-3xl border-2 border-slate-100 rounded-[2.5rem] p-10 shadow-[0_40px_100px_rgba(0,0,0,0.15)] flex flex-col items-center max-w-sm w-full text-center relative overflow-hidden pointer-events-auto">
-        {/* Close Button — only visible for students, not teacher */}
-        {role !== "guru" && (
+        {/* Close Button — restricted by ownership or role */}
+        {canClose && (
           <button 
             onClick={() => onClose ? onClose() : clearLastResult()}
             className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600"

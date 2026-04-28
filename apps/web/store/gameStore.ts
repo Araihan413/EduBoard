@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { io, Socket } from 'socket.io-client';
 import { toast } from 'sonner';
 import { api } from '../lib/api';
+import { createClient } from '../lib/supabase/client';
 
 // Types
 export type GroupStatus = 'ACTIVE' | 'SKIP_NEXT' | 'WAITING' | 'SURRENDERED';
@@ -87,7 +88,10 @@ interface GameState {
   
   winner: Group | null;
   logs: string[];
+  isGuru: boolean;
   myGroupName: string | null;
+  myAvatar?: string;
+  myColor?: string;
   lastResult: AnswerResult | null;
   isMuted: boolean;
   countdown: number | null;
@@ -101,6 +105,7 @@ interface GameActions {
   startGame: () => void;
   endGame: () => void;
   resetToIdle: () => void;
+  rejoinAsGuru: (roomCode: string) => Promise<void>;
 
   // Actions - Pertanyaan
   addQuestion: (q: Omit<QuestionCard, 'id'>) => Promise<void>;
@@ -127,6 +132,7 @@ interface GameActions {
   
   // Sync
   setStateFromSync: (state: Partial<GameState>) => void;
+  handleAutoRejoin: () => void;
 }
 
 
@@ -137,6 +143,17 @@ if (typeof window !== 'undefined') {
 }
 
 let resultTimeoutId: NodeJS.Timeout | null = null;
+// Use sessionStorage to track intent across refreshes (unique per tab)
+const getLeavingFlag = () => {
+  if (typeof window === 'undefined') return false;
+  return sessionStorage.getItem('eduboard_leaving') === 'true';
+};
+const setLeavingFlag = (val: boolean) => {
+  if (typeof window !== 'undefined') {
+    sessionStorage.setItem('eduboard_leaving', val ? 'true' : 'false');
+  }
+};
+let isJoining = false;
 
 export const getTileTypeAt = (index: number): QuestionType | "SKIP" => {
   if (index === 0) return "DASAR";
@@ -156,7 +173,8 @@ export const useGameStore = create<GameState & GameActions>()(
       const syncSet = (partialOrFn: Partial<GameState> | ((state: GameState) => Partial<GameState>)) => {
         set((state) => {
           const nextPartial = typeof partialOrFn === 'function' ? partialOrFn(state) : partialOrFn;
-          if (socket) {
+
+          if (socket && state.roomCode && state.gameStatus !== 'IDLE') {
             socket.emit("game:sync_state", { 
               roomCode: nextPartial.roomCode || state.roomCode, 
               state: nextPartial 
@@ -167,28 +185,105 @@ export const useGameStore = create<GameState & GameActions>()(
       };
 
       if (socket) {
-        socket.on("game:state", (newState: Partial<GameState>) => {
-          // Abaikan update state dari server jika kita sudah keluar dari room (roomCode kosong)
-          if (!get().roomCode) return;
+        // IMPORTANT: We REMOVED the global socket.on("connect", handleAutoRejoin) here.
+        // Doing so prevents the "Double Join" bug where both the store init and 
+        // the rehydration process try to rejoin at the same time.
+        // 
+        // Instead, handleAutoRejoin will only be called by onRehydrateStorage 
+        // to ensure we have the correct data before joining.
 
-          // If another client advanced the turn and cleared the result, cancel our local timeout
+        socket.on("game:state", (newState: Partial<GameState>) => {
+          const currentState = get();
+          console.log('[DEBUG] [STORE] Received game:state from server:', newState);
+          
+          const currentRoomCode = currentState.roomCode;
+          const incomingRoomCode = (newState as any).roomCode || newState.roomCode;
+
+          // Accept state only if:
+          // 1. We have a local roomCode AND it matches the incoming one, OR
+          // 2. Local roomCode is empty but incoming roomCode exists (just rejoined)
+          const isRoomMismatch = incomingRoomCode && currentRoomCode && currentRoomCode !== incomingRoomCode;
+          if (isRoomMismatch) {
+            console.warn(`[DEBUG] [STORE] Ignoring state for room ${incomingRoomCode} (Current: ${currentRoomCode})`);
+            return;
+          }
+          if (!incomingRoomCode && !currentRoomCode) {
+            console.warn('[DEBUG] [STORE] Ignoring state: no roomCode on either side.');
+            return;
+          }
+
           if (newState.lastResult === null && resultTimeoutId) {
             clearTimeout(resultTimeoutId);
             resultTimeoutId = null;
           }
-          set(newState);
+
+          // Merge server state but preserve client-only identity fields
+          set((state) => {
+            // Priority: current state → server state → localStorage fallback
+            let finalGroupName = state.myGroupName;
+            if (!finalGroupName) {
+              // Try to recover from localStorage directly as last resort
+              try {
+                const persisted = localStorage.getItem('eduboard-storage');
+                if (persisted) {
+                  const parsed = JSON.parse(persisted);
+                  finalGroupName = parsed?.state?.myGroupName || null;
+                }
+              } catch {}
+            }
+            
+            const finalRoomCode = state.roomCode || incomingRoomCode || '';
+            
+            // AUTO-RECOVER GURU STATUS:
+            let isGuru = state.isGuru;
+            if (!isGuru && finalRoomCode && typeof window !== 'undefined') {
+              const key = `eduboard_role_${finalRoomCode}`;
+              const backupRole = localStorage.getItem(key);
+              if (backupRole === 'guru') {
+                isGuru = true;
+                setTimeout(() => get().fetchQuestions(), 500);
+              }
+            }
+
+            const myGroup = newState.groups?.find(g => g.name === finalGroupName);
+            
+            // PROTECT QUESTIONS: Don't overwrite existing questions with an empty array from server
+            const finalQuestions = (newState.questions && newState.questions.length > 0) 
+              ? newState.questions 
+              : state.questions;
+
+            return {
+              ...state,
+              ...newState,
+              questions: finalQuestions,
+              isGuru,
+              myGroupName: finalGroupName, 
+              roomCode: finalRoomCode,
+              ...(myGroup ? {
+                myAvatar: myGroup.avatar || state.myAvatar,
+                myColor: myGroup.color || state.myColor
+              } : {})
+            };
+          });
         });
         
         socket.on("game:timer_sync", (data: { timer: number, globalTimer: number, countdown: number | null }) => {
-           if (!get().roomCode) return;
-           set({ timer: data.timer, globalTimer: data.globalTimer, countdown: data.countdown });
+            const state = get();
+            if (!state.roomCode || state.gameStatus === 'IDLE') return;
+            set({ timer: data.timer, globalTimer: data.globalTimer, countdown: data.countdown });
            if (data.timer <= 0 && get().isTimerRunning) {
               get().decrementTimer();
            }
         });
+
+        socket.on("room:full", (data: { message: string }) => {
+          set({ myGroupName: null, roomCode: '', gameStatus: 'IDLE' });
+          toast.error(data.message || "Ruangan sudah penuh!");
+        });
       }
 
       return {
+        isGuru: false,
         gameStatus: 'IDLE',
         roomCode: '',
         roomConfig: { 
@@ -214,7 +309,10 @@ export const useGameStore = create<GameState & GameActions>()(
         sessionHistory: [],
         winner: null,
         logs: [],
+        isGuru: false,
         myGroupName: null,
+        myAvatar: undefined,
+        myColor: undefined,
         lastResult: null,
         isMuted: false,
         countdown: null,
@@ -226,18 +324,21 @@ export const useGameStore = create<GameState & GameActions>()(
           groups: state.groups.map(g => g.id === groupId ? { ...g, ...updates } : g)
         })),
         leaveRoom: (roomCode, name) => {
+          setLeavingFlag(true); 
           if (socket) {
             socket.emit("room:leave", { roomCode, groupName: name });
           }
           get().resetToIdle();
         },
-        cancelRoom: (roomCode) => {
+         cancelRoom: (roomCode) => {
+          setLeavingFlag(true); // Set flag BEFORE emitting
           if (socket) {
             socket.emit("room:cancel", roomCode);
           }
           get().resetToIdle();
         },
         setStateFromSync: (newState) => set(newState),
+
 
         createRoom: async (config) => {
           try {
@@ -252,16 +353,40 @@ export const useGameStore = create<GameState & GameActions>()(
             set((state) => ({
               gameStatus: 'LOBBY',
               roomCode: newCode,
+              isGuru: true,
               roomConfig: config,
-              groups: [],
+              groups: [], // CLEAR old groups
+              pendingReviews: [], // CLEAR old reviews
               winner: null,
-              logs: [`Ruang ${newCode} berhasil dibuat.`, ...state.logs]
+              currentCard: null,
+              timer: 0,
+              globalTimer: 0,
+              isTimerRunning: false,
+              isGlobalTimerRunning: false,
+              lastResult: null,
+              logs: [`Ruang ${newCode} berhasil dibuat.`]
             }));
+            
             if (typeof window !== 'undefined') {
               localStorage.setItem(`eduboard_role_${newCode}`, 'guru');
             }
+            
+            // PRE-FETCH QUESTIONS
+            get().fetchQuestions();
+
             if (socket) {
-              socket.emit("room:join", { roomCode: newCode, role: 'guru', roomConfig: config });
+              const supabase = createClient();
+              let { data: { session } } = await supabase.auth.getSession();
+              if (!session) {
+                const refreshed = await supabase.auth.refreshSession();
+                session = refreshed.data.session;
+              }
+              socket.emit("room:join", { 
+                roomCode: newCode, 
+                role: 'guru', 
+                roomConfig: config,
+                token: session?.access_token 
+              });
             }
           } catch (err: any) {
             console.error(err);
@@ -275,16 +400,43 @@ export const useGameStore = create<GameState & GameActions>()(
               throw new Error("Ruang permainan ini sudah berakhir.");
             }
 
-            set({ myGroupName: name, roomCode: typedRoomCode });
+            // Set roomCode and myGroupName synchronously FIRST
+            set({ 
+              myGroupName: name, 
+              myAvatar: avatar,
+              myColor: color,
+              roomCode: typedRoomCode, 
+              gameStatus: 'LOBBY',
+              isGuru: false, // Explicitly mark as student
+              groups: [],
+              logs: [],
+              pendingReviews: [],
+              winner: null,
+              currentCard: null,
+              lastResult: null,
+              timer: 0,
+              globalTimer: 0,
+              isTimerRunning: false
+            });
+
             if (socket) {
               socket.emit("room:join", { 
                 roomCode: typedRoomCode, 
                 groupName: name,
+                role: 'siswa',
                 avatar,
-                color
+                color,
               });
             }
           } catch (err: any) {
+            // Rollback state on error
+            set({ 
+              myGroupName: null, 
+              myAvatar: undefined, 
+              myColor: undefined, 
+              roomCode: '', 
+              gameStatus: 'IDLE' 
+            });
             toast.error(err.message || "Gagal bergabung ke ruang");
             throw err;
           }
@@ -299,18 +451,75 @@ export const useGameStore = create<GameState & GameActions>()(
           syncSet({ gameStatus: 'FINISHED' });
         },
 
+        rejoinAsGuru: async (roomCode: string) => {
+          if (socket) {
+            try {
+              const supabase = createClient();
+              let { data: { session } } = await supabase.auth.getSession();
+              
+              if (!session) {
+                const { data: refreshed } = await supabase.auth.refreshSession();
+                session = refreshed?.session;
+              }
+
+              if (session) {
+                socket!.emit("room:join", { 
+                  roomCode, 
+                  role: 'guru', 
+                  token: session.access_token 
+                });
+                set({ isGuru: true, roomCode });
+              }
+            } catch (err) {
+              console.error("[REJOIN_GURU] Gagal:", err);
+            }
+          }
+        },
+
         resetToIdle: () => {
+          console.log('[DEBUG] [STORE] resetToIdle called. Wiping state and storage.');
+          
+          // 1. Clear flags and storage
+          setLeavingFlag(true); 
+          if (typeof window !== 'undefined') {
+            try {
+              localStorage.removeItem('eduboard-storage');
+              sessionStorage.removeItem('eduboard_leaving');
+              // Clear other potential leftover keys
+              for (let i = localStorage.length - 1; i >= 0; i--) {
+                const key = localStorage.key(i);
+                if (key && (key.startsWith('eduboard_') || key.startsWith('eduboard-'))) {
+                  localStorage.removeItem(key);
+                }
+              }
+            } catch (e) {}
+          }
+
+          // 2. Reset state
           set({
             gameStatus: 'IDLE',
             roomCode: '',
+            isGuru: false,
+            myGroupName: null,
+            myAvatar: undefined,
+            myColor: undefined,
             groups: [],
             winner: null,
             logs: [],
             currentCard: null,
-            myGroupName: null,
             isMoving: false,
-            isRolling: false
+            isRolling: false,
+            lastResult: null,
+            countdown: null,
+            timer: 0,
+            globalTimer: 0,
+            isTimerRunning: false,
+            isGlobalTimerRunning: false,
+            pendingReviews: []
           });
+          
+          // Allow re-joining later if they manually enter a code
+          setTimeout(() => setLeavingFlag(false), 1000);
         },
 
         addQuestion: async (q) => {
@@ -326,8 +535,12 @@ export const useGameStore = create<GameState & GameActions>()(
           syncSet((state) => ({ questions: state.questions.filter(q => q.id !== id) }));
         },
         fetchQuestions: async () => {
-          const data = await api.get("/api/questions");
-          set({ questions: data });
+          try {
+            const data = await api.get("/api/questions");
+            syncSet({ questions: data || [] });
+          } catch (err: any) {
+            toast.error("Gagal mengambil soal: " + err.message);
+          }
         },
 
         drawCard: (type) => syncSet((state) => {
@@ -335,7 +548,7 @@ export const useGameStore = create<GameState & GameActions>()(
           let pool = state.questions && state.questions.length > 0 ? state.questions : [];
 
           if (type) {
-            pool = pool.filter(q => q.type === type);
+            pool = pool.filter(q => q.type?.toString().toUpperCase() === type.toUpperCase());
           }
 
           if (pool.length === 0) {
@@ -427,7 +640,11 @@ export const useGameStore = create<GameState & GameActions>()(
                 title: isInfoCard ? (card.type === 'AKSI' ? 'BERHASIL!' : 'LANJUT!') : (isCorrect ? 'BENAR!' : 'SALAH!'),
                 message: isInfoCard 
                   ? (card.type === 'AKSI' ? `Aksi berhasil dilakukan!` : `Giliran tim ${group?.name} selesai.`)
-                  : (isCorrect ? `Selamat! Jawaban kamu tepat.` : `Yah, kurang tepat. Jawabannya adalah: ${card.answerKey}`),
+                  : (isCorrect 
+                      ? `Selamat! Jawaban kamu tepat.` 
+                      : (card.type === 'AKSI')
+                        ? `Waktu habis atau aksi belum selesai.`
+                        : `Yah, kurang tepat. Jawabannya adalah: ${card.answerKey}`),
                 points: score,
                 groupName: group?.name || 'Siswa'
               }
@@ -560,10 +777,47 @@ export const useGameStore = create<GameState & GameActions>()(
           }
         },
 
-
         clearLastResult: () => {
           // Manually closing the toast should immediately advance the turn
           get().nextTurn();
+        },
+        
+        handleAutoRejoin: () => {
+          if (getLeavingFlag()) {
+            console.log('[DEBUG] [STORE] Skipping auto-rejoin: user is leaving intentionally.');
+            return;
+          }
+          if (isJoining) {
+            console.log('[DEBUG] [STORE] handleAutoRejoin skipped: already joining.');
+            return;
+          }
+
+          const state = get();
+          console.log('[DEBUG] [STORE] handleAutoRejoin called. Current State:', { 
+            roomCode: state.roomCode, 
+            gameStatus: state.gameStatus, 
+            myGroupName: state.myGroupName,
+            isGuru: state.isGuru
+          });
+
+          if (state.roomCode && state.gameStatus !== 'IDLE') {
+            isJoining = true;
+            setTimeout(() => { isJoining = false; }, 2000); // Debounce 2 seconds
+
+            if (state.isGuru) {
+              console.log('[DEBUG] [STORE] Auto-rejoining as Guru for room:', state.roomCode);
+              state.rejoinAsGuru(state.roomCode);
+            } else if (state.myGroupName) {
+              console.log('[DEBUG] [STORE] Auto-rejoining as Student:', state.myGroupName, 'for room:', state.roomCode);
+              socket?.emit("room:join", { 
+                roomCode: state.roomCode, 
+                groupName: state.myGroupName,
+                role: 'siswa',
+                avatar: state.myAvatar,
+                color: state.myColor
+              });
+            }
+          }
         }
       };
     },
@@ -572,9 +826,41 @@ export const useGameStore = create<GameState & GameActions>()(
       partialize: (state) => ({ 
         roomCode: state.roomCode, 
         gameStatus: state.gameStatus,
+        isGuru: state.isGuru,
         myGroupName: state.myGroupName,
+        myAvatar: state.myAvatar,
+        myColor: state.myColor,
         roomConfig: state.roomConfig
       }),
+      onRehydrateStorage: () => (hydratedState) => {
+        if (!hydratedState) return;
+
+        // RECOVERY LOGIC: If isGuru is false but backup key says otherwise, recover it.
+        if (typeof window !== 'undefined' && hydratedState.roomCode) {
+          const backupRole = localStorage.getItem(`eduboard_role_${hydratedState.roomCode}`);
+          if (backupRole === 'guru' && !hydratedState.isGuru) {
+            hydratedState.isGuru = true;
+          }
+        }
+
+        // Handle reconnection
+        const reconnectHandler = () => {
+          hydratedState.handleAutoRejoin();
+        };
+
+        if (typeof window !== 'undefined') {
+          const oldHandler = (window as any).__eduboardReconnectHandler;
+          if (oldHandler) {
+            socket?.off('connect', oldHandler);
+          }
+          (window as any).__eduboardReconnectHandler = reconnectHandler;
+        }
+        socket?.on('connect', reconnectHandler);
+
+        if (socket?.connected) {
+          hydratedState.handleAutoRejoin();
+        }
+      }
     }
   )
 );

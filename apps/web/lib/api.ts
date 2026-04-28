@@ -1,7 +1,15 @@
+import { createClient } from "./supabase/client";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 export async function apiFetch(endpoint: string, options: RequestInit = {}) {
-  const token = typeof window !== "undefined" ? localStorage.getItem("eduboard_token") : null;
+  let token = null;
+  
+  if (typeof window !== "undefined") {
+    const supabase = createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    token = session?.access_token || null;
+  }
 
   const headers: HeadersInit = {
     "Content-Type": "application/json",
@@ -16,10 +24,11 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
 
   if (response.status === 401) {
     if (typeof window !== "undefined") {
-      localStorage.removeItem("eduboard_token");
-      localStorage.removeItem("eduboard_user");
-      // Only redirect if we are in the dashboard area
+      // Only force logout if we're in the dashboard area.
+      // Students on the lobby page should NOT be signed out.
       if (window.location.pathname.startsWith("/dashboard")) {
+        const supabase = createClient();
+        await supabase.auth.signOut();
         window.location.href = "/login";
       }
     }

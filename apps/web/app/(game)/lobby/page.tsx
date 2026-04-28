@@ -21,25 +21,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useGameStore } from "../../../store/gameStore";
 
-const AVATAR_SEEDS = [
-  "Axe", "Cavalier", "Explorer", "Lulu", "Midnight", "Pepper", "Ria", "Salty", "Willow", "Snuggles",
-  "Buddy", "Daisy", "Lucky", "Max", "Oliver", "Pixel", "Shadow", "Zoe"
-];
-
-const PREMIUM_COLORS = [
-  { name: "Blue", hex: "#3b82f6", bg: "bg-blue-500", shadow: "shadow-blue-500/20" },
-  { name: "Red", hex: "#ef4444", bg: "bg-red-500", shadow: "shadow-red-500/20" },
-  { name: "Emerald", hex: "#10b981", bg: "bg-emerald-500", shadow: "shadow-emerald-500/20" },
-  { name: "Amber", hex: "#f59e0b", bg: "bg-amber-500", shadow: "shadow-amber-500/20" },
-  { name: "Purple", hex: "#8b5cf6", bg: "bg-purple-500", shadow: "shadow-purple-500/20" },
-  { name: "Pink", hex: "#ec4899", bg: "bg-pink-500", shadow: "shadow-pink-500/20" },
-  { name: "Orange", hex: "#f97316", bg: "bg-orange-500", shadow: "shadow-orange-500/20" },
-  { name: "Cyan", hex: "#06b6d4", bg: "bg-cyan-500", shadow: "shadow-cyan-500/20" },
-  { name: "Rose", hex: "#f43f5e", bg: "bg-rose-500", shadow: "shadow-rose-500/20" },
-  { name: "Indigo", hex: "#6366f1", bg: "bg-indigo-500", shadow: "shadow-indigo-500/20" },
-  { name: "Teal", hex: "#14b8a6", bg: "bg-teal-500", shadow: "shadow-teal-500/20" },
-  { name: "Slate", hex: "#64748b", bg: "bg-slate-500", shadow: "shadow-slate-500/20" },
-];
+import { AVATAR_SEEDS, PREMIUM_COLORS } from "../../../lib/constants";
 
 export default function LobbyPage() {
   const router = useRouter();
@@ -52,10 +34,18 @@ export default function LobbyPage() {
     toggleMute, 
     countdown,
     myGroupName,
+    isGuru,
     roomCode: storeRoomCode,
     updateGroup,
-    leaveRoom
+    leaveRoom,
+    fetchQuestions,
   } = useGameStore();
+
+  useEffect(() => {
+    if (isGuru && storeRoomCode) {
+      fetchQuestions();
+    }
+  }, [isGuru, storeRoomCode, fetchQuestions]);
   
   const [roomCodeInput, setRoomCodeInput] = useState("");
   const [groupNameInput, setGroupNameInput] = useState("");
@@ -70,42 +60,88 @@ export default function LobbyPage() {
     () => false
   );
   
-  const [avatarIndex, setAvatarIndex] = useState(0);
-  const [selectedColor, setSelectedColor] = useState(PREMIUM_COLORS[0]);
+  const [avatarIndex, setAvatarIndex] = useState(() => {
+    // Initialize from store if available to prevent flickering on refresh
+    const savedAvatar = useGameStore.getState().myAvatar;
+    if (savedAvatar) {
+      const idx = AVATAR_SEEDS.indexOf(savedAvatar);
+      return idx !== -1 ? idx : 0;
+    }
+    return 0;
+  });
+
+  const [selectedColor, setSelectedColor] = useState(() => {
+    const savedColor = useGameStore.getState().myColor;
+    if (savedColor) {
+      const col = PREMIUM_COLORS.find(c => c.hex === savedColor);
+      return col || PREMIUM_COLORS[0];
+    }
+    return PREMIUM_COLORS[0];
+  });
 
   // Auto-recovery & Sync local customization with store
   useEffect(() => {
     if (!isMounted) return;
 
-    // Break the synchronous render chain to avoid cascading renders warning
-    const recoveryTimer = setTimeout(() => {
-      if (myGroupName && storeRoomCode && gameStatus !== 'FINISHED' && gameStatus !== 'IDLE') {
-        setStep(2);
-        
-        const me = groups.find(g => g.name === myGroupName);
-        if (me) {
-          if (me.avatar) {
-            const idx = AVATAR_SEEDS.indexOf(me.avatar);
+    // Use store's isGuru field — NOT localStorage — to avoid same-browser tab confusion
+    // where a student tab incorrectly inherits the guru's localStorage key.
+    if (storeRoomCode && gameStatus !== 'FINISHED' && gameStatus !== 'IDLE') {
+      const canProceed = isGuru || (myGroupName && myGroupName !== '');
+      
+      if (canProceed) {
+        // Defer state updates to avoid synchronous cascading renders
+        const timer = setTimeout(() => {
+          setStep(2);
+          
+          // Sync customization from store to local state
+          const currentMyAvatar = useGameStore.getState().myAvatar;
+          const currentMyColor = useGameStore.getState().myColor;
+
+          if (currentMyAvatar) {
+            const idx = AVATAR_SEEDS.indexOf(currentMyAvatar);
             if (idx !== -1 && avatarIndex !== idx) setAvatarIndex(idx);
           }
-          if (me.color) {
-            const col = PREMIUM_COLORS.find(c => c.hex === me.color);
+          if (currentMyColor) {
+            const col = PREMIUM_COLORS.find(c => c.hex === currentMyColor);
             if (col && selectedColor.hex !== col.hex) setSelectedColor(col);
           }
-        }
-      } else {
-        setStep(1);
-      }
-    }, 0);
 
-    return () => clearTimeout(recoveryTimer);
-  }, [isMounted, myGroupName, storeRoomCode, groups, gameStatus, avatarIndex, selectedColor]);
+          // Also try to sync from groups array if available (source of truth from server)
+          if (myGroupName && groups.length > 0) {
+            const me = groups.find(g => g.name === myGroupName);
+            if (me) {
+              if (me.avatar) {
+                const idx = AVATAR_SEEDS.indexOf(me.avatar);
+                if (idx !== -1 && avatarIndex !== idx) setAvatarIndex(idx);
+              }
+              if (me.color) {
+                const col = PREMIUM_COLORS.find(c => c.hex === me.color);
+                if (col && selectedColor.hex !== col.hex) setSelectedColor(col);
+              }
+            }
+          }
+        }, 0);
+        return () => clearTimeout(timer);
+      }
+    } else {
+      // Defer state update to avoid cascading renders
+      const timer = setTimeout(() => {
+        if (step !== 1) setStep(1);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [isMounted, storeRoomCode, gameStatus, myGroupName, isGuru, groups, avatarIndex, selectedColor, step]);
 
   useEffect(() => {
     if (gameStatus === 'PLAYING') {
       router.push("/board");
     }
-  }, [gameStatus, router]);
+    // Room full: server resets state to IDLE, bring user back to entry form
+    if (gameStatus === 'IDLE' && step === 2) {
+      const t = setTimeout(() => setStep(1), 0);
+      return () => clearTimeout(t);
+    }
+  }, [gameStatus, router, step]);
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -331,14 +367,63 @@ export default function LobbyPage() {
                           unoptimized
                         />
                       </div>
-                      <span className="text-xs font-black text-slate-700 truncate">{g.name}</span>
+                      <div className="flex flex-col min-w-0">
+                        <div className="flex items-center gap-1 mb-0.5">
+                          <motion.div 
+                            animate={{ scale: [1, 1.2, 1], opacity: [1, 0.6, 1] }}
+                            transition={{ duration: 2, repeat: Infinity }}
+                            className="w-1 h-1 bg-emerald-500 rounded-full shadow-[0_0_5px_rgba(16,185,129,0.5)]" 
+                          />
+                          <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest leading-none">SIAP</span>
+                        </div>
+                        <span className="text-xs font-black text-slate-700 truncate leading-tight">{g.name}</span>
+                      </div>
                     </motion.div>
                   ))}
-                  {Array.from({ length: Math.max(0, 3 - groups.length) }).map((_, i) => (
-                    <div key={i} className="border-2 border-dashed border-slate-200/50 p-3 rounded-2xl flex items-center gap-3 opacity-30">
-                      <div className="w-10 h-10 bg-slate-100 rounded-xl" />
-                      <div className="h-2 w-12 bg-slate-100 rounded-full" />
-                    </div>
+                  {Array.from({ length: Math.max(0, roomConfig.maxGroups - groups.length) }).map((_, i) => (
+                    <motion.div 
+                      key={`empty-${i}`}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: i * 0.1 }}
+                      className="relative overflow-hidden group bg-slate-50/50 border-2 border-dashed border-slate-200 p-3 rounded-2xl flex items-center gap-3"
+                    >
+                      {/* Animated Shimmer/Pulse Background */}
+                      <motion.div 
+                        animate={{ 
+                          opacity: [0.3, 0.5, 0.3],
+                          scale: [1, 1.02, 1]
+                        }}
+                        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                        className="absolute inset-0 bg-gradient-to-br from-blue-50/50 to-transparent pointer-events-none" 
+                      />
+
+                      {/* Scanning Line Effect */}
+                      <motion.div 
+                        animate={{ x: ["-100%", "200%"] }}
+                        transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
+                        className="absolute top-0 bottom-0 w-1/2 bg-gradient-to-r from-transparent via-white/40 to-transparent -skew-x-12 pointer-events-none"
+                      />
+
+                      {/* Skeleton UI Components */}
+                      <div className="w-10 h-10 bg-slate-200/60 rounded-xl flex items-center justify-center relative z-10">
+                        <motion.div 
+                          animate={{ opacity: [0.2, 0.5, 0.2] }}
+                          transition={{ duration: 2, repeat: Infinity }}
+                          className="w-4 h-4 rounded-full border-2 border-slate-300 border-t-transparent animate-spin-slow" 
+                        />
+                      </div>
+                      
+                      <div className="flex flex-col gap-1.5 relative z-10">
+                        <div className="h-2 w-16 bg-slate-200/80 rounded-full" />
+                        <div className="h-1.5 w-10 bg-slate-100 rounded-full" />
+                      </div>
+
+                      {/* Tiny Pinging Dot */}
+                      <div className="absolute top-2 right-2 flex items-center gap-1.5">
+                        <div className="w-1 h-1 bg-slate-300 rounded-full animate-pulse" />
+                      </div>
+                    </motion.div>
                   ))}
                 </div>
 
