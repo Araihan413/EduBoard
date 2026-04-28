@@ -7,6 +7,7 @@ import fastifyJwt from "@fastify/jwt";
 import authRoutes from "./routes/auth";
 import questionRoutes from "./routes/questions";
 import roomRoutes from "./routes/rooms";
+import { questionSetRoutes } from "./routes/questionSets";
 import { handleSocketEvents } from "./socket/gameManager";
 
 const fastify = Fastify({ logger: true });
@@ -30,6 +31,7 @@ fastify.get("/health", async () => {
 fastify.register(authRoutes, { prefix: "/api/auth" });
 fastify.register(questionRoutes, { prefix: "/api/questions" });
 fastify.register(roomRoutes, { prefix: "/api/rooms" });
+fastify.register(questionSetRoutes, { prefix: "/api/sets" });
 
 const start = async () => {
   try {

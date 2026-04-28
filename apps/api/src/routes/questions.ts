@@ -8,25 +8,36 @@ export default async function questionRoutes(fastify: FastifyInstance) {
   // Authentication Guard
   fastify.addHook("onRequest", verifySupabaseAuth);
 
-  // GET All Questions for the authenticated Teacher (RLS enforced)
+  // GET Questions for a specific Set
   fastify.get("/", async (request, reply) => {
-    const user = request.user as { id: string };
+    const { setId } = request.query as { setId: string };
+    if (!setId) return reply.code(400).send({ error: "setId wajib disertakan" });
+
     const questions = await prisma.question.findMany({
-      where: { guruId: user.id },
+      where: { setId },
       orderBy: { createdAt: 'desc' }
     });
     return questions;
   });
 
-  // POST New Question (guruId forced to authenticated user)
+  // POST New Question into a Set
   fastify.post("/", async (request, reply) => {
     try {
       const user = request.user as { id: string };
-      const data = QuestionSchema.parse(request.body);
+      const { setId, ...dataRaw } = request.body as any;
+      const data = QuestionSchema.parse(dataRaw);
+
+      if (!setId) return reply.code(400).send({ error: "setId wajib disertakan" });
+
+      // Verify Set ownership
+      const set = await prisma.questionSet.findFirst({
+        where: { id: setId, guruId: user.id }
+      });
+      if (!set) return reply.code(403).send({ error: "Anda tidak memiliki akses ke paket ini" });
 
       const q = await prisma.question.create({
         data: {
-          guruId: user.id,
+          setId,
           type: data.type as QuestionType,
           text: data.text,
           options: data.options ?? [],
@@ -43,16 +54,19 @@ export default async function questionRoutes(fastify: FastifyInstance) {
     }
   });
 
-  // PUT Update Question (Ownership check enforced)
+  // PUT Update Question
   fastify.put("/:id", async (request, reply) => {
     try {
       const user = request.user as { id: string };
       const { id } = request.params as { id: string };
       const data = QuestionSchema.partial().parse(request.body);
 
-      // Verify ownership (Logical RLS)
+      // Verify ownership via Set
       const existing = await prisma.question.findFirst({ 
-        where: { id, guruId: user.id } 
+        where: { 
+          id, 
+          set: { guruId: user.id } 
+        } 
       });
       
       if (!existing) {
@@ -78,13 +92,16 @@ export default async function questionRoutes(fastify: FastifyInstance) {
     }
   });
 
-  // DELETE Question (Ownership check enforced)
+  // DELETE Question
   fastify.delete("/:id", async (request, reply) => {
     const user = request.user as { id: string };
     const { id } = request.params as { id: string };
 
     const existing = await prisma.question.findFirst({ 
-      where: { id, guruId: user.id } 
+      where: { 
+        id, 
+        set: { guruId: user.id } 
+      } 
     });
 
     if (!existing) {

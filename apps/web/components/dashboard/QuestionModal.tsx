@@ -1,47 +1,28 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Plus, X, Type, Star, Layers, CheckCircle2, ListFilter, Disc3 } from "lucide-react";
-import { useGameStore, QuestionCard, QuestionType } from "../../store/gameStore";
+import { useGameStore, QuestionCard } from "../../store/gameStore";
 import { toast } from "sonner";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion} from "framer-motion";
 
 interface QuestionModalProps {
   isOpen: boolean;
   onClose: () => void;
   editingQuestion: QuestionCard | null;
+  setId?: string;
 }
 
-export default function QuestionModal({ isOpen, onClose, editingQuestion }: QuestionModalProps) {
+export default function QuestionModal({ isOpen, onClose, editingQuestion, setId }: QuestionModalProps) {
   const { addQuestion, updateQuestion } = useGameStore();
 
-  const [newQ, setNewQ] = useState<Omit<QuestionCard, 'id'>>({
-    type: 'DASAR',
-    text: '',
-    points: 10,
-    answerKey: '',
-    options: ['', '', '', '']
+  const [newQ, setNewQ] = useState<Omit<QuestionCard, 'id' | 'setId'>>({
+    type: editingQuestion?.type || 'DASAR',
+    text: editingQuestion?.text || '',
+    points: editingQuestion?.points || 10,
+    answerKey: editingQuestion?.answerKey || '',
+    options: editingQuestion?.options || ['', '', '', '']
   });
-
-  useEffect(() => {
-    if (editingQuestion) {
-      setNewQ({
-        type: editingQuestion.type,
-        text: editingQuestion.text,
-        points: editingQuestion.points,
-        answerKey: editingQuestion.answerKey || '',
-        options: editingQuestion.options || ['', '', '', '']
-      });
-    } else {
-      setNewQ({
-        type: 'DASAR',
-        text: '',
-        points: 10,
-        answerKey: '',
-        options: ['', '', '', '']
-      });
-    }
-  }, [editingQuestion, isOpen]);
 
   const [isSaving, setIsSaving] = useState(false);
 
@@ -59,10 +40,11 @@ export default function QuestionModal({ isOpen, onClose, editingQuestion }: Ques
     setIsSaving(true);
     try {
       if (editingQuestion) {
-        await updateQuestion(editingQuestion.id, newQ);
+        await updateQuestion(editingQuestion.id!, newQ);
         toast.success("Pertanyaan diperbarui!");
       } else {
-        await addQuestion(newQ);
+        if (!setId) throw new Error("setId is required for new questions");
+        await addQuestion(setId, newQ as any);
         toast.success("Pertanyaan baru ditambahkan!");
       }
       onClose();

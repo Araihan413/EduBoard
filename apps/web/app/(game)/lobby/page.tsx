@@ -42,10 +42,10 @@ export default function LobbyPage() {
   } = useGameStore();
 
   useEffect(() => {
-    if (isGuru && storeRoomCode) {
-      fetchQuestions();
+    if (isGuru && storeRoomCode && roomConfig.questionSetId) {
+      fetchQuestions(roomConfig.questionSetId);
     }
-  }, [isGuru, storeRoomCode, fetchQuestions]);
+  }, [isGuru, storeRoomCode, fetchQuestions, roomConfig.questionSetId]);
   
   const [roomCodeInput, setRoomCodeInput] = useState("");
   const [groupNameInput, setGroupNameInput] = useState("");
@@ -162,7 +162,7 @@ export default function LobbyPage() {
         randomColor.hex
       );
       setStep(2);
-    } catch (err) {
+    } catch {
       // Error is handled in store via toast
     } finally {
       setIsJoining(false);

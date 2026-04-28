@@ -15,7 +15,7 @@ model User {
   name         String
   createdAt    DateTime   @default(now())
   rooms        Room[]
-  questions    Question[]
+  questionSets QuestionSet[]
 }
 
 model Room {
@@ -34,6 +34,10 @@ model Room {
   createdAt          DateTime    @default(now())
   groups             Group[]
   session            GameSession?
+
+  // Relation to QuestionSet
+  questionSetId      String?
+  questionSet        QuestionSet? @relation(fields: [questionSetId], references: [id])
 }
 
 enum RoomStatus { 
@@ -62,10 +66,23 @@ enum GroupStatus {
   SURRENDERED
 }
 
+model QuestionSet {
+  id          String     @id @default(cuid())
+  title       String
+  description String?
+  isPreset    Boolean    @default(false)
+  guruId      String?
+  guru        User?      @relation(fields: [guruId], references: [id])
+  questions   Question[]
+  rooms       Room[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
 model Question {
   id        String       @id @default(cuid())
-  guruId    String
-  guru      User         @relation(fields: [guruId], references: [id])
+  setId     String
+  set       QuestionSet  @relation(fields: [setId], references: [id], onDelete: Cascade)
   type      QuestionType
   text      String
   options   Json?

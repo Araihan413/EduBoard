@@ -5,7 +5,6 @@ import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import {
   useGameStore,
-  socket,
   type QuestionCard,
   type Group,
   type PendingReview,
@@ -97,20 +96,19 @@ function BoardPage() {
     isRolling,
     diceValue,
     isMoving,
-    joinRoom,
     leaveRoom,
     lastResult,
     clearLastResult,
     fetchQuestions,
-    rejoinAsGuru,
-    isGuru
+    isGuru,
+    roomConfig
   } = useGameStore();
 
   useEffect(() => {
-    if (isGuru && roomCode) {
-      fetchQuestions();
+    if (isGuru && roomCode && roomConfig.questionSetId) {
+      fetchQuestions(roomConfig.questionSetId);
     }
-  }, [fetchQuestions, isGuru, roomCode]);
+  }, [fetchQuestions, isGuru, roomCode, roomConfig.questionSetId]);
 
   const [tantanganText, setTantanganText] = useState("");
   const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false);
@@ -203,8 +201,8 @@ function BoardPage() {
 
   useEffect(() => {
     if (role === "siswa" && activeGroup?.name === myGroupName) {
-      if (timer === 0 && currentCard && lastTimeoutCardRef.current !== currentCard.id) {
-        lastTimeoutCardRef.current = currentCard.id;
+      if (timer === 0 && currentCard && lastTimeoutCardRef.current !== (currentCard.id || null)) {
+        lastTimeoutCardRef.current = currentCard.id || null;
         
         if (currentCard.type === 'DASAR' || currentCard.type === 'AKSI') {
           submitAnswerObjektif(activeGroup.id, "TIMEOUT");

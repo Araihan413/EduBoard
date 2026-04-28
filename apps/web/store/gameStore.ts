@@ -21,8 +21,22 @@ export interface Group {
   isOffline?: boolean;
 }
 
-export interface QuestionCard {
+export interface QuestionSet {
   id: string;
+  title: string;
+  description: string | null;
+  isPreset: boolean;
+  guruId: string | null;
+  createdAt: string;
+  questions?: QuestionCard[];
+  _count?: {
+    questions: number;
+  };
+}
+
+export interface QuestionCard {
+  id?: string;
+  setId?: string;
   type: QuestionType;
   text: string;
   points: number;
@@ -36,6 +50,7 @@ export interface RoomConfig {
   turnDurationTantangan: number;
   turnDurationAksi: number;
   maxGroups: number;
+  questionSetId?: string;
 }
 
 export interface PendingReview {
@@ -82,6 +97,8 @@ interface GameState {
   isRolling: boolean;
   isMoving: boolean;
   
+  questionSets: QuestionSet[];
+  activeQuestionSet: QuestionSet | null;
   questions: QuestionCard[];
   pendingReviews: PendingReview[];
   sessionHistory: SessionHistory[];
@@ -107,11 +124,20 @@ interface GameActions {
   resetToIdle: () => void;
   rejoinAsGuru: (roomCode: string) => Promise<void>;
 
-  // Actions - Pertanyaan
-  addQuestion: (q: Omit<QuestionCard, 'id'>) => Promise<void>;
+  // Actions - Paket Soal
+  fetchQuestionSets: () => Promise<void>;
+  createQuestionSet: (title: string, description?: string) => Promise<QuestionSet>;
+  updateQuestionSet: (id: string, title: string, description?: string) => Promise<QuestionSet>;
+  deleteQuestionSet: (id: string) => Promise<void>;
+  duplicatePreset: (id: string) => Promise<QuestionSet>;
+  importQuestions: (setId: string, questions: Omit<QuestionCard, 'id' | 'setId'>[]) => Promise<void>;
+  setActiveQuestionSet: (questionSet: QuestionSet | null) => void;
+
+  // Actions - Pertanyaan (Sekarang butuh setId)
+  addQuestion: (setId: string, q: Omit<QuestionCard, 'id' | 'setId'>) => Promise<void>;
   updateQuestion: (id: string, q: Partial<QuestionCard>) => Promise<void>;
   deleteQuestion: (id: string) => Promise<void>;
-  fetchQuestions: () => Promise<void>;
+  fetchQuestions: (setId: string) => Promise<void>;
 
   // Actions - Mekanik Permainan
   drawCard: (type?: QuestionType) => void;
@@ -241,7 +267,10 @@ export const useGameStore = create<GameState & GameActions>()(
               const backupRole = localStorage.getItem(key);
               if (backupRole === 'guru') {
                 isGuru = true;
-                setTimeout(() => get().fetchQuestions(), 500);
+                const setId = (newState.roomConfig as any)?.questionSetId;
+                if (setId) {
+                  setTimeout(() => get().fetchQuestions(setId), 500);
+                }
               }
             }
 
@@ -304,12 +333,13 @@ export const useGameStore = create<GameState & GameActions>()(
         diceValue: 1,
         isRolling: false,
         isMoving: false,
+        questionSets: [],
+        activeQuestionSet: null,
         questions: [],
         pendingReviews: [],
         sessionHistory: [],
         winner: null,
         logs: [],
-        isGuru: false,
         myGroupName: null,
         myAvatar: undefined,
         myColor: undefined,
@@ -347,10 +377,11 @@ export const useGameStore = create<GameState & GameActions>()(
               turnDurationDasar: config.turnDurationDasar,
               turnDurationTantangan: config.turnDurationTantangan,
               turnDurationAksi: config.turnDurationAksi,
-              maxGroups: config.maxGroups
+              maxGroups: config.maxGroups,
+              questionSetId: config.questionSetId
             });
             const newCode = room.code;
-            set((state) => ({
+            set({
               gameStatus: 'LOBBY',
               roomCode: newCode,
               isGuru: true,
@@ -365,14 +396,16 @@ export const useGameStore = create<GameState & GameActions>()(
               isGlobalTimerRunning: false,
               lastResult: null,
               logs: [`Ruang ${newCode} berhasil dibuat.`]
-            }));
+            });
             
             if (typeof window !== 'undefined') {
               localStorage.setItem(`eduboard_role_${newCode}`, 'guru');
             }
             
             // PRE-FETCH QUESTIONS
-            get().fetchQuestions();
+            if (config.questionSetId) {
+              get().fetchQuestions(config.questionSetId);
+            }
 
             if (socket) {
               const supabase = createClient();
@@ -492,7 +525,7 @@ export const useGameStore = create<GameState & GameActions>()(
                   localStorage.removeItem(key);
                 }
               }
-            } catch (e) {}
+            } catch {}
           }
 
           // 2. Reset state
@@ -522,8 +555,44 @@ export const useGameStore = create<GameState & GameActions>()(
           setTimeout(() => setLeavingFlag(false), 1000);
         },
 
-        addQuestion: async (q) => {
-          const newQ = await api.post("/api/questions", q);
+        fetchQuestionSets: async () => {
+          try {
+            const data = await api.get("/api/sets");
+            set({ questionSets: data || [] });
+          } catch (err: any) {
+            toast.error("Gagal mengambil paket soal: " + err.message);
+          }
+        },
+        createQuestionSet: async (title, description) => {
+          const newSet = await api.post("/api/sets", { title, description });
+          await get().fetchQuestionSets(); // Refetch to get fresh data with counts
+          return newSet;
+        },
+        updateQuestionSet: async (id, title, description) => {
+          const updated = await api.put(`/api/sets/${id}`, { title, description });
+          await get().fetchQuestionSets();
+          return updated;
+        },
+        deleteQuestionSet: async (id) => {
+          await api.delete(`/api/sets/${id}`);
+          set((state) => ({ 
+            questionSets: state.questionSets.filter(s => s.id !== id),
+            activeQuestionSet: state.activeQuestionSet?.id === id ? null : state.activeQuestionSet
+          }));
+        },
+        duplicatePreset: async (id) => {
+          const newSet = await api.post(`/api/sets/${id}/duplicate`, {});
+          await get().fetchQuestionSets(); // Refetch
+          return newSet;
+        },
+        importQuestions: async (setId: string, questions: Omit<QuestionCard, 'id' | 'setId'>[]) => {
+          await api.post(`/api/sets/${setId}/import`, { questions });
+          await get().fetchQuestions(setId);
+        },
+        setActiveQuestionSet: (questionSet) => set({ activeQuestionSet: questionSet }),
+
+        addQuestion: async (setId, q) => {
+          const newQ = await api.post("/api/questions", { setId, ...q });
           syncSet((state) => ({ questions: [newQ, ...state.questions] }));
         },
         updateQuestion: async (id, updatedQ) => {
@@ -534,9 +603,9 @@ export const useGameStore = create<GameState & GameActions>()(
           await api.delete(`/api/questions/${id}`);
           syncSet((state) => ({ questions: state.questions.filter(q => q.id !== id) }));
         },
-        fetchQuestions: async () => {
+        fetchQuestions: async (setId) => {
           try {
-            const data = await api.get("/api/questions");
+            const data = await api.get(`/api/questions?setId=${setId}`);
             syncSet({ questions: data || [] });
           } catch (err: any) {
             toast.error("Gagal mengambil soal: " + err.message);

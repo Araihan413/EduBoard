@@ -1,12 +1,15 @@
-"use client";
-
-import { useState } from "react";
-import { Plus, Clock, Zap } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Plus, Clock, Zap, BookOpen, FolderCheck } from "lucide-react";
 import { useGameStore } from "../../store/gameStore";
 import { toast } from "sonner";
 
 export default function RoomSetupHub() {
-  const { createRoom } = useGameStore();
+  const { createRoom, questionSets, fetchQuestionSets } = useGameStore();
+  const [selectedSetId, setSelectedSetId] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchQuestionSets();
+  }, [fetchQuestionSets]);
 
   const [draftConfig, setDraftConfig] = useState({
     gameDurationMin: 10,
@@ -17,13 +20,18 @@ export default function RoomSetupHub() {
   });
 
   const handleCreate = () => {
+    if (!selectedSetId) {
+      toast.error("Harap pilih paket soal terlebih dahulu!");
+      return;
+    }
     createRoom({ 
       gameDurationSec: draftConfig.gameDurationMin * 60, 
       turnDurationDasar: draftConfig.turnDurationDasar,
       turnDurationTantangan: draftConfig.turnDurationTantangan,
       turnDurationAksi: draftConfig.turnDurationAksi,
-      maxGroups: draftConfig.maxGroups
-    });
+      maxGroups: draftConfig.maxGroups,
+      questionSetId: selectedSetId
+    } as any);
     toast.success("Room berhasil dibuat!");
   };
 
@@ -46,6 +54,46 @@ export default function RoomSetupHub() {
       </div>
 
       <div className="p-10 lg:p-12 space-y-12">
+        {/* 0. Question Set Selection */}
+        <div className="space-y-8">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center border border-emerald-100">
+              <BookOpen size={20} />
+            </div>
+            <h4 className="font-black text-slate-900 uppercase tracking-widest text-sm">Pilih Paket Soal</h4>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {questionSets.length > 0 ? (
+              questionSets.map((set) => (
+                <button
+                  key={set.id}
+                  onClick={() => setSelectedSetId(set.id)}
+                  className={`p-5 rounded-[1.5rem] border-2 text-left transition-all relative overflow-hidden group ${
+                    selectedSetId === set.id 
+                      ? 'bg-blue-50 border-blue-600 shadow-lg shadow-blue-100' 
+                      : 'bg-white border-slate-100 hover:border-slate-200'
+                  }`}
+                >
+                  {selectedSetId === set.id && (
+                    <div className="absolute top-2 right-2 text-blue-600">
+                      <FolderCheck size={18} />
+                    </div>
+                  )}
+                  <h5 className={`font-black text-sm mb-1 ${selectedSetId === set.id ? 'text-blue-900' : 'text-slate-700'}`}>{set.title}</h5>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    {set._count?.questions || 0} Pertanyaan
+                  </p>
+                </button>
+              ))
+            ) : (
+              <div className="col-span-full p-10 text-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+                <p className="text-sm font-bold text-slate-400">Belum ada paket soal. Buat di tab &quot;Bank Soal&quot; terlebih dahulu!</p>
+              </div>
+            )}
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
           {/* Group 1: Time Settings */}
           <div className="space-y-8">
