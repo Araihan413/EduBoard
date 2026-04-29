@@ -1,0 +1,23 @@
+{
+  "name": "Akidah",
+  "description": "Materi tentang rukun iman, ketauhidan, dan asmaul husna.",
+  "questions": [
+    {
+      "type": "DASAR",
+      "text": "Apa arti dari Rukun Iman yang pertama?",
+      "points": 10,
+      "options": ["Iman kepada Allah", "Iman kepada Malaikat", "Iman kepada Kitab", "Iman kepada Rasul"],
+      "answerKey": "Iman kepada Allah"
+    },
+    {
+      "type": "AKSI",
+      "text": "Sebutkan 10 Nama-nama Malaikat beserta tugasnya dengan lancar!",
+      "points": 20
+    },
+    {
+      "type": "TANTANGAN",
+      "text": "Jelaskan perbedaan antara sifat Wajib dan sifat Mustahil bagi Allah!",
+      "points": 30
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "name": "Al-Qur'an Hadis",
+  "description": "Pemahaman ayat-ayat Al-Qur'an pilihan dan hadis-hadis dasar.",
+  "questions": [
+    {
+      "type": "DASAR",
+      "text": "Surah Al-Ikhlas menegaskan tentang...",
+      "points": 10,
+      "options": ["Keesaan Allah", "Hari Kiamat", "Kisah Nabi", "Hukum Waris"],
+      "answerKey": "Keesaan Allah"
+    },
+    {
+      "type": "AKSI",
+      "text": "Bacalah Surah Al-Ma'un dengan tajwid yang benar!",
+      "points": 20
+    },
+    {
+      "type": "TANTANGAN",
+      "text": "Sebutkan arti dari hadis 'Kebersihan adalah sebagian dari iman'!",
+      "points": 20
+    }
+  ]
+}

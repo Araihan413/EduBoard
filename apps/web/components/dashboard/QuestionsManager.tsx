@@ -1,9 +1,12 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { Plus, Pencil, Trash2, Search, BookOpen, Target, Flame, ChevronLeft, FolderOpen, ArrowRight, Download, FileUp, Copy, LayoutGrid, List } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, BookOpen, Target, Flame, ChevronLeft, FolderOpen, ArrowRight, Download, FileUp, Copy, LayoutGrid, List, ChevronRight, ShieldCheck, User } from "lucide-react";
 import { toast } from "sonner";
 import { useGameStore, QuestionCard, QuestionType, QuestionSet } from "../../store/gameStore";
+import { QuestionSchema } from "@repo/types";
+import Papa from "papaparse";
+import { useDebounce } from "../../hooks/useDebounce";
 import QuestionModal from "./QuestionModal";
 import ConfirmModal from "../shared/ConfirmModal";
 import { motion, AnimatePresence } from "framer-motion";
@@ -12,7 +15,8 @@ export default function QuestionsManager() {
   const { 
     questionSets, activeQuestionSet, questions,
     fetchQuestionSets, createQuestionSet, updateQuestionSet, deleteQuestionSet, duplicatePreset,
-    setActiveQuestionSet, fetchQuestions, deleteQuestion, importQuestions
+    setActiveQuestionSet, fetchQuestions, deleteQuestion, importQuestions,
+    pagination, isLoadingQuestions
   } = useGameStore();
 
   const [showQuestionModal, setShowQuestionModal] = useState(false);
@@ -24,36 +28,39 @@ export default function QuestionsManager() {
   
   // View & Filter states
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [activeFilter, setActiveFilter] = useState<QuestionType | "ALL">("ALL");
   const [viewMode, setViewMode] = useState<'GRID' | 'LIST'>('GRID');
   const [sortBy, setSortBy] = useState<'NEWEST' | 'OLDEST' | 'AZ' | 'ZA'>('NEWEST');
 
   // Sorting & Filtering for Sets
-  const filteredSets = useMemo(() => {
-    let result = [...questionSets].filter(set => 
-      set.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      set.description?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+  const { presetSets, userSets } = useMemo(() => {
+    const presets = questionSets.filter(set => set.isPreset);
+    const users = questionSets
+      .filter(set => !set.isPreset)
+      .filter(set => 
+        set.title.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+        set.description?.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
+      );
 
-    result.sort((a, b) => {
+    const sortFn = (a: QuestionSet, b: QuestionSet) => {
       if (sortBy === 'NEWEST') return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       if (sortBy === 'OLDEST') return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       if (sortBy === 'AZ') return a.title.localeCompare(b.title);
       if (sortBy === 'ZA') return b.title.localeCompare(a.title);
       return 0;
-    });
+    };
 
-    return result;
-  }, [questionSets, searchQuery, sortBy]);
+    return {
+      presetSets: presets.sort(sortFn),
+      userSets: users.sort(sortFn)
+    };
+  }, [questionSets, debouncedSearchQuery, sortBy]);
 
   // Confirmation States
   const [confirmDeleteSet, setConfirmDeleteSet] = useState<string | null>(null);
   const [confirmDeleteQuestion, setConfirmDeleteQuestion] = useState<string | null>(null);
 
-  // Fetch sets on mount
-  useEffect(() => {
-    fetchQuestionSets();
-  }, [fetchQuestionSets]);
 
   const handleDownloadTemplate = () => {
     const headers = "type,text,points,answerKey,options_1,options_2,options_3,options_4";
@@ -70,37 +77,92 @@ export default function QuestionsManager() {
     const file = e.target.files?.[0];
     if (!file || !activeQuestionSet) return;
 
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const text = event.target?.result as string;
-      const lines = text.split('\n').filter(line => line.trim() !== '');
-      // Skip header
-      const questionData = lines.slice(1).map(line => {
-        const [type, text, points, answerKey, ...options] = line.split(',').map(s => s.trim());
-        return {
-          type: type as any,
-          text,
-          points: parseInt(points) || 10,
-          answerKey,
-          options: options.slice(0, 4)
-        };
-      });
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        const rows = results.data as any[];
+        const validQuestions: any[] = [];
+        const errors: string[] = [];
 
-      try {
-        await importQuestions(activeQuestionSet.id, questionData);
-        toast.success(`Berhasil mengimport ${questionData.length} soal!`);
-      } catch {
-        toast.error("Gagal mengimport soal. Pastikan format CSV benar.");
+        rows.forEach((row, index) => {
+          try {
+            // Transform options from flat columns (options_1, etc) to array
+            const options = [
+              row.options_1,
+              row.options_2,
+              row.options_3,
+              row.options_4
+            ].filter(Boolean).map(s => s.trim());
+
+            const rawData = {
+              type: row.type?.toUpperCase(),
+              text: row.text,
+              points: parseInt(row.points) || 10,
+              answerKey: row.answerKey,
+              options: options.length > 0 ? options : undefined
+            };
+
+            // Validate with Zod
+            const validated = QuestionSchema.parse(rawData);
+            validQuestions.push(validated);
+          } catch (err: any) {
+            const msg = err.errors?.[0]?.message || "Format tidak valid";
+            errors.push(`Baris ${index + 2}: ${msg}`);
+          }
+        });
+
+        if (errors.length > 0) {
+          toast.error(
+            <div className="space-y-2">
+              <p className="font-bold">Gagal mengimport beberapa soal:</p>
+              <ul className="text-[10px] list-disc pl-4 max-h-32 overflow-y-auto">
+                {errors.map((err, i) => <li key={i}>{err}</li>)}
+              </ul>
+              {validQuestions.length > 0 && (
+                <button 
+                  onClick={() => proceedImport(validQuestions)}
+                  className="mt-2 text-[10px] bg-blue-600 text-white px-3 py-1 rounded-lg font-black uppercase tracking-widest"
+                >
+                  Lanjutkan Import {validQuestions.length} Soal Valid
+                </button>
+              )}
+            </div>,
+            { duration: 6000 }
+          );
+        } else if (validQuestions.length > 0) {
+          await proceedImport(validQuestions);
+        } else {
+          toast.error("File CSV kosong atau tidak memiliki data yang valid.");
+        }
+      },
+      error: (err) => {
+        toast.error("Gagal membaca file CSV: " + err.message);
       }
-    };
-    reader.readAsText(file);
+    });
+    
     e.target.value = ""; // Reset input
   };
+
+  const proceedImport = async (data: any[]) => {
+    if (!activeQuestionSet) return;
+    try {
+      await importQuestions(activeQuestionSet.id, data);
+      toast.success(`Berhasil mengimport ${data.length} soal!`);
+    } catch {
+      toast.error("Gagal menyimpan soal ke server.");
+    }
+  };
+
+  // Fetch sets on mount
+  useEffect(() => {
+    fetchQuestionSets(1);
+  }, [fetchQuestionSets]);
 
   // Fetch questions when a set is selected
   useEffect(() => {
     if (activeQuestionSet) {
-      fetchQuestions(activeQuestionSet.id);
+      fetchQuestions(activeQuestionSet.id, 1);
     }
   }, [activeQuestionSet, fetchQuestions]);
 
@@ -136,11 +198,11 @@ export default function QuestionsManager() {
 
   const filteredQuestions = useMemo(() => {
     return questions.filter(q => {
-      const matchesSearch = q.text.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesSearch = q.text.toLowerCase().includes(debouncedSearchQuery.toLowerCase());
       const matchesFilter = activeFilter === "ALL" || q.type === activeFilter;
       return matchesSearch && matchesFilter;
     });
-  }, [questions, searchQuery, activeFilter]);
+  }, [questions, debouncedSearchQuery, activeFilter]);
 
   const getTypeStyle = (type: QuestionType) => {
     switch (type) {
@@ -192,78 +254,136 @@ export default function QuestionsManager() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <AnimatePresence mode="popLayout">
-            {filteredSets.map((set) => (
-              <motion.div
-                layout
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                transition={{ 
-                  type: "spring", 
-                  damping: 18, 
-                  stiffness: 120,
-                  mass: 0.8
-                }}
-                key={set.id}
-                onClick={() => setActiveQuestionSet(set)}
-                className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 hover:shadow-2xl hover:shadow-blue-500/10 cursor-pointer group relative overflow-hidden"
-              >
-              {set.isPreset && (
-                <div className="absolute top-0 right-0 px-4 py-1 bg-amber-100 text-amber-700 text-[9px] font-black uppercase tracking-widest rounded-bl-xl">
-                  Sistem Preset
-                </div>
-              )}
-              <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center mb-4 text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">
-                <FolderOpen size={24} />
+        <div className="space-y-12">
+          {/* 1. Official Presets - Fixed at top */}
+          {presetSets.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 px-1">
+                <ShieldCheck size={14} className="text-emerald-500" />
+                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Paket Resmi EduBoard</h3>
               </div>
-              <h3 className="text-lg font-black text-slate-900 mb-1 group-hover:text-blue-600 transition-colors">{set.title}</h3>
-              <p className="text-slate-400 text-sm font-medium mb-4 line-clamp-2">{set.description || "Tidak ada deskripsi."}</p>
-              
-              <div className="flex items-center justify-between pt-4 border-t border-slate-50">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  {set._count?.questions || 0} Pertanyaan • {new Date(set.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
-                </span>
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); handleDuplicate(set.id); }}
-                    className="p-2 hover:bg-amber-50 text-amber-600 rounded-lg transition-colors"
-                    title="Duplikat Paket"
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {presetSets.map((set) => (
+                  <motion.div
+                    layout
+                    key={set.id}
+                    onClick={() => setActiveQuestionSet(set)}
+                    className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 hover:shadow-2xl hover:shadow-blue-500/10 cursor-pointer group relative overflow-hidden"
                   >
-                    <Copy size={16} />
-                  </button>
-                  {!set.isPreset && (
-                    <>
-                      <button 
-                        onClick={(e) => { 
-                          e.stopPropagation(); 
-                          setEditingSet(set);
-                          setNewSetTitle(set.title);
-                          setNewSetDescription(set.description || "");
-                          setShowSetModal(true);
-                        }}
-                        className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors"
-                        title="Edit Paket"
-                      >
-                        <Pencil size={16} />
-                      </button>
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); setConfirmDeleteSet(set.id); }}
-                        className="p-2 hover:bg-red-50 text-red-500 rounded-lg transition-colors"
-                        title="Hapus Paket"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </>
-                  )}
-                  <ArrowRight size={18} className="text-slate-300 group-hover:translate-x-1 transition-transform" />
-                </div>
-                </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
+                    <div className="absolute top-0 right-0 px-4 py-1 bg-emerald-50 text-emerald-700 text-[9px] font-black uppercase tracking-widest rounded-bl-xl border-b border-l border-emerald-100 flex items-center gap-1">
+                      <ShieldCheck size={10} /> Official
+                    </div>
+                    <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center mb-4 text-slate-400 group-hover:bg-emerald-50 group-hover:text-emerald-500 transition-colors">
+                      <BookOpen size={24} />
+                    </div>
+                    <h3 className="text-lg font-black text-slate-900 mb-1 group-hover:text-emerald-600 transition-colors">{set.title}</h3>
+                    <p className="text-slate-400 text-sm font-medium mb-4 line-clamp-2">{set.description || "Tidak ada deskripsi."}</p>
+                    
+                    <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        {set._count?.questions || 0} Pertanyaan
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleDuplicate(set.id); }}
+                          className="p-2 hover:bg-amber-50 text-amber-600 rounded-lg transition-colors"
+                          title="Duplikat ke Koleksi Saya"
+                        >
+                          <Copy size={16} />
+                        </button>
+                        <ArrowRight size={18} className="text-slate-300 group-hover:translate-x-1 transition-transform" />
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 2. User Collection - Searchable */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 px-1">
+              <User size={14} className="text-blue-500" />
+              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                {searchQuery ? `Hasil Pencarian Koleksi ("${searchQuery}")` : "Koleksi Paket Soal Anda"}
+              </h3>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <AnimatePresence mode="popLayout">
+                {userSets.length > 0 ? (
+                  userSets.map((set) => (
+                    <motion.div
+                      layout
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      key={set.id}
+                      onClick={() => setActiveQuestionSet(set)}
+                      className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 hover:shadow-2xl hover:shadow-blue-500/10 cursor-pointer group relative overflow-hidden"
+                    >
+                      <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center mb-4 text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">
+                        <FolderOpen size={24} />
+                      </div>
+                      <h3 className="text-lg font-black text-slate-900 mb-1 group-hover:text-blue-600 transition-colors">{set.title}</h3>
+                      <p className="text-slate-400 text-sm font-medium mb-4 line-clamp-2">{set.description || "Tidak ada deskripsi."}</p>
+                      
+                      <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                          {set._count?.questions || 0} Pertanyaan • {new Date(set.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); handleDuplicate(set.id); }}
+                            className="p-2 hover:bg-amber-50 text-amber-600 rounded-lg transition-colors"
+                            title="Duplikat"
+                          >
+                            <Copy size={16} />
+                          </button>
+                          <button 
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              setEditingSet(set);
+                              setNewSetTitle(set.title);
+                              setNewSetDescription(set.description || "");
+                              setShowSetModal(true);
+                            }}
+                            className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors"
+                          >
+                            <Pencil size={16} />
+                          </button>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); setConfirmDeleteSet(set.id); }}
+                            className="p-2 hover:bg-red-50 text-red-500 rounded-lg transition-colors"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                          <ArrowRight size={18} className="text-slate-300 group-hover:translate-x-1 transition-transform" />
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))
+                ) : (
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="col-span-full text-center py-20 bg-slate-50/50 rounded-[2.5rem] border-2 border-dashed border-slate-200"
+                  >
+                    <FolderOpen className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                    <p className="text-slate-400 font-bold">
+                      {searchQuery ? "Tidak ada koleksi yang cocok." : "Belum ada koleksi pribadi."}
+                    </p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
         </div>
+
+        <PaginationControls 
+          meta={pagination.sets} 
+          onPageChange={(page) => fetchQuestionSets(page)} 
+        />
 
         {/* Create Set Modal */}
         <AnimatePresence>
@@ -421,97 +541,111 @@ export default function QuestionsManager() {
         </div>
       </div>
 
-      {/* Questions Grid       {/* Questions List/Grid */}
+      {/* Questions List/Grid */}
       <AnimatePresence mode="wait">
-        <motion.div 
-          key={viewMode}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.2 }}
-          className={viewMode === 'GRID' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "flex flex-col gap-3"}
-        >
-          {filteredQuestions.map(q => {
-            const style = getTypeStyle(q.type);
-            return (
-              <motion.div 
-                layout
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ 
-                  type: "spring", 
-                  damping: 18, 
-                  stiffness: 120,
-                  mass: 0.8
-                }}
-                key={q.id} 
-                className={`bg-white border border-slate-100 shadow-sm hover:shadow-md group ${viewMode === 'GRID' ? 'p-6 rounded-3xl' : 'p-4 rounded-2xl flex items-center gap-4'}`}
-              >
-                {viewMode === 'GRID' ? (
-                  <>
-                    <div className="flex justify-between items-start mb-4">
-                      <div className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest ${style?.bg} ${style?.color} ${style?.border} border`}>
-                        {q.type}
+        {isLoadingQuestions ? (
+          <motion.div 
+            key="loading"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="flex flex-col items-center justify-center py-20 bg-white rounded-[2.5rem] border-2 border-dashed border-slate-100"
+          >
+            <div className="w-12 h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin mb-4" />
+            <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Menyiapkan Pertanyaan...</p>
+          </motion.div>
+        ) : (
+          <motion.div 
+            key={viewMode}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className={viewMode === 'GRID' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "flex flex-col gap-3"}
+          >
+            {filteredQuestions.length > 0 ? (
+              filteredQuestions.map(q => {
+                const style = getTypeStyle(q.type);
+                return (
+                  <motion.div 
+                    layout
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    key={q.id} 
+                    className={`bg-white border border-slate-100 shadow-sm hover:shadow-md group ${viewMode === 'GRID' ? 'p-6 rounded-3xl' : 'p-4 rounded-2xl flex items-center gap-4'}`}
+                  >
+                    {viewMode === 'GRID' ? (
+                      <div className="w-full">
+                        <div className="flex justify-between items-start mb-4">
+                          <div className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest ${style?.bg} ${style?.color} ${style?.border} border`}>
+                            {q.type}
+                          </div>
+                          <span className="text-[10px] font-black text-slate-900">{q.points} PTS</span>
+                        </div>
+                        <p className="text-slate-700 font-bold mb-6 line-clamp-3 leading-relaxed">{q.text}</p>
+                        
+                        {!activeQuestionSet.isPreset && (
+                          <div className="flex justify-end gap-2 pt-4 border-t border-slate-50">
+                            <button 
+                              onClick={() => { setEditingQuestion(q); setShowQuestionModal(true); }}
+                              className="p-2 text-slate-400 hover:text-blue-600 transition-colors cursor-pointer"
+                            >
+                              <Pencil size={16} />
+                            </button>
+                            <button 
+                              onClick={() => setConfirmDeleteQuestion(q.id ?? null)}
+                              className="p-2 text-slate-400 hover:text-red-500 transition-colors cursor-pointer"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        )}
                       </div>
-                      <span className="text-[10px] font-black text-slate-900">{q.points} PTS</span>
-                    </div>
-                    <p className="text-slate-700 font-bold mb-6 line-clamp-3 leading-relaxed">{q.text}</p>
-                    
-                    {!activeQuestionSet.isPreset && (
-                      <div className="flex justify-end gap-2 pt-4 border-t border-slate-50">
-                        <button 
-                          onClick={() => { setEditingQuestion(q); setShowQuestionModal(true); }}
-                          className="p-2 text-slate-400 hover:text-blue-600 transition-colors cursor-pointer"
-                        >
-                          <Pencil size={16} />
-                        </button>
-                        <button 
-                          onClick={() => setConfirmDeleteQuestion(q.id)}
-                          className="p-2 text-slate-400 hover:text-red-500 transition-colors cursor-pointer"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
+                    ) : (
+                      <>
+                        <div className={`w-10 h-10 rounded-xl ${style?.bg} ${style?.color} flex items-center justify-center flex-shrink-0`}>
+                          {style?.icon}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-slate-700 font-bold truncate">{q.text}</p>
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{q.points} PTS</span>
+                        </div>
+                        {!activeQuestionSet.isPreset && (
+                          <div className="flex gap-1 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button 
+                              onClick={() => { setEditingQuestion(q); setShowQuestionModal(true); }}
+                              className="p-2 text-slate-400 hover:text-blue-600 transition-colors"
+                            >
+                              <Pencil size={16} />
+                            </button>
+                            <button 
+                              onClick={() => setConfirmDeleteQuestion(q.id ?? null)}
+                              className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        )}
+                      </>
                     )}
-                  </>
-                ) : (
-                  <>
-                    <div className={`w-10 h-10 rounded-xl ${style?.bg} ${style?.color} flex items-center justify-center flex-shrink-0`}>
-                      {style?.icon}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-slate-700 font-bold truncate">{q.text}</p>
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{q.points} PTS</span>
-                    </div>
-                    {!activeQuestionSet.isPreset && (
-                      <div className="flex gap-1 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button 
-                          onClick={() => { setEditingQuestion(q); setShowQuestionModal(true); }}
-                          className="p-2 text-slate-400 hover:text-blue-600 transition-colors"
-                        >
-                          <Pencil size={16} />
-                        </button>
-                        <button 
-                          onClick={() => setConfirmDeleteQuestion(q.id)}
-                          className="p-2 text-slate-400 hover:text-red-500 transition-colors"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    )}
-                  </>
-                )}
-              </motion.div>
-            );
-          })}
-          {filteredQuestions.length === 0 && (
-            <div className="col-span-full py-20 text-center text-slate-400 font-bold bg-slate-50/50 rounded-3xl border-2 border-dashed border-slate-100">
-              Belum ada soal di paket ini.
-            </div>
-          )}
-        </motion.div>
+                  </motion.div>
+                );
+              })
+            ) : (
+              <div className="col-span-full py-20 text-center text-slate-400 font-bold bg-slate-50/50 rounded-[2.5rem] border-2 border-dashed border-slate-100">
+                <FolderOpen className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                <p>Belum ada soal dalam paket ini.</p>
+              </div>
+            )}
+          </motion.div>
+        )}
       </AnimatePresence>
+
+      <PaginationControls 
+        meta={pagination.questions} 
+        onPageChange={(page) => fetchQuestions(activeQuestionSet!.id, page)} 
+      />
 
       {showQuestionModal && (
         <QuestionModal 
@@ -540,6 +674,77 @@ export default function QuestionsManager() {
         title="Hapus Pertanyaan?"
         message="Apakah Anda yakin ingin menghapus pertanyaan ini?"
       />
+    </div>
+  );
+}
+
+// ─── EXTERNAL COMPONENTS ──────────────────────────────────────────────────────
+
+interface PaginationMeta {
+  page: number;
+  totalPages: number;
+  total: number;
+}
+
+function PaginationControls({ 
+  meta, 
+  onPageChange 
+}: { 
+  meta: PaginationMeta; 
+  onPageChange: (page: number) => void; 
+}) {
+  if (meta.totalPages <= 1) return null;
+
+  const handlePageChange = (page: number) => {
+    onPageChange(page);
+    // Smooth scroll ke atas daftar
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  return (
+    <div className="flex items-center justify-center gap-2 mt-12 pb-10">
+      <button
+        disabled={meta.page === 1}
+        onClick={() => handlePageChange(meta.page - 1)}
+        className="p-2 rounded-xl bg-white border border-slate-200 text-slate-500 hover:text-blue-600 disabled:opacity-30 transition-all shadow-sm"
+      >
+        <ChevronLeft size={20} />
+      </button>
+      <div className="flex items-center gap-1">
+        {Array.from({ length: meta.totalPages }).map((_, i) => {
+          const pageNum = i + 1;
+          if (
+            pageNum === 1 || 
+            pageNum === meta.totalPages || 
+            (pageNum >= meta.page - 1 && pageNum <= meta.page + 1)
+          ) {
+            return (
+              <button
+                key={i}
+                onClick={() => handlePageChange(pageNum)}
+                className={`w-10 h-10 rounded-xl font-black text-xs transition-all ${
+                  meta.page === pageNum 
+                    ? 'bg-blue-600 text-white shadow-lg' 
+                    : 'bg-white border border-slate-200 text-slate-400 hover:border-blue-200 hover:text-blue-600'
+                }`}
+              >
+                {pageNum}
+              </button>
+            );
+          }
+          if (pageNum === meta.page - 2 || pageNum === meta.page + 2) {
+            return <span key={i} className="px-1 text-slate-300">...</span>;
+          }
+          return null;
+        })}
+      </div>
+      <button
+        disabled={meta.page === meta.totalPages}
+        onClick={() => handlePageChange(meta.page + 1)}
+        className="p-2 rounded-xl bg-white border border-slate-200 text-slate-500 hover:text-blue-600 disabled:opacity-30 transition-all shadow-sm"
+      >
+        <ChevronRight size={20} />
+      </button>
     </div>
   );
 }

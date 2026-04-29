@@ -1,0 +1,23 @@
+{
+  "name": "Fiqih",
+  "description": "Tata cara ibadah mulai dari thaharah, shalat, hingga puasa.",
+  "questions": [
+    {
+      "type": "DASAR",
+      "text": "Berapa jumlah rukun wudhu yang wajib?",
+      "points": 10,
+      "options": ["4", "5", "6", "7"],
+      "answerKey": "6"
+    },
+    {
+      "type": "AKSI",
+      "text": "Praktikkan gerakan ruku' dan sujud yang sempurna dalam shalat!",
+      "points": 15
+    },
+    {
+      "type": "TANTANGAN",
+      "text": "Sebutkan 3 hal yang dapat membatalkan ibadah puasa!",
+      "points": 25
+    }
+  ]
+}

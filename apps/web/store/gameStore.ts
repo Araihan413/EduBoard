@@ -100,8 +100,13 @@ interface GameState {
   questionSets: QuestionSet[];
   activeQuestionSet: QuestionSet | null;
   questions: QuestionCard[];
+  pagination: {
+    sets: { page: number; totalPages: number; total: number };
+    questions: { page: number; totalPages: number; total: number };
+  };
   pendingReviews: PendingReview[];
-  sessionHistory: SessionHistory[];
+   sessionHistory: SessionHistory[];
+   isLoadingQuestions: boolean;
   
   winner: Group | null;
   logs: string[];
@@ -112,6 +117,8 @@ interface GameState {
   lastResult: AnswerResult | null;
   isMuted: boolean;
   countdown: number | null;
+  activeTab: 'SESI' | 'SOAL' | 'RIWAYAT';
+  selectedSession: any | null;
 }
 
 interface GameActions {
@@ -123,9 +130,11 @@ interface GameActions {
   endGame: () => void;
   resetToIdle: () => void;
   rejoinAsGuru: (roomCode: string) => Promise<void>;
+  setActiveTab: (tab: 'SESI' | 'SOAL' | 'RIWAYAT') => void;
+  setSelectedSession: (session: any | null) => void;
 
   // Actions - Paket Soal
-  fetchQuestionSets: () => Promise<void>;
+  fetchQuestionSets: (page?: number) => Promise<void>;
   createQuestionSet: (title: string, description?: string) => Promise<QuestionSet>;
   updateQuestionSet: (id: string, title: string, description?: string) => Promise<QuestionSet>;
   deleteQuestionSet: (id: string) => Promise<void>;
@@ -133,11 +142,11 @@ interface GameActions {
   importQuestions: (setId: string, questions: Omit<QuestionCard, 'id' | 'setId'>[]) => Promise<void>;
   setActiveQuestionSet: (questionSet: QuestionSet | null) => void;
 
-  // Actions - Pertanyaan (Sekarang butuh setId)
+  // Actions - Pertanyaan
   addQuestion: (setId: string, q: Omit<QuestionCard, 'id' | 'setId'>) => Promise<void>;
   updateQuestion: (id: string, q: Partial<QuestionCard>) => Promise<void>;
   deleteQuestion: (id: string) => Promise<void>;
-  fetchQuestions: (setId: string) => Promise<void>;
+  fetchQuestions: (setId: string, page?: number) => Promise<void>;
 
   // Actions - Mekanik Permainan
   drawCard: (type?: QuestionType) => void;
@@ -336,8 +345,13 @@ export const useGameStore = create<GameState & GameActions>()(
         questionSets: [],
         activeQuestionSet: null,
         questions: [],
+        pagination: {
+          sets: { page: 1, totalPages: 1, total: 0 },
+          questions: { page: 1, totalPages: 1, total: 0 },
+        },
         pendingReviews: [],
         sessionHistory: [],
+        isLoadingQuestions: false,
         winner: null,
         logs: [],
         myGroupName: null,
@@ -346,6 +360,8 @@ export const useGameStore = create<GameState & GameActions>()(
         lastResult: null,
         isMuted: false,
         countdown: null,
+        activeTab: 'SESI',
+        selectedSession: null,
 
         toggleMute: () => set((state) => ({ isMuted: !state.isMuted })),
         setCountdown: (val) => syncSet({ countdown: val }),
@@ -439,16 +455,24 @@ export const useGameStore = create<GameState & GameActions>()(
               myAvatar: avatar,
               myColor: color,
               roomCode: typedRoomCode, 
-              gameStatus: 'LOBBY',
-              isGuru: false, // Explicitly mark as student
-              groups: [],
+              gameStatus: roomData.status === 'LOBBY' ? 'LOBBY' : 'PLAYING',
+              isGuru: false,
+              roomConfig: {
+                gameDurationSec: roomData.durationMinutes * 60,
+                turnDurationDasar: roomData.turnDurationDasar,
+                turnDurationTantangan: roomData.turnDurationTantangan,
+                turnDurationAksi: roomData.turnDurationAksi,
+                maxGroups: roomData.maxGroups,
+                questionSetId: roomData.questionSetId
+              },
+              groups: roomData.groups || [],
               logs: [],
               pendingReviews: [],
               winner: null,
               currentCard: null,
               lastResult: null,
               timer: 0,
-              globalTimer: 0,
+              globalTimer: roomData.globalTimer || 0,
               isTimerRunning: false
             });
 
@@ -460,6 +484,11 @@ export const useGameStore = create<GameState & GameActions>()(
                 avatar,
                 color,
               });
+            }
+
+            // FETCH QUESTIONS FOR STUDENT
+            if (roomData.questionSetId) {
+              get().fetchQuestions(roomData.questionSetId);
             }
           } catch (err: any) {
             // Rollback state on error
@@ -496,12 +525,20 @@ export const useGameStore = create<GameState & GameActions>()(
               }
 
               if (session) {
+                // Fetch room data to get questionSetId
+                const roomData = await api.get(`/api/rooms/${roomCode}`);
+                
                 socket!.emit("room:join", { 
                   roomCode, 
                   role: 'guru', 
                   token: session.access_token 
                 });
+
                 set({ isGuru: true, roomCode });
+
+                if (roomData.questionSetId) {
+                  get().fetchQuestions(roomData.questionSetId);
+                }
               }
             } catch (err) {
               console.error("[REJOIN_GURU] Gagal:", err);
@@ -554,11 +591,19 @@ export const useGameStore = create<GameState & GameActions>()(
           // Allow re-joining later if they manually enter a code
           setTimeout(() => setLeavingFlag(false), 1000);
         },
+        setActiveTab: (tab) => set({ activeTab: tab }),
+        setSelectedSession: (session) => set({ selectedSession: session }),
 
-        fetchQuestionSets: async () => {
+        fetchQuestionSets: async (page = 1) => {
           try {
-            const data = await api.get("/api/sets");
-            set({ questionSets: data || [] });
+            const res = await api.get(`/api/sets?page=${page}`);
+            set((state) => ({ 
+              questionSets: res.data || [],
+              pagination: {
+                ...state.pagination,
+                sets: res.meta
+              }
+            }));
           } catch (err: any) {
             toast.error("Gagal mengambil paket soal: " + err.message);
           }
@@ -575,8 +620,16 @@ export const useGameStore = create<GameState & GameActions>()(
         },
         deleteQuestionSet: async (id) => {
           await api.delete(`/api/sets/${id}`);
+          const currentPage = get().pagination.sets.page;
+          // Refetch current page
+          await get().fetchQuestionSets(currentPage);
+          
+          // If current page is now empty and we're not on page 1, go back one page
+          if (get().questionSets.length === 0 && currentPage > 1) {
+            await get().fetchQuestionSets(currentPage - 1);
+          }
+
           set((state) => ({ 
-            questionSets: state.questionSets.filter(s => s.id !== id),
             activeQuestionSet: state.activeQuestionSet?.id === id ? null : state.activeQuestionSet
           }));
         },
@@ -589,7 +642,14 @@ export const useGameStore = create<GameState & GameActions>()(
           await api.post(`/api/sets/${setId}/import`, { questions });
           await get().fetchQuestions(setId);
         },
-        setActiveQuestionSet: (questionSet) => set({ activeQuestionSet: questionSet }),
+        setActiveQuestionSet: (questionSet) => set({ 
+          activeQuestionSet: questionSet,
+          questions: [], // Clear old questions immediately
+          pagination: {
+            ...get().pagination,
+            questions: { page: 1, total: 0, totalPages: 0 }
+          }
+        }),
 
         addQuestion: async (setId, q) => {
           const newQ = await api.post("/api/questions", { setId, ...q });
@@ -601,13 +661,32 @@ export const useGameStore = create<GameState & GameActions>()(
         },
         deleteQuestion: async (id) => {
           await api.delete(`/api/questions/${id}`);
-          syncSet((state) => ({ questions: state.questions.filter(q => q.id !== id) }));
+          const activeSet = get().activeQuestionSet;
+          if (activeSet) {
+            const currentPage = get().pagination.questions.page;
+            // Refetch current page
+            await get().fetchQuestions(activeSet.id, currentPage);
+            
+            // If current page is now empty and we're not on page 1, go back one page
+            if (get().questions.length === 0 && currentPage > 1) {
+              await get().fetchQuestions(activeSet.id, currentPage - 1);
+            }
+          }
         },
-        fetchQuestions: async (setId) => {
+        fetchQuestions: async (setId, page = 1) => {
           try {
-            const data = await api.get(`/api/questions?setId=${setId}`);
-            syncSet({ questions: data || [] });
+            set({ isLoadingQuestions: true });
+            const res = await api.get(`/api/questions?setId=${setId}&page=${page}`);
+            syncSet((state) => ({ 
+              questions: res.data || [],
+              isLoadingQuestions: false,
+              pagination: {
+                ...state.pagination,
+                questions: res.meta
+              }
+            }));
           } catch (err: any) {
+            set({ isLoadingQuestions: false });
             toast.error("Gagal mengambil soal: " + err.message);
           }
         },
@@ -630,9 +709,9 @@ export const useGameStore = create<GameState & GameActions>()(
           return {
             currentCard: card,
             lastResult: null,
-            timer: card.type === 'TANTANGAN' ? state.roomConfig.turnDurationTantangan :
+            timer: (card.type === 'TANTANGAN' ? state.roomConfig.turnDurationTantangan :
                    card.type === 'AKSI' ? state.roomConfig.turnDurationAksi :
-                   state.roomConfig.turnDurationDasar,
+                   state.roomConfig.turnDurationDasar) || (card.type === 'TANTANGAN' ? 60 : card.type === 'AKSI' ? 15 : 30),
             isTimerRunning: true,
             logs: [`Kartu ${card.type} ditarik: ${card.text}`, ...state.logs]
           };
@@ -899,7 +978,10 @@ export const useGameStore = create<GameState & GameActions>()(
         myGroupName: state.myGroupName,
         myAvatar: state.myAvatar,
         myColor: state.myColor,
-        roomConfig: state.roomConfig
+        roomConfig: state.roomConfig,
+        activeTab: state.activeTab,
+        activeQuestionSet: state.activeQuestionSet,
+        selectedSession: state.selectedSession
       }),
       onRehydrateStorage: () => (hydratedState) => {
         if (!hydratedState) return;

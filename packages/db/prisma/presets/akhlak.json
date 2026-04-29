@@ -1,0 +1,23 @@
+{
+  "name": "Akhlak",
+  "description": "Pembelajaran tentang perilaku terpuji (Mahmudah) dan menghindari perilaku tercela (Mazmumah).",
+  "questions": [
+    {
+      "type": "DASAR",
+      "text": "Apa sebutan bagi perilaku terpuji dalam Islam?",
+      "points": 10,
+      "options": ["Akhlak Mahmudah", "Akhlak Mazmumah", "Akhlak Sayyi'ah", "Akhlak Madzmumah"],
+      "answerKey": "Akhlak Mahmudah"
+    },
+    {
+      "type": "AKSI",
+      "text": "Praktikkan cara bersalaman dan menghormati guru/orang tua dengan benar!",
+      "points": 15
+    },
+    {
+      "type": "TANTANGAN",
+      "text": "Berikan 3 contoh perilaku ikhlas dalam kehidupan sehari-hari di sekolah!",
+      "points": 25
+    }
+  ]
+}

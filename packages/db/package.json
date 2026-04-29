@@ -11,7 +11,11 @@
     "@prisma/client": "^5.12.1"
   },
   "devDependencies": {
+    "@types/node": "^25.6.0",
     "prisma": "^5.12.1",
     "typescript": "^5.4.5"
+  },
+  "prisma": {
+    "seed": "npx tsx prisma/seed.ts"
   }
 }

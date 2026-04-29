@@ -5,23 +5,38 @@ import { QuestionSchema } from "@repo/types";
 import { verifySupabaseAuth } from "../supabaseAuth";
 
 export default async function questionRoutes(fastify: FastifyInstance) {
-  // Authentication Guard
-  fastify.addHook("onRequest", verifySupabaseAuth);
-
-  // GET Questions for a specific Set
+  // GET Questions for a specific Set (PUBLIC for Students)
   fastify.get("/", async (request, reply) => {
-    const { setId } = request.query as { setId: string };
+    const { setId, page = "1", limit = "50" } = request.query as { setId: string, page?: string, limit?: string };
     if (!setId) return reply.code(400).send({ error: "setId wajib disertakan" });
 
-    const questions = await prisma.question.findMany({
-      where: { setId },
-      orderBy: { createdAt: 'desc' }
-    });
-    return questions;
+    const p = parseInt(page);
+    const l = parseInt(limit);
+    const skip = (p - 1) * l;
+
+    const [questions, total] = await Promise.all([
+      prisma.question.findMany({
+        where: { setId },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: l
+      }),
+      prisma.question.count({ where: { setId } })
+    ]);
+
+    return {
+      data: questions,
+      meta: {
+        total,
+        page: p,
+        limit: l,
+        totalPages: Math.ceil(total / l)
+      }
+    };
   });
 
-  // POST New Question into a Set
-  fastify.post("/", async (request, reply) => {
+  // POST New Question into a Set (PROTECTED)
+  fastify.post("/", { onRequest: [verifySupabaseAuth] }, async (request, reply) => {
     try {
       const user = request.user as { id: string };
       const { setId, ...dataRaw } = request.body as any;
@@ -54,8 +69,8 @@ export default async function questionRoutes(fastify: FastifyInstance) {
     }
   });
 
-  // PUT Update Question
-  fastify.put("/:id", async (request, reply) => {
+  // PUT Update Question (PROTECTED)
+  fastify.put("/:id", { onRequest: [verifySupabaseAuth] }, async (request, reply) => {
     try {
       const user = request.user as { id: string };
       const { id } = request.params as { id: string };
@@ -92,8 +107,8 @@ export default async function questionRoutes(fastify: FastifyInstance) {
     }
   });
 
-  // DELETE Question
-  fastify.delete("/:id", async (request, reply) => {
+  // DELETE Question (PROTECTED)
+  fastify.delete("/:id", { onRequest: [verifySupabaseAuth] }, async (request, reply) => {
     const user = request.user as { id: string };
     const { id } = request.params as { id: string };
 

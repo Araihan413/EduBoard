@@ -1,0 +1,25 @@
+{
+  "name": "Sejarah Kebudayaan Islam",
+  "description": "Kisah perjuangan Nabi Muhammad SAW dan sejarah perkembangan Islam.",
+  "questions": [
+    {
+      "type": "DASAR",
+      "text": "Di kota manakah Nabi Muhammad SAW dilahirkan?",
+      "points": 10,
+      "options": ["Makkah", "Madinah", "Thaif", "Yaman"],
+      "answerKey": "Makkah"
+    },
+    {
+      "type": "AKSI",
+      "text": "Ceritakan secara singkat peristiwa hijrah Nabi ke Madinah!",
+      "points": 20
+    },
+    {
+      "type": "TANTANGAN",
+      "text": "Siapakah Khalifah pertama yang menggantikan kepemimpinan Nabi Muhammad SAW?",
+      "points": 15,
+      "options": ["Abu Bakar Ash-Shiddiq", "Umar bin Khattab", "Utsman bin Affan", "Ali bin Abi Thalib"],
+      "answerKey": "Abu Bakar Ash-Shiddiq"
+    }
+  ]
+}

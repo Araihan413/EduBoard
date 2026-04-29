@@ -17,6 +17,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "../../lib/api";
 import { toast } from "sonner";
+import { useGameStore } from "../../store/gameStore";
 
 interface SessionType {
   id: string;
@@ -29,8 +30,8 @@ interface SessionType {
 }
 
 export default function SessionHistory() {
+  const { selectedSession, setSelectedSession } = useGameStore();
   const [history, setHistory] = useState<SessionType[]>([]);
-  const [selectedSession, setSelectedSession] = useState<SessionType | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
@@ -141,7 +142,7 @@ export default function SessionHistory() {
                
                <div className="p-4 md:p-8">
                   <div className="space-y-3">
-                    {selectedSession.leaderboard?.map((group, idx) => {
+                    {selectedSession.leaderboard?.map((group: any, idx: number) => {
                       const isSurrendered = group.status === 'SURRENDERED';
                       return (
                         <motion.div 

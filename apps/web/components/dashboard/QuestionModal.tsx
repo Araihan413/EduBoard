@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, X, Type, Star, Layers, CheckCircle2, ListFilter, Disc3 } from "lucide-react";
+import { Plus, X, Type, Star, Layers, CheckCircle2, ListFilter, Disc3, Eye, Settings2 } from "lucide-react";
 import { useGameStore, QuestionCard } from "../../store/gameStore";
+import QuestionPreview from "./QuestionPreview";
 import { toast } from "sonner";
 import { motion} from "framer-motion";
 
@@ -24,6 +25,7 @@ export default function QuestionModal({ isOpen, onClose, editingQuestion, setId 
     options: editingQuestion?.options || ['', '', '', '']
   });
 
+  const [activeTab, setActiveTab] = useState<'EDIT' | 'PREVIEW'>('EDIT');
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = async () => {
@@ -62,32 +64,51 @@ export default function QuestionModal({ isOpen, onClose, editingQuestion, setId 
       <motion.div 
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="bg-white w-full max-w-2xl max-h-[90vh] flex flex-col rounded-[2.5rem] border border-slate-100 shadow-2xl relative overflow-hidden"
+        className="bg-white w-full max-w-2xl lg:max-w-5xl max-h-[90vh] flex flex-col rounded-[2.5rem] border border-slate-100 shadow-2xl relative overflow-hidden"
       >
         {/* 1. Header - Fixed */}
-        <div className="p-8 lg:p-10 border-b border-slate-50 flex items-center justify-between flex-shrink-0">
+        <div className="p-6 lg:p-8 border-b border-slate-50 flex items-center justify-between flex-shrink-0 bg-white z-20">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-blue-500/20">
-              <Plus className="w-6 h-6" />
+            <div className="w-10 h-10 lg:w-12 lg:h-12 bg-blue-500 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-blue-500/20">
+              <Plus className="w-5 h-5 lg:w-6 lg:h-6" />
             </div>
             <div>
-              <h3 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight leading-none">
+              <h3 className="text-lg lg:text-2xl font-black text-slate-900 tracking-tight leading-none">
                 {editingQuestion ? 'Edit Soal' : 'Soal Baru'}
               </h3>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">Penyunting Bank Soal</p>
+              <p className="text-[9px] lg:text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">Penyunting Bank Soal</p>
             </div>
           </div>
+          
+          {/* Mobile Tab Switcher */}
+          <div className="flex lg:hidden items-center p-1 bg-slate-50 rounded-xl border border-slate-100">
+            <button 
+              onClick={() => setActiveTab('EDIT')}
+              className={`p-2 rounded-lg transition-all ${activeTab === 'EDIT' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}
+            >
+              <Settings2 size={18} />
+            </button>
+            <button 
+              onClick={() => setActiveTab('PREVIEW')}
+              className={`p-2 rounded-lg transition-all ${activeTab === 'PREVIEW' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}
+            >
+              <Eye size={18} />
+            </button>
+          </div>
+
           <button 
             onClick={onClose}
-            className="p-3 hover:bg-slate-50 rounded-xl transition-colors text-slate-400"
+            className="p-2 lg:p-3 hover:bg-slate-50 rounded-xl transition-colors text-slate-400"
           >
-            <X size={24} />
+            <X className="w-5 h-5 lg:w-6 lg:h-6" />
           </button>
         </div>
         
-        {/* 2. Content - Scrollable */}
-        <div className="flex-1 overflow-y-auto p-8 lg:p-10 space-y-8 custom-scrollbar">
-          {/* Type Selector */}
+        {/* 2. Main Layout - Split View on Desktop */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* Form Side */}
+          <div className={`flex-1 overflow-y-auto p-6 lg:p-10 space-y-8 custom-scrollbar ${activeTab === 'PREVIEW' ? 'hidden lg:block' : 'block'}`}>
+            {/* Type Selector */}
           <div className="space-y-3">
             <label className="flex items-center gap-2 text-xs font-black text-slate-400 uppercase tracking-widest">
               <Layers size={14} className="text-[#2c49c5]" /> Kategori Kartu
@@ -186,6 +207,20 @@ export default function QuestionModal({ isOpen, onClose, editingQuestion, setId 
             </motion.div>
           )}
         </div>
+
+        {/* Preview Side - Desktop Only by default, or Tab on Mobile */}
+        <div className={`flex-1 bg-slate-50/30 border-l border-slate-100 overflow-y-auto p-6 lg:p-10 ${activeTab === 'EDIT' ? 'hidden lg:flex' : 'flex'} flex-col items-center justify-center`}>
+           <div className="w-full max-w-sm">
+             <div className="flex items-center gap-2 mb-6 text-xs font-black text-slate-400 uppercase tracking-[0.2em] justify-center lg:justify-start">
+               <Eye size={14} className="text-blue-500" /> Pratinjau Kartu
+             </div>
+             <QuestionPreview question={newQ} />
+             <p className="text-[10px] text-center text-slate-400 font-medium mt-6 italic">
+               Tampilan di atas mensimulasikan bagaimana kartu akan muncul di layar siswa.
+             </p>
+           </div>
+        </div>
+      </div>
 
         {/* 3. Footer - Fixed */}
         <div className="p-8 lg:p-10 border-t border-slate-50 flex gap-4 flex-shrink-0 bg-white/80 backdrop-blur-md">

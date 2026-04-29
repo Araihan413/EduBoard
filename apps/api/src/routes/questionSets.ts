@@ -1,6 +1,8 @@
 import { FastifyInstance } from "fastify";
 import { prisma } from "@repo/db";
+import { QuestionSchema } from "@repo/types";
 import { verifySupabaseAuth } from "../supabaseAuth";
+import { z } from "zod";
 
 export async function questionSetRoutes(fastify: FastifyInstance) {
   fastify.addHook("preHandler", verifySupabaseAuth);
@@ -8,21 +10,43 @@ export async function questionSetRoutes(fastify: FastifyInstance) {
   // Get all question sets for the current teacher + presets
   fastify.get("/", async (request, reply) => {
     const userId = (request.user as any).id;
-    const sets = await prisma.questionSet.findMany({
-      where: {
-        OR: [
-          { guruId: userId },
-          { isPreset: true }
-        ]
-      },
-      include: {
-        _count: {
-          select: { questions: true }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
-    return sets;
+    const { page = "1", limit = "12" } = request.query as { page?: string, limit?: string };
+
+    const p = parseInt(page);
+    const l = parseInt(limit);
+    const skip = (p - 1) * l;
+
+    const where = {
+      OR: [
+        { guruId: userId },
+        { isPreset: true }
+      ]
+    };
+
+    const [sets, total] = await Promise.all([
+      prisma.questionSet.findMany({
+        where,
+        include: {
+          _count: {
+            select: { questions: true }
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: l
+      }),
+      prisma.questionSet.count({ where })
+    ]);
+
+    return {
+      data: sets,
+      meta: {
+        total,
+        page: p,
+        limit: l,
+        totalPages: Math.ceil(total / l)
+      }
+    };
   });
 
   // Create a new question set
@@ -140,13 +164,22 @@ export async function questionSetRoutes(fastify: FastifyInstance) {
 
     if (!set) return reply.status(404).send({ error: "Set not found" });
 
-    const created = await prisma.question.createMany({
-      data: questions.map((q: any) => ({
-        ...q,
-        setId: id
-      }))
-    });
+    try {
+      const validatedQuestions = questions.map((q: any) => QuestionSchema.parse(q));
 
-    return { success: true, count: created.count };
+      const created = await prisma.question.createMany({
+        data: validatedQuestions.map((q: any) => ({
+          ...q,
+          setId: id
+        }))
+      });
+
+      return { success: true, count: created.count };
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return reply.status(400).send({ error: "Beberapa soal tidak valid", details: err.errors });
+      }
+      return reply.status(500).send({ error: "Gagal mengimport soal" });
+    }
   });
 }

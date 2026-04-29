@@ -18,10 +18,10 @@ import MobileLogOverlay from "@/components/dashboard/MobileLogOverlay";
 
 export default function DashboardPage() {
   const { 
-    gameStatus, logs, resetToIdle, pendingReviews, roomCode
+    gameStatus, logs, resetToIdle, pendingReviews, roomCode,
+    activeTab, setActiveTab
   } = useGameStore();
 
-  const [activeTab, setActiveTab] = useState<'SESI' | 'SOAL' | 'RIWAYAT'>('SESI');
   const [showMobileLog, setShowMobileLog] = useState(false);
   // Modern React 18 hydration detection (Avoids components disappearing on refresh)
   const isMounted = useSyncExternalStore(

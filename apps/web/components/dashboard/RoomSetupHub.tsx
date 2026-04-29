@@ -1,15 +1,26 @@
 import { useState, useEffect } from "react";
-import { Plus, Clock, Zap, BookOpen, FolderCheck } from "lucide-react";
+import { Plus, Clock, Zap, BookOpen, FolderCheck, Search, ShieldCheck, User } from "lucide-react";
 import { useGameStore } from "../../store/gameStore";
+import { useDebounce } from "../../hooks/useDebounce";
 import { toast } from "sonner";
 
 export default function RoomSetupHub() {
   const { createRoom, questionSets, fetchQuestionSets } = useGameStore();
   const [selectedSetId, setSelectedSetId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearch = useDebounce(searchQuery, 300);
 
   useEffect(() => {
     fetchQuestionSets();
   }, [fetchQuestionSets]);
+
+  const filteredSets = questionSets
+    .filter(set => set.title.toLowerCase().includes(debouncedSearch.toLowerCase()))
+    .sort((a, b) => {
+      if (a.isPreset && !b.isPreset) return -1;
+      if (!a.isPreset && b.isPreset) return 1;
+      return 0;
+    });
 
   const [draftConfig, setDraftConfig] = useState({
     gameDurationMin: 10,
@@ -55,44 +66,73 @@ export default function RoomSetupHub() {
 
       <div className="p-10 lg:p-12 space-y-12">
         {/* 0. Question Set Selection */}
-        <div className="space-y-8">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center border border-emerald-100">
-              <BookOpen size={20} />
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center border border-emerald-100">
+                <BookOpen size={20} />
+              </div>
+              <h4 className="font-black text-slate-900 uppercase tracking-widest text-sm">Pilih Paket Soal</h4>
             </div>
-            <h4 className="font-black text-slate-900 uppercase tracking-widest text-sm">Pilih Paket Soal</h4>
+
+            {/* Search Bar */}
+            <div className="relative w-full md:w-72">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+              <input 
+                type="text"
+                placeholder="Cari paket soal..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+              />
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {questionSets.length > 0 ? (
-              questionSets.map((set) => (
-                <button
-                  key={set.id}
-                  onClick={() => setSelectedSetId(set.id)}
-                  className={`p-5 rounded-[1.5rem] border-2 text-left transition-all relative overflow-hidden group ${
-                    selectedSetId === set.id 
-                      ? 'bg-blue-50 border-blue-600 shadow-lg shadow-blue-100' 
-                      : 'bg-white border-slate-100 hover:border-slate-200'
-                  }`}
-                >
-                  {selectedSetId === set.id && (
-                    <div className="absolute top-2 right-2 text-blue-600">
-                      <FolderCheck size={18} />
-                    </div>
-                  )}
-                  <h5 className={`font-black text-sm mb-1 ${selectedSetId === set.id ? 'text-blue-900' : 'text-slate-700'}`}>{set.title}</h5>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                    {set._count?.questions || 0} Pertanyaan
+          <div className="relative">
+            {/* Scrollable Container */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[320px] overflow-y-auto pr-2 custom-scrollbar p-1">
+              {filteredSets.length > 0 ? (
+                filteredSets.map((set) => (
+                  <button
+                    key={set.id}
+                    onClick={() => setSelectedSetId(set.id)}
+                    className={`p-5 rounded-[1.5rem] border-2 text-left transition-all relative overflow-hidden group ${
+                      selectedSetId === set.id 
+                        ? (set.isPreset ? 'bg-emerald-50 border-emerald-500 shadow-lg shadow-emerald-100' : 'bg-blue-50 border-blue-600 shadow-lg shadow-blue-100')
+                        : 'bg-white border-slate-100 hover:border-slate-200'
+                    }`}
+                  >
+                    {set.isPreset ? (
+                      <div className="absolute top-2 right-2 text-emerald-500 flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                        <ShieldCheck size={10} />
+                        <span className="text-[8px] font-black uppercase tracking-tighter">Official</span>
+                      </div>
+                    ) : selectedSetId === set.id ? (
+                      <div className="absolute top-2 right-2 text-blue-600">
+                        <FolderCheck size={18} />
+                      </div>
+                    ) : (
+                      <div className="absolute top-2 right-2 text-slate-300">
+                        <User size={12} />
+                      </div>
+                    )}
+                    <h5 className={`font-black text-sm mb-1 truncate pr-12 ${selectedSetId === set.id ? (set.isPreset ? 'text-emerald-900' : 'text-blue-900') : 'text-slate-700'}`}>{set.title}</h5>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                      {set._count?.questions || 0} Pertanyaan
+                    </p>
+                  </button>
+                ))
+              ) : (
+                <div className="col-span-full p-10 text-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+                  <p className="text-sm font-bold text-slate-400">
+                    {searchQuery ? "Tidak ada paket soal yang cocok." : "Belum ada paket soal."}
                   </p>
-                </button>
-              ))
-            ) : (
-              <div className="col-span-full p-10 text-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
-                <p className="text-sm font-bold text-slate-400">Belum ada paket soal. Buat di tab &quot;Bank Soal&quot; terlebih dahulu!</p>
-              </div>
-            )}
+                </div>
+              )}
+            </div>
+            
+            {/* Fade effect at bottom */}
+            <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white to-transparent pointer-events-none" />
           </div>
-        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
           {/* Group 1: Time Settings */}
