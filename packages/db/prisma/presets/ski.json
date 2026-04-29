@@ -12,14 +12,14 @@
     {
       "type": "AKSI",
       "text": "Ceritakan secara singkat peristiwa hijrah Nabi ke Madinah!",
-      "points": 20
+      "points": 20,
+      "answerKey": "Nabi hijrah bersama Abu Bakar, sempat bersembunyi di Gua Thaur, dan disambut meriah penduduk Madinah (Yatsrib)."
     },
     {
       "type": "TANTANGAN",
       "text": "Siapakah Khalifah pertama yang menggantikan kepemimpinan Nabi Muhammad SAW?",
       "points": 15,
-      "options": ["Abu Bakar Ash-Shiddiq", "Umar bin Khattab", "Utsman bin Affan", "Ali bin Abi Thalib"],
-      "answerKey": "Abu Bakar Ash-Shiddiq"
+      "answerKey": "Abu Bakar Ash-Shiddiq."
     }
   ]
 }

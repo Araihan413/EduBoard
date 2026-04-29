@@ -29,6 +29,8 @@ import {
   LayoutDashboard,
   Trophy,
   Rocket,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import Link from "next/link";
 import NextImage from "next/image";
@@ -103,7 +105,9 @@ function BoardPage() {
     fetchQuestions,
     isGuru,
     roomConfig,
-    endGame
+    endGame,
+    isMuted,
+    toggleMute
   } = useGameStore();
 
   useEffect(() => {
@@ -246,9 +250,9 @@ function BoardPage() {
       if (timer === 0 && currentCard && lastTimeoutCardRef.current !== (currentCard.id || null)) {
         lastTimeoutCardRef.current = currentCard.id || null;
         
-        if (currentCard.type === 'DASAR' || currentCard.type === 'AKSI') {
+        if (currentCard.type === 'DASAR') {
           submitAnswerObjektif(activeGroup.id, "TIMEOUT");
-        } else if (currentCard.type === 'TANTANGAN') {
+        } else if (currentCard.type === 'TANTANGAN' || currentCard.type === 'AKSI') {
           submitAnswerSubjektif(activeGroup.id, tantanganText.trim() || "(Waktu habis, tidak ada jawaban)");
         }
       }
@@ -351,6 +355,21 @@ function BoardPage() {
               className="w-10 h-10 bg-white/70 backdrop-blur-xl rounded-2xl flex items-center justify-center text-slate-400 hover:text-blue-500 hover:bg-white transition-all border border-white/50 shadow-lg group"
             >
               <Info className="w-5 h-5 transition-transform group-hover:scale-110" />
+            </button>
+
+            <button 
+              onClick={toggleMute}
+              className={`w-10 h-10 backdrop-blur-xl rounded-2xl flex items-center justify-center transition-all border shadow-lg group ${
+                isMuted 
+                  ? "bg-red-500/10 border-red-500/20 text-red-500 hover:bg-red-500/20" 
+                  : "bg-white/70 border-white/50 text-slate-400 hover:text-blue-500 hover:bg-white"
+              }`}
+            >
+              {isMuted ? (
+                <VolumeX className="w-5 h-5 transition-transform group-hover:scale-110" />
+              ) : (
+                <Volume2 className="w-5 h-5 transition-transform group-hover:scale-110" />
+              )}
             </button>
           </div>
           
@@ -1054,6 +1073,16 @@ function CardFrontFace({
                         &ldquo;{review.answer}&rdquo;
                       </p>
                     </div>
+
+                    {/* Reference Answer for Teacher */}
+                    {role === "guru" && currentCard?.answerKey && (
+                      <div className="p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
+                        <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest mb-1">Referensi Kunci Jawaban:</p>
+                        <p className="text-sm font-bold text-blue-900 leading-tight">
+                          {currentCard.answerKey}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 ))}
             </div>
@@ -1078,7 +1107,7 @@ function CardFrontFace({
                         </button>
                       ))}
                     </div>
-                  ) : currentCard?.type === "TANTANGAN" ? (
+                  ) : (currentCard?.type === "TANTANGAN" || currentCard?.type === "AKSI") ? (
                     <div className="space-y-3">
                       {isUnderReview ? (
                         <div className="flex flex-col items-center justify-center py-10 bg-orange-50 rounded-2xl border-2 border-dashed border-orange-200 animate-pulse">
@@ -1086,26 +1115,32 @@ function CardFrontFace({
                             <Rocket className="w-6 h-6 text-orange-600 animate-bounce" />
                           </div>
                           <p className="text-orange-900 font-black text-center uppercase tracking-widest text-xs">Menunggu Penilaian Guru</p>
-                          <p className="text-orange-600/60 font-bold text-[10px] mt-1 italic">Jawabanmu sedang ditinjau...</p>
+                          <p className="text-orange-600/60 font-bold text-[10px] mt-1 italic">Tugasmu sedang ditinjau...</p>
                         </div>
                       ) : (
                         <>
-                          <textarea
-                            autoFocus
-                            className="w-full min-h-[100px] bg-white border-2 border-zinc-900 rounded-xl px-5 py-4 text-zinc-900 text-base font-bold focus:outline-none focus:ring-4 focus:ring-orange-500/15 resize-none shadow-inner"
-                            placeholder="Ketik jawabanmu..."
-                            value={tantanganText}
-                            onChange={(e) => setTantanganText(e.target.value)}
-                          />
+                          {currentCard.type === "TANTANGAN" ? (
+                            <textarea
+                              autoFocus
+                              className="w-full min-h-[100px] bg-white border-2 border-zinc-900 rounded-xl px-5 py-4 text-zinc-900 text-base font-bold focus:outline-none focus:ring-4 focus:ring-orange-500/15 resize-none shadow-inner"
+                              placeholder="Ketik jawabanmu..."
+                              value={tantanganText}
+                              onChange={(e) => setTantanganText(e.target.value)}
+                            />
+                          ) : (
+                            <div className="py-8 px-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-center mb-2">
+                               <p className="text-xs font-bold text-slate-500">Lakukan aksi di atas, lalu klik tombol di bawah jika sudah selesai!</p>
+                            </div>
+                          )}
                           <button
                             onClick={() => {
-                              submitAnswerSubjektif(activeGroup.id, tantanganText);
+                              submitAnswerSubjektif(activeGroup.id, currentCard.type === "AKSI" ? "Siswa telah melakukan aksi." : tantanganText);
                               setTantanganText("");
                             }}
-                            disabled={!tantanganText.trim()}
+                            disabled={currentCard.type === "TANTANGAN" && !tantanganText.trim()}
                             className="w-full py-3.5 rounded-xl bg-zinc-900 text-white font-black tracking-[0.2em] uppercase hover:bg-zinc-800 disabled:opacity-20 transition-all shadow-[4px_4px_0_0_rgba(0,0,0,0.2)]"
                           >
-                            KIRIM JAWABAN
+                            {currentCard.type === "AKSI" ? "SAYA SUDAH SELESAI" : "KIRIM JAWABAN"}
                           </button>
                         </>
                       )}
@@ -1115,7 +1150,7 @@ function CardFrontFace({
                       onClick={() => submitAnswerObjektif(activeGroup.id, "SELESAI")}
                       className="w-full py-4 rounded-xl bg-zinc-900 text-white text-base font-black tracking-widest uppercase hover:bg-zinc-800 transition-all shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] active:scale-95"
                     >
-                      SAYA MENGERTI
+                      LANJUT
                     </button>
                   )}
                 </div>

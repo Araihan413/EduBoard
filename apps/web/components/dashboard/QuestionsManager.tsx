@@ -64,8 +64,12 @@ export default function QuestionsManager() {
 
   const handleDownloadTemplate = () => {
     const headers = "type,text,points,answerKey,options_1,options_2,options_3,options_4";
-    const example = "DASAR,Sebutkan ibukota Indonesia,10,Jakarta,Jakarta,Bandung,Surabaya,Medan";
-    const blob = new Blob([`${headers}\n${example}`], { type: 'text/csv' });
+    const examples = [
+      "DASAR,Sebutkan rukun Islam yang pertama,10,Syahadat,Syahadat,Shalat,Zakat,Puasa",
+      "AKSI,Praktikkan tata cara wudhu dengan benar di depan kelas!,20,Teacher Grade,,,,",
+      "TANTANGAN,Sebutkan minimal 3 hikmah dari ibadah puasa Ramadan!,25,Teacher Grade,,,,"
+    ].join("\n");
+    const blob = new Blob([`${headers}\n${examples}`], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

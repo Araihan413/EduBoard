@@ -10,17 +10,22 @@ import {
   Menu,
   X,
   ChevronRight,
-  LogIn
+  LogIn,
+  Volume2,
+  VolumeX
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "../lib/supabase/client";
+import { useGameStore } from "../store/gameStore";
 
 export default function Navbar() {
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const isMuted = useGameStore((s) => s.isMuted);
+  const toggleMute = useGameStore((s) => s.toggleMute);
 
   // Check auth state
   useEffect(() => {
@@ -81,6 +86,19 @@ export default function Navbar() {
 
         {/* Desktop Buttons */}
         <div className="hidden md:flex items-center gap-4">
+          {pathname === "/lobby" && (
+            <button 
+              onClick={toggleMute}
+              className={`p-3 rounded-xl transition-all border ${
+                isMuted 
+                  ? "bg-red-50 border-red-100 text-red-500" 
+                  : "bg-slate-50 border-slate-100 text-slate-400 hover:text-[#2c49c5]"
+              }`}
+            >
+              {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+            </button>
+          )}
+
           {isLoggedIn ? (
             <Link href="/dashboard" className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-[#2c49c5] hover:text-[#1a34a8] transition-all px-4 py-2 bg-blue-50 hover:bg-blue-100 rounded-xl">
               <LayoutDashboard className="w-4 h-4" />

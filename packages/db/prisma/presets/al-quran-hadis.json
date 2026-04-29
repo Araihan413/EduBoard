@@ -12,12 +12,14 @@
     {
       "type": "AKSI",
       "text": "Bacalah Surah Al-Ma'un dengan tajwid yang benar!",
-      "points": 20
+      "points": 20,
+      "answerKey": "Siswa membaca surah Al-Ma'un (7 ayat) dengan lancar dan memperhatikan hukum tajwid (seperti ikhfa, idgham, dll)."
     },
     {
       "type": "TANTANGAN",
       "text": "Sebutkan arti dari hadis 'Kebersihan adalah sebagian dari iman'!",
-      "points": 20
+      "points": 20,
+      "answerKey": "Bahwa menjaga kebersihan (lahir maupun batin) merupakan cerminan dari kuatnya keimanan seseorang kepada Allah."
     }
   ]
 }

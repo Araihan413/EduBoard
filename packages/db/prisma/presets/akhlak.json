@@ -12,12 +12,14 @@
     {
       "type": "AKSI",
       "text": "Praktikkan cara bersalaman dan menghormati guru/orang tua dengan benar!",
-      "points": 15
+      "points": 15,
+      "answerKey": "Siswa membungkukkan badan sedikit, menyalami tangan dengan sopan, dan mencium tangan (opsional) sebagai tanda hormat."
     },
     {
       "type": "TANTANGAN",
       "text": "Berikan 3 contoh perilaku ikhlas dalam kehidupan sehari-hari di sekolah!",
-      "points": 25
+      "points": 25,
+      "answerKey": "1. Membantu teman tanpa pamer, 2. Piket kelas dengan rajin meski tidak diawasi, 3. Sedekah di kotak amal sekolah tanpa memberitahu orang lain."
     }
   ]
 }

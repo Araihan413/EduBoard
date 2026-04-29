@@ -12,12 +12,14 @@
     {
       "type": "AKSI",
       "text": "Praktikkan gerakan ruku' dan sujud yang sempurna dalam shalat!",
-      "points": 15
+      "points": 15,
+      "answerKey": "Ruku': Punggung lurus sejajar lantai. Sujud: 7 anggota badan menempel ke lantai (kening, 2 telapak tangan, 2 lutut, 2 ujung kaki)."
     },
     {
       "type": "TANTANGAN",
       "text": "Sebutkan 3 hal yang dapat membatalkan ibadah puasa!",
-      "points": 25
+      "points": 25,
+      "answerKey": "1. Makan/minum dengan sengaja, 2. Muntah dengan sengaja, 3. Haid atau nifas."
     }
   ]
 }

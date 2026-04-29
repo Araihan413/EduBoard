@@ -12,12 +12,14 @@
     {
       "type": "AKSI",
       "text": "Sebutkan 10 Nama-nama Malaikat beserta tugasnya dengan lancar!",
-      "points": 20
+      "points": 20,
+      "answerKey": "1. Jibril (Wahyu), 2. Mikail (Rezeki), 3. Israfil (Sangkakala), 4. Izrail (Maut), 5. Munkar (Kubur), 6. Nakir (Kubur), 7. Raqib (Amal Baik), 8. Atid (Amal Buruk), 9. Ridwan (Surga), 10. Malik (Neraka)."
     },
     {
       "type": "TANTANGAN",
       "text": "Jelaskan perbedaan antara sifat Wajib dan sifat Mustahil bagi Allah!",
-      "points": 30
+      "points": 30,
+      "answerKey": "Sifat Wajib adalah sifat yang pasti ada pada Allah (contoh: Wujud), sedangkan sifat Mustahil adalah kebalikan dari sifat wajib atau sifat yang tidak mungkin ada pada Allah (contoh: 'Adam/Tiada)."
     }
   ]
 }

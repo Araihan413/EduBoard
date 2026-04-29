@@ -20,6 +20,7 @@ export const metadata: Metadata = {
 import { Toaster } from "sonner";
 import Navbar from "@/components/Navbar";
 import SocketInitializer from "@/components/SocketInitializer";
+import BackgroundMusic from "@/components/audio/BackgroundMusic";
 
 export default function RootLayout({
   children,
@@ -33,6 +34,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-grid-premium">
         <SocketInitializer />
+        <BackgroundMusic />
         <Navbar />
         {children}
         <Toaster richColors position="top-center" duration={4000} closeButton />
