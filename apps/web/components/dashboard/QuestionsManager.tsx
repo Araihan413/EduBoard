@@ -16,7 +16,7 @@ export default function QuestionsManager() {
     questionSets, activeQuestionSet, questions,
     fetchQuestionSets, createQuestionSet, updateQuestionSet, deleteQuestionSet, duplicatePreset,
     setActiveQuestionSet, fetchQuestions, deleteQuestion, importQuestions,
-    pagination, isLoadingQuestions
+    pagination, isLoadingQuestions, isLoadingSets
   } = useGameStore();
 
   const [showQuestionModal, setShowQuestionModal] = useState(false);
@@ -27,6 +27,7 @@ export default function QuestionsManager() {
   const [newSetDescription, setNewSetDescription] = useState("");
   
   // View & Filter states
+  const [isMounted, setIsMounted] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [activeFilter, setActiveFilter] = useState<QuestionType | "ALL">("ALL");
@@ -60,6 +61,32 @@ export default function QuestionsManager() {
   // Confirmation States
   const [confirmDeleteSet, setConfirmDeleteSet] = useState<string | null>(null);
   const [confirmDeleteQuestion, setConfirmDeleteQuestion] = useState<string | null>(null);
+
+  // Persistence
+  useEffect(() => {
+    const savedView = localStorage.getItem('eduboard_questions_view_mode');
+    const savedSort = localStorage.getItem('eduboard_questions_sort_by');
+    
+    // Wrap in setTimeout to avoid cascading renders warning
+    setTimeout(() => {
+      setIsMounted(true);
+      if (savedView === 'GRID' || savedView === 'LIST') setViewMode(savedView);
+      if (savedSort) setSortBy(savedSort as any);
+    }, 0);
+  }, []);
+
+  useEffect(() => {
+    if (isMounted) {
+      localStorage.setItem('eduboard_questions_view_mode', viewMode);
+    }
+  }, [viewMode, isMounted]);
+
+  useEffect(() => {
+    if (isMounted) {
+      localStorage.setItem('eduboard_questions_sort_by', sortBy);
+    }
+  }, [sortBy, isMounted]);
+
 
 
   const handleDownloadTemplate = () => {
@@ -176,26 +203,23 @@ export default function QuestionsManager() {
     try {
       if (editingSet) {
         await updateQuestionSet(editingSet.id, newSetTitle, newSetDescription);
-        toast.success("Paket soal berhasil diperbarui!");
       } else {
         await createQuestionSet(newSetTitle, newSetDescription);
-        toast.success("Paket soal berhasil dibuat!");
       }
       setNewSetTitle("");
       setNewSetDescription("");
       setEditingSet(null);
       setShowSetModal(false);
     } catch {
-      toast.error(editingSet ? "Gagal memperbarui paket soal" : "Gagal membuat paket soal");
+      // Errors are now handled in the store
     }
   };
 
   const handleDuplicate = async (id: string) => {
     try {
-      const newSet = await duplicatePreset(id);
-      toast.success(`Berhasil menyalin "${newSet.title}" ke koleksi Anda!`);
+      await duplicatePreset(id);
     } catch {
-      toast.error("Gagal menyalin preset");
+      // Errors are now handled in the store
     }
   };
 
@@ -217,6 +241,25 @@ export default function QuestionsManager() {
   };
 
   // RENDER LIBRARY (Daftar Paket Soal)
+  if (!isMounted) {
+    return (
+      <div className="space-y-8 p-6 lg:p-12 animate-pulse">
+        <div className="flex justify-between items-center mb-12">
+          <div className="space-y-3">
+            <div className="h-10 bg-slate-100 rounded-xl w-64" />
+            <div className="h-4 bg-slate-100 rounded-lg w-48" />
+          </div>
+          <div className="h-14 bg-slate-100 rounded-2xl w-40" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {[1, 2, 3, 4, 5, 6].map(i => (
+            <div key={i} className="h-64 bg-slate-50 rounded-[2.5rem] border border-slate-100" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   if (!activeQuestionSet) {
     return (
       <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -258,128 +301,138 @@ export default function QuestionsManager() {
           </div>
         </div>
 
-        <div className="space-y-12">
-          {/* 1. Official Presets - Fixed at top */}
-          {presetSets.length > 0 && (
+        <div className="flex-1 overflow-y-auto p-6 lg:p-12 scroll-smooth">
+          <div className="max-w-7xl mx-auto space-y-12">
+            {/* 1. Official Presets */}
+            {!searchQuery && (
+              <div className="space-y-6">
+                <div className="flex items-center gap-2 px-1">
+                  <ShieldCheck size={14} className="text-amber-500" />
+                  <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Paket Resmi EduBoard</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {isLoadingSets ? (
+                    [1, 2, 3].map((i) => <QuestionSetSkeleton key={i} />)
+                  ) : (
+                    presetSets.map((set) => (
+                      <motion.div
+                        whileHover={{ y: -5 }}
+                        key={set.id}
+                        onClick={() => setActiveQuestionSet(set)}
+                        className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 hover:shadow-2xl hover:shadow-amber-500/10 cursor-pointer group relative overflow-hidden"
+                      >
+                        {/* Ribbon for presets */}
+                        <div className="absolute top-0 right-0 px-4 py-1 bg-amber-500 text-[8px] font-black text-white uppercase tracking-[0.2em] rounded-bl-xl">
+                          PRESET
+                        </div>
+                        
+                        <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center mb-4 text-slate-400 group-hover:bg-amber-50 group-hover:text-amber-500 transition-colors">
+                          <BookOpen size={24} />
+                        </div>
+                        <h3 className="text-lg font-black text-slate-900 mb-1 group-hover:text-amber-600 transition-colors">{set.title}</h3>
+                        <p className="text-slate-400 text-sm font-medium mb-4 line-clamp-2">{set.description}</p>
+                        
+                        <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            {set._count?.questions || 0} Pertanyaan
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); handleDuplicate(set.id); }}
+                              className="p-2 hover:bg-amber-50 text-amber-600 rounded-lg transition-colors group/btn"
+                              title="Salin ke Koleksi"
+                            >
+                              <Copy size={16} />
+                            </button>
+                            <ArrowRight size={16} className="text-slate-300 group-hover:translate-x-1 transition-transform" />
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* 2. User Collection - Searchable */}
             <div className="space-y-4">
               <div className="flex items-center gap-2 px-1">
-                <ShieldCheck size={14} className="text-emerald-500" />
-                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Paket Resmi EduBoard</h3>
+                <User size={14} className="text-blue-500" />
+                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                  {searchQuery ? `Hasil Pencarian Koleksi ("${searchQuery}")` : "Koleksi Paket Soal Anda"}
+                </h3>
               </div>
+              
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {presetSets.map((set) => (
-                  <motion.div
-                    layout
-                    key={set.id}
-                    onClick={() => setActiveQuestionSet(set)}
-                    className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 hover:shadow-2xl hover:shadow-blue-500/10 cursor-pointer group relative overflow-hidden"
-                  >
-                    <div className="absolute top-0 right-0 px-4 py-1 bg-emerald-50 text-emerald-700 text-[9px] font-black uppercase tracking-widest rounded-bl-xl border-b border-l border-emerald-100 flex items-center gap-1">
-                      <ShieldCheck size={10} /> Official
-                    </div>
-                    <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center mb-4 text-slate-400 group-hover:bg-emerald-50 group-hover:text-emerald-500 transition-colors">
-                      <BookOpen size={24} />
-                    </div>
-                    <h3 className="text-lg font-black text-slate-900 mb-1 group-hover:text-emerald-600 transition-colors">{set.title}</h3>
-                    <p className="text-slate-400 text-sm font-medium mb-4 line-clamp-2">{set.description || "Tidak ada deskripsi."}</p>
-                    
-                    <div className="flex items-center justify-between pt-4 border-t border-slate-50">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                        {set._count?.questions || 0} Pertanyaan
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); handleDuplicate(set.id); }}
-                          className="p-2 hover:bg-amber-50 text-amber-600 rounded-lg transition-colors"
-                          title="Duplikat ke Koleksi Saya"
-                        >
-                          <Copy size={16} />
-                        </button>
-                        <ArrowRight size={18} className="text-slate-300 group-hover:translate-x-1 transition-transform" />
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* 2. User Collection - Searchable */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 px-1">
-              <User size={14} className="text-blue-500" />
-              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
-                {searchQuery ? `Hasil Pencarian Koleksi ("${searchQuery}")` : "Koleksi Paket Soal Anda"}
-              </h3>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <AnimatePresence mode="popLayout">
-                {userSets.length > 0 ? (
-                  userSets.map((set) => (
-                    <motion.div
-                      layout
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.8 }}
-                      key={set.id}
-                      onClick={() => setActiveQuestionSet(set)}
-                      className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 hover:shadow-2xl hover:shadow-blue-500/10 cursor-pointer group relative overflow-hidden"
-                    >
-                      <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center mb-4 text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">
-                        <FolderOpen size={24} />
-                      </div>
-                      <h3 className="text-lg font-black text-slate-900 mb-1 group-hover:text-blue-600 transition-colors">{set.title}</h3>
-                      <p className="text-slate-400 text-sm font-medium mb-4 line-clamp-2">{set.description || "Tidak ada deskripsi."}</p>
-                      
-                      <div className="flex items-center justify-between pt-4 border-t border-slate-50">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                          {set._count?.questions || 0} Pertanyaan • {new Date(set.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); handleDuplicate(set.id); }}
-                            className="p-2 hover:bg-amber-50 text-amber-600 rounded-lg transition-colors"
-                            title="Duplikat"
-                          >
-                            <Copy size={16} />
-                          </button>
-                          <button 
-                            onClick={(e) => { 
-                              e.stopPropagation(); 
-                              setEditingSet(set);
-                              setNewSetTitle(set.title);
-                              setNewSetDescription(set.description || "");
-                              setShowSetModal(true);
-                            }}
-                            className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors"
-                          >
-                            <Pencil size={16} />
-                          </button>
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); setConfirmDeleteSet(set.id); }}
-                            className="p-2 hover:bg-red-50 text-red-500 rounded-lg transition-colors"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                          <ArrowRight size={18} className="text-slate-300 group-hover:translate-x-1 transition-transform" />
+                <AnimatePresence mode="popLayout">
+                  {isLoadingSets ? (
+                    [1, 2, 3].map((i) => <QuestionSetSkeleton key={i} />)
+                  ) : userSets.length > 0 ? (
+                    userSets.map((set) => (
+                      <motion.div
+                        layout
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.8 }}
+                        key={set.id}
+                        onClick={() => setActiveQuestionSet(set)}
+                        className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 hover:shadow-2xl hover:shadow-blue-500/10 cursor-pointer group relative overflow-hidden"
+                      >
+                        <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center mb-4 text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">
+                          <FolderOpen size={24} />
                         </div>
-                      </div>
+                        <h3 className="text-lg font-black text-slate-900 mb-1 group-hover:text-blue-600 transition-colors">{set.title}</h3>
+                        <p className="text-slate-400 text-sm font-medium mb-4 line-clamp-2">{set.description || "Tidak ada deskripsi."}</p>
+                        
+                        <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            {set._count?.questions || 0} Pertanyaan • {new Date(set.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); handleDuplicate(set.id); }}
+                              className="p-2 hover:bg-amber-50 text-amber-600 rounded-lg transition-colors"
+                              title="Duplikat"
+                            >
+                              <Copy size={16} />
+                            </button>
+                            <button 
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                setEditingSet(set);
+                                setNewSetTitle(set.title);
+                                setNewSetDescription(set.description || "");
+                                setShowSetModal(true);
+                              }}
+                              className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors"
+                            >
+                              <Pencil size={16} />
+                            </button>
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); setConfirmDeleteSet(set.id); }}
+                              className="p-2 hover:bg-red-50 text-red-500 rounded-lg transition-colors"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                            <ArrowRight size={18} className="text-slate-300 group-hover:translate-x-1 transition-transform" />
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))
+                  ) : (
+                    <motion.div 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="col-span-full text-center py-20 bg-slate-50/50 rounded-[2.5rem] border-2 border-dashed border-slate-200"
+                    >
+                      <FolderOpen className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                      <p className="text-slate-400 font-bold">
+                        {searchQuery ? "Tidak ada koleksi yang cocok." : "Belum ada koleksi pribadi."}
+                      </p>
                     </motion.div>
-                  ))
-                ) : (
-                  <motion.div 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="col-span-full text-center py-20 bg-slate-50/50 rounded-[2.5rem] border-2 border-dashed border-slate-200"
-                  >
-                    <FolderOpen className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                    <p className="text-slate-400 font-bold">
-                      {searchQuery ? "Tidak ada koleksi yang cocok." : "Belum ada koleksi pribadi."}
-                    </p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
           </div>
         </div>
@@ -473,12 +526,19 @@ export default function QuestionsManager() {
                <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded-md">
                  {questions.length} Soal
                </span>
-               <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">• Koleksi Saya</p>
+               <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">• {activeQuestionSet.isPreset ? 'Paket Resmi EduBoard' : 'Koleksi Saya'}</p>
             </div>
           </div>
         </div>
         <div className="flex items-center justify-end gap-3">
-          {!activeQuestionSet.isPreset && (
+          {activeQuestionSet.isPreset ? (
+            <button 
+              onClick={() => handleDuplicate(activeQuestionSet.id)}
+              className="px-6 py-4 bg-amber-500 hover:bg-amber-600 text-white font-black rounded-2xl flex items-center justify-center shadow-xl shadow-amber-500/20 transition-all gap-3"
+            >
+              <Copy size={20}/> <span>Salin ke Koleksi</span>
+            </button>
+          ) : (
             <>
               <button 
                 onClick={handleDownloadTemplate}
@@ -548,16 +608,11 @@ export default function QuestionsManager() {
       {/* Questions List/Grid */}
       <AnimatePresence mode="wait">
         {isLoadingQuestions ? (
-          <motion.div 
-            key="loading"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="flex flex-col items-center justify-center py-20 bg-white rounded-[2.5rem] border-2 border-dashed border-slate-100"
-          >
-            <div className="w-12 h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin mb-4" />
-            <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Menyiapkan Pertanyaan...</p>
-          </motion.div>
+          <div className={viewMode === 'GRID' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "flex flex-col gap-3"}>
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <QuestionCardSkeleton key={i} viewMode={viewMode} />
+            ))}
+          </div>
         ) : (
           <motion.div 
             key={viewMode}
@@ -749,6 +804,52 @@ function PaginationControls({
       >
         <ChevronRight size={20} />
       </button>
+    </div>
+  );
+}
+
+function QuestionSetSkeleton() {
+  return (
+    <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 animate-pulse">
+      <div className="w-12 h-12 bg-slate-100 rounded-2xl mb-4" />
+      <div className="h-6 bg-slate-100 rounded-lg w-2/3 mb-2" />
+      <div className="h-4 bg-slate-100 rounded-lg w-full mb-1" />
+      <div className="h-4 bg-slate-100 rounded-lg w-1/2 mb-6" />
+      <div className="pt-4 border-t border-slate-50 flex justify-between items-center">
+        <div className="h-3 bg-slate-100 rounded w-24" />
+        <div className="h-8 w-8 bg-slate-100 rounded-lg" />
+      </div>
+    </div>
+  );
+}
+
+function QuestionCardSkeleton({ viewMode }: { viewMode: 'GRID' | 'LIST' }) {
+  if (viewMode === 'LIST') {
+    return (
+      <div className="bg-white border border-slate-100 p-4 rounded-2xl flex items-center gap-4 animate-pulse">
+        <div className="w-10 h-10 bg-slate-100 rounded-xl flex-shrink-0" />
+        <div className="flex-1 space-y-2">
+          <div className="h-4 bg-slate-100 rounded w-3/4" />
+          <div className="h-3 bg-slate-100 rounded w-1/4" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm animate-pulse">
+      <div className="flex justify-between items-start mb-4">
+        <div className="h-5 w-16 bg-slate-100 rounded-lg" />
+        <div className="h-4 w-12 bg-slate-100 rounded" />
+      </div>
+      <div className="space-y-2 mb-6">
+        <div className="h-4 bg-slate-100 rounded w-full" />
+        <div className="h-4 bg-slate-100 rounded w-full" />
+        <div className="h-4 bg-slate-100 rounded w-2/3" />
+      </div>
+      <div className="pt-4 border-t border-slate-50 flex justify-end">
+        <div className="h-8 w-16 bg-slate-100 rounded-lg" />
+      </div>
     </div>
   );
 }

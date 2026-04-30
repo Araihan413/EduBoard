@@ -11,8 +11,7 @@ import {
   Medal,
   Clock,
   History as HistoryIcon,
-  Search,
-  Disc3
+  Search
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "../../lib/api";
@@ -150,7 +149,7 @@ export default function SessionHistory() {
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: idx * 0.1 }}
                           key={group.id} 
-                          className={`flex items-center justify-between p-5 rounded-2xl border-2 transition-all ${
+                          className={`flex items-center justify-between p-5 rounded-2xl border-2 ${
                             idx === 0 
                               ? 'bg-blue-50/30 border-blue-100 shadow-sm' 
                               : isSurrendered ? 'bg-slate-50/50 border-slate-100 opacity-70' : 'bg-white border-slate-50'
@@ -214,9 +213,10 @@ export default function SessionHistory() {
       </div>
 
       {isLoading ? (
-        <div className="py-24 flex flex-col items-center justify-center gap-4 text-slate-400">
-           <Disc3 className="w-10 h-10 animate-spin text-blue-500" />
-           <p className="text-xs font-black uppercase tracking-[0.2em]">Mengambil Arsip...</p>
+        <div className="grid grid-cols-1 gap-4">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <SessionCardSkeleton key={i} />
+          ))}
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4">
@@ -281,6 +281,33 @@ export default function SessionHistory() {
           </AnimatePresence>
         </div>
       )}
+    </div>
+  );
+}
+
+function SessionCardSkeleton() {
+  return (
+    <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/20 animate-pulse">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="flex items-center gap-6">
+          <div className="w-14 h-14 bg-slate-100 rounded-2xl flex-shrink-0" />
+          <div className="space-y-2">
+            <div className="h-5 bg-slate-100 rounded w-48" />
+            <div className="h-3 bg-slate-100 rounded w-32" />
+          </div>
+        </div>
+        <div className="flex items-center gap-8">
+          <div className="text-right space-y-1 hidden md:block">
+            <div className="h-3 bg-slate-100 rounded w-16 ml-auto" />
+            <div className="h-6 bg-slate-100 rounded w-24 ml-auto" />
+          </div>
+          <div className="text-right space-y-1 hidden md:block">
+            <div className="h-3 bg-slate-100 rounded w-16 ml-auto" />
+            <div className="h-6 bg-slate-100 rounded w-12 ml-auto" />
+          </div>
+          <div className="w-10 h-10 bg-slate-100 rounded-full" />
+        </div>
+      </div>
     </div>
   );
 }

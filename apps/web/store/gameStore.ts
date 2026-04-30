@@ -107,6 +107,7 @@ interface GameState {
   pendingReviews: PendingReview[];
    sessionHistory: SessionHistory[];
    isLoadingQuestions: boolean;
+   isLoadingSets: boolean;
   
   winner: Group | null;
   logs: string[];
@@ -134,7 +135,7 @@ interface GameActions {
   setSelectedSession: (session: any | null) => void;
 
   // Actions - Paket Soal
-  fetchQuestionSets: (page?: number) => Promise<void>;
+  fetchQuestionSets: (page?: number, showSkeleton?: boolean) => Promise<void>;
   createQuestionSet: (title: string, description?: string) => Promise<QuestionSet>;
   updateQuestionSet: (id: string, title: string, description?: string) => Promise<QuestionSet>;
   deleteQuestionSet: (id: string) => Promise<void>;
@@ -146,7 +147,7 @@ interface GameActions {
   addQuestion: (setId: string, q: Omit<QuestionCard, 'id' | 'setId'>) => Promise<void>;
   updateQuestion: (id: string, q: Partial<QuestionCard>) => Promise<void>;
   deleteQuestion: (id: string) => Promise<void>;
-  fetchQuestions: (setId: string, page?: number) => Promise<void>;
+  fetchQuestions: (setId: string, page?: number, showSkeleton?: boolean) => Promise<void>;
 
   // Actions - Mekanik Permainan
   drawCard: (type?: QuestionType) => void;
@@ -352,6 +353,7 @@ export const useGameStore = create<GameState & GameActions>()(
         pendingReviews: [],
         sessionHistory: [],
         isLoadingQuestions: false,
+        isLoadingSets: false,
         winner: null,
         logs: [],
         myGroupName: null,
@@ -594,53 +596,89 @@ export const useGameStore = create<GameState & GameActions>()(
         setActiveTab: (tab) => set({ activeTab: tab }),
         setSelectedSession: (session) => set({ selectedSession: session }),
 
-        fetchQuestionSets: async (page = 1) => {
+        fetchQuestionSets: async (page = 1, showSkeleton = true) => {
           try {
+            if (showSkeleton) set({ isLoadingSets: true });
             const res = await api.get(`/api/sets?page=${page}`);
             set((state) => ({ 
               questionSets: res.data || [],
               pagination: {
                 ...state.pagination,
                 sets: res.meta
-              }
+              },
+              isLoadingSets: false
             }));
           } catch (err: any) {
+            set({ isLoadingSets: false });
             toast.error("Gagal mengambil paket soal: " + err.message);
           }
         },
         createQuestionSet: async (title, description) => {
-          const newSet = await api.post("/api/sets", { title, description });
-          await get().fetchQuestionSets(); // Refetch to get fresh data with counts
-          return newSet;
+          const toastId = toast.loading("Membuat paket soal...");
+          try {
+            const newSet = await api.post("/api/sets", { title, description });
+            await get().fetchQuestionSets(1, false); 
+            toast.success("Paket soal berhasil dibuat!", { id: toastId });
+            return newSet;
+          } catch (err: any) {
+            toast.error("Gagal membuat paket soal: " + err.message, { id: toastId });
+            throw err;
+          }
         },
         updateQuestionSet: async (id, title, description) => {
-          const updated = await api.put(`/api/sets/${id}`, { title, description });
-          await get().fetchQuestionSets();
-          return updated;
+          const toastId = toast.loading("Memperbarui paket soal...");
+          try {
+            const updated = await api.put(`/api/sets/${id}`, { title, description });
+            await get().fetchQuestionSets(get().pagination.sets.page, false);
+            toast.success("Paket soal berhasil diperbarui!", { id: toastId });
+            return updated;
+          } catch (err: any) {
+            toast.error("Gagal memperbarui paket soal: " + err.message, { id: toastId });
+            throw err;
+          }
         },
         deleteQuestionSet: async (id) => {
-          await api.delete(`/api/sets/${id}`);
-          const currentPage = get().pagination.sets.page;
-          // Refetch current page
-          await get().fetchQuestionSets(currentPage);
-          
-          // If current page is now empty and we're not on page 1, go back one page
-          if (get().questionSets.length === 0 && currentPage > 1) {
-            await get().fetchQuestionSets(currentPage - 1);
-          }
+          const toastId = toast.loading("Menghapus paket soal...");
+          try {
+            await api.delete(`/api/sets/${id}`);
+            const currentPage = get().pagination.sets.page;
+            await get().fetchQuestionSets(currentPage, false);
+            
+            if (get().questionSets.length === 0 && currentPage > 1) {
+              await get().fetchQuestionSets(currentPage - 1, false);
+            }
 
-          set((state) => ({ 
-            activeQuestionSet: state.activeQuestionSet?.id === id ? null : state.activeQuestionSet
-          }));
+            set((state) => ({ 
+              activeQuestionSet: state.activeQuestionSet?.id === id ? null : state.activeQuestionSet
+            }));
+            toast.success("Paket soal berhasil dihapus!", { id: toastId });
+          } catch (err: any) {
+            toast.error("Gagal menghapus paket soal: " + err.message, { id: toastId });
+            throw err;
+          }
         },
         duplicatePreset: async (id) => {
-          const newSet = await api.post(`/api/sets/${id}/duplicate`, {});
-          await get().fetchQuestionSets(); // Refetch
-          return newSet;
+          const toastId = toast.loading("Menyalin paket soal...");
+          try {
+            const newSet = await api.post(`/api/sets/${id}/duplicate`, {});
+            await get().fetchQuestionSets(get().pagination.sets.page, false);
+            toast.success("Paket soal berhasil disalin!", { id: toastId });
+            return newSet;
+          } catch (err: any) {
+            toast.error("Gagal menyalin paket: " + err.message, { id: toastId });
+            throw err;
+          }
         },
         importQuestions: async (setId: string, questions: Omit<QuestionCard, 'id' | 'setId'>[]) => {
-          await api.post(`/api/sets/${setId}/import`, { questions });
-          await get().fetchQuestions(setId);
+          const toastId = toast.loading(`Mengimport ${questions.length} soal...`);
+          try {
+            await api.post(`/api/sets/${setId}/import`, { questions });
+            await get().fetchQuestions(setId, 1, false);
+            toast.success(`Berhasil mengimport ${questions.length} soal!`, { id: toastId });
+          } catch (err: any) {
+            toast.error("Gagal mengimport soal: " + err.message, { id: toastId });
+            throw err;
+          }
         },
         setActiveQuestionSet: (questionSet) => set({ 
           activeQuestionSet: questionSet,
@@ -652,30 +690,49 @@ export const useGameStore = create<GameState & GameActions>()(
         }),
 
         addQuestion: async (setId, q) => {
-          const newQ = await api.post("/api/questions", { setId, ...q });
-          syncSet((state) => ({ questions: [newQ, ...state.questions] }));
-        },
-        updateQuestion: async (id, updatedQ) => {
-          const newQ = await api.put(`/api/questions/${id}`, updatedQ);
-          syncSet((state) => ({ questions: state.questions.map(q => q.id === id ? newQ : q) }));
-        },
-        deleteQuestion: async (id) => {
-          await api.delete(`/api/questions/${id}`);
-          const activeSet = get().activeQuestionSet;
-          if (activeSet) {
-            const currentPage = get().pagination.questions.page;
-            // Refetch current page
-            await get().fetchQuestions(activeSet.id, currentPage);
-            
-            // If current page is now empty and we're not on page 1, go back one page
-            if (get().questions.length === 0 && currentPage > 1) {
-              await get().fetchQuestions(activeSet.id, currentPage - 1);
-            }
+          const toastId = toast.loading("Menyimpan pertanyaan...");
+          try {
+            const newQ = await api.post("/api/questions", { setId, ...q });
+            syncSet((state) => ({ questions: [newQ, ...state.questions] }));
+            toast.success("Pertanyaan berhasil ditambahkan!", { id: toastId });
+          } catch (err: any) {
+            toast.error("Gagal menyimpan pertanyaan: " + err.message, { id: toastId });
+            throw err;
           }
         },
-        fetchQuestions: async (setId, page = 1) => {
+        updateQuestion: async (id, updatedQ) => {
+          const toastId = toast.loading("Memperbarui pertanyaan...");
           try {
-            set({ isLoadingQuestions: true });
+            const newQ = await api.put(`/api/questions/${id}`, updatedQ);
+            syncSet((state) => ({ questions: state.questions.map(q => q.id === id ? newQ : q) }));
+            toast.success("Pertanyaan berhasil diperbarui!", { id: toastId });
+          } catch (err: any) {
+            toast.error("Gagal memperbarui pertanyaan: " + err.message, { id: toastId });
+            throw err;
+          }
+        },
+        deleteQuestion: async (id) => {
+          const toastId = toast.loading("Menghapus pertanyaan...");
+          try {
+            await api.delete(`/api/questions/${id}`);
+            const activeSet = get().activeQuestionSet;
+            if (activeSet) {
+              const currentPage = get().pagination.questions.page;
+              await get().fetchQuestions(activeSet.id, currentPage, false);
+              
+              if (get().questions.length === 0 && currentPage > 1) {
+                await get().fetchQuestions(activeSet.id, currentPage - 1, false);
+              }
+            }
+            toast.success("Pertanyaan berhasil dihapus!", { id: toastId });
+          } catch (err: any) {
+            toast.error("Gagal menghapus pertanyaan: " + err.message, { id: toastId });
+            throw err;
+          }
+        },
+        fetchQuestions: async (setId, page = 1, showSkeleton = true) => {
+          try {
+            if (showSkeleton) set({ isLoadingQuestions: true });
             const res = await api.get(`/api/questions?setId=${setId}&page=${page}`);
             syncSet((state) => ({ 
               questions: res.data || [],
