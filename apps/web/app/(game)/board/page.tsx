@@ -194,6 +194,7 @@ function BoardPage() {
         returnTimerRef.current = setTimeout(() => {
           returnTimerRef.current = null;
           setStickyCardData(null);
+          setTantanganText("");
           updatePhase("idle");
         }, 800);
       }
@@ -254,6 +255,7 @@ function BoardPage() {
           submitAnswerObjektif(activeGroup.id, "TIMEOUT");
         } else if (currentCard.type === 'TANTANGAN' || currentCard.type === 'AKSI') {
           submitAnswerSubjektif(activeGroup.id, tantanganText.trim() || "(Waktu habis, tidak ada jawaban)");
+          setTimeout(() => setTantanganText(""), 0);
         }
       }
     }
@@ -598,17 +600,20 @@ function BoardPage() {
         pendingReviews={pendingReviews}
       />
 
-      {/* Global Review Alert for Observers/Students if modal is minimized */}
+      {/* Global Review Alert for Observers/Students - Moved to top with higher Z-index */}
       <AnimatePresence>
         {isUnderReview && (
           <motion.div
-            initial={{ y: -100, opacity: 0 }}
-            animate={{ y: 20, opacity: 1 }}
-            exit={{ y: -100, opacity: 0 }}
-            className="fixed top-20 left-1/2 -translate-x-1/2 z-[60] bg-orange-500 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border-2 border-orange-400/50 backdrop-blur-xl"
+            initial={{ y: -50, x: "-50%", opacity: 0 }}
+            animate={{ y: 24, x: "-50%", opacity: 1 }}
+            exit={{ y: -50, x: "-50%", opacity: 0 }}
+            className="fixed top-0 left-1/2 z-[150] bg-white/90 backdrop-blur-xl px-5 py-2.5 rounded-full shadow-[0_20px_50px_rgba(0,0,0,0.2)] flex items-center gap-3 border border-indigo-200"
           >
-            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            <span className="text-xs font-black uppercase tracking-widest">Sesi Penilaian Guru Sedang Berlangsung</span>
+            <div className="relative flex items-center justify-center">
+              <div className="absolute inset-0 bg-indigo-500/20 rounded-full animate-ping" />
+              <div className="w-2.5 h-2.5 bg-indigo-500 rounded-full relative z-10" />
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600">Sesi Penilaian Guru Berlangsung</span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -1012,10 +1017,13 @@ function CardFrontFace({
   pendingReviews: PendingReview[];
 }) {
   const accent =
-    isUnderReview ? { bg: "bg-orange-500", text: "text-orange-600", light: "bg-orange-50" } :
-    cardType === "DASAR" ? { bg: "bg-[#2c49c5]", text: "text-[#2c49c5]", light: "bg-blue-50" } :
-    cardType === "AKSI" ? { bg: "bg-red-600", text: "text-red-600", light: "bg-red-50" } : 
-    { bg: "bg-orange-600", text: "text-orange-600", light: "bg-orange-50" };
+    isUnderReview 
+      ? (cardType === "AKSI" 
+          ? { bg: "bg-red-600", text: "text-red-600", light: "bg-red-50" }
+          : { bg: "bg-orange-500", text: "text-orange-600", light: "bg-orange-50" })
+      : cardType === "DASAR" ? { bg: "bg-[#2c49c5]", text: "text-[#2c49c5]", light: "bg-blue-50" } :
+        cardType === "AKSI" ? { bg: "bg-red-600", text: "text-red-600", light: "bg-red-50" } : 
+        { bg: "bg-orange-600", text: "text-orange-600", light: "bg-orange-50" };
 
   return (
     <div
@@ -1110,12 +1118,12 @@ function CardFrontFace({
                   ) : (currentCard?.type === "TANTANGAN" || currentCard?.type === "AKSI") ? (
                     <div className="space-y-3">
                       {isUnderReview ? (
-                        <div className="flex flex-col items-center justify-center py-10 bg-orange-50 rounded-2xl border-2 border-dashed border-orange-200 animate-pulse">
-                          <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mb-4">
-                            <Rocket className="w-6 h-6 text-orange-600 animate-bounce" />
+                        <div className={`flex flex-col items-center justify-center py-10 ${accent.light} rounded-2xl border-2 border-dashed ${cardType === "AKSI" ? "border-red-200" : "border-orange-200"} animate-pulse`}>
+                          <div className={`w-12 h-12 ${cardType === "AKSI" ? "bg-red-100" : "bg-orange-100"} rounded-full flex items-center justify-center mb-4`}>
+                            <Rocket className={`w-6 h-6 ${accent.text} animate-bounce`} />
                           </div>
-                          <p className="text-orange-900 font-black text-center uppercase tracking-widest text-xs">Menunggu Penilaian Guru</p>
-                          <p className="text-orange-600/60 font-bold text-[10px] mt-1 italic">Tugasmu sedang ditinjau...</p>
+                          <p className={`${cardType === "AKSI" ? "text-red-900" : "text-orange-900"} font-black text-center uppercase tracking-widest text-xs`}>Menunggu Penilaian Guru</p>
+                          <p className={`${accent.text} opacity-60 font-bold text-[10px] mt-1 italic`}>Tugasmu sedang ditinjau...</p>
                         </div>
                       ) : (
                         <>
@@ -1242,19 +1250,19 @@ function CardFrontFace({
               <motion.div 
                 animate={{ scale: [1, 1.02, 1] }}
                 transition={{ duration: 2, repeat: Infinity }}
-                className="bg-orange-50 border-2 border-orange-200 p-8 rounded-[2rem] text-center shadow-xl shadow-orange-500/5"
+                className="bg-indigo-50 border-2 border-indigo-100 p-8 rounded-[2rem] text-center shadow-xl shadow-indigo-500/5"
               >
                 <div className="flex flex-col items-center gap-4">
                   <div className="relative">
-                    <div className="absolute inset-0 bg-orange-400 rounded-full blur-xl opacity-20 animate-pulse" />
-                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-lg border border-orange-100 relative z-10">
-                      <Disc3 className="w-8 h-8 text-orange-500 animate-spin-slow" />
+                    <div className="absolute inset-0 bg-indigo-400 rounded-full blur-xl opacity-20 animate-pulse" />
+                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-lg border border-indigo-50 relative z-10">
+                      <Disc3 className="w-8 h-8 text-indigo-500 animate-spin-slow" />
                     </div>
                   </div>
                   <div>
-                    <p className="text-[10px] font-black text-orange-400 uppercase tracking-[0.3em] mb-2">PROSES PENILAIAN</p>
-                    <h4 className="text-xl font-black text-orange-900 tracking-tight">Menunggu Guru Menilai...</h4>
-                    <p className="text-xs font-medium text-orange-600/70 mt-2 leading-relaxed">
+                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em] mb-2">PROSES PENILAIAN</p>
+                    <h4 className="text-xl font-black text-indigo-900 tracking-tight">Menunggu Guru Menilai...</h4>
+                    <p className="text-xs font-medium text-indigo-600/70 mt-2 leading-relaxed">
                       Jawaban tim kamu sudah terkirim.<br/>Jangan tutup halaman ini ya!
                     </p>
                   </div>

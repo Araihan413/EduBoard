@@ -26,7 +26,7 @@ export default function RoomSetupHub() {
     gameDurationMin: 10,
     turnDurationDasar: 30,
     turnDurationTantangan: 60,
-    turnDurationAksi: 15,
+    turnDurationAksi: 20,
     maxGroups: 4
   });
 
@@ -43,7 +43,6 @@ export default function RoomSetupHub() {
       maxGroups: draftConfig.maxGroups,
       questionSetId: selectedSetId
     } as any);
-    toast.success("Room berhasil dibuat!");
   };
 
   return (
@@ -135,13 +134,13 @@ export default function RoomSetupHub() {
           </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-          {/* Group 1: Time Settings */}
+          {/* Group 1: Session Settings */}
           <div className="space-y-8">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-blue-50 text-[#2c49c5] rounded-xl flex items-center justify-center border border-blue-100">
                 <Clock size={20} />
               </div>
-              <h4 className="font-black text-slate-900 uppercase tracking-widest text-sm">Pengaturan Waktu</h4>
+              <h4 className="font-black text-slate-900 uppercase tracking-widest text-sm">Pengaturan Sesi</h4>
             </div>
             
             <div className="space-y-6">
@@ -155,44 +154,6 @@ export default function RoomSetupHub() {
                   value={draftConfig.gameDurationMin}
                   onChange={(e) => setDraftConfig({...draftConfig, gameDurationMin: parseInt(e.target.value)})}
                   className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-[#2c49c5]"
-                />
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex justify-between items-end">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Waktu Jawab (Dasar)</label>
-                  <span className="text-sm font-black text-slate-600 bg-slate-100 px-3 py-1 rounded-lg">{draftConfig.turnDurationDasar} Detik</span>
-                </div>
-                <input 
-                  type="range" min="10" max="120" step="10"
-                  value={draftConfig.turnDurationDasar}
-                  onChange={(e) => setDraftConfig({...draftConfig, turnDurationDasar: parseInt(e.target.value)})}
-                  className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-[#2c49c5]"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Group 2: Advanced Settings */}
-          <div className="space-y-8">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-orange-50 text-orange-600 rounded-xl flex items-center justify-center border border-orange-100">
-                <Zap size={20} />
-              </div>
-              <h4 className="font-black text-slate-900 uppercase tracking-widest text-sm">Mode & Kapasitas</h4>
-            </div>
-
-            <div className="space-y-6">
-              <div className="space-y-3">
-                <div className="flex justify-between items-end">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Waktu Jawab (Tantangan)</label>
-                  <span className="text-sm font-black text-orange-600 bg-orange-50 px-3 py-1 rounded-lg">{draftConfig.turnDurationTantangan} Detik</span>
-                </div>
-                <input 
-                  type="range" min="30" max="300" step="30"
-                  value={draftConfig.turnDurationTantangan}
-                  onChange={(e) => setDraftConfig({...draftConfig, turnDurationTantangan: parseInt(e.target.value)})}
-                  className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-orange-500"
                 />
               </div>
 
@@ -214,6 +175,57 @@ export default function RoomSetupHub() {
                     </button>
                   ))}
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Group 2: Answer Durations */}
+          <div className="space-y-8">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-orange-50 text-orange-600 rounded-xl flex items-center justify-center border border-orange-100">
+                <Zap size={20} />
+              </div>
+              <h4 className="font-black text-slate-900 uppercase tracking-widest text-sm">Durasi Menjawab</h4>
+            </div>
+
+            <div className="space-y-6">
+              <div className="space-y-3">
+                <div className="flex justify-between items-end">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Waktu Jawab (Dasar)</label>
+                  <span className="text-sm font-black text-slate-600 bg-slate-100 px-3 py-1 rounded-lg">{draftConfig.turnDurationDasar} Detik</span>
+                </div>
+                <input 
+                  type="range" min="10" max="120" step="10"
+                  value={draftConfig.turnDurationDasar}
+                  onChange={(e) => setDraftConfig({...draftConfig, turnDurationDasar: parseInt(e.target.value)})}
+                  className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                />
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex justify-between items-end">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Waktu Jawab (Tantangan)</label>
+                  <span className="text-sm font-black text-orange-600 bg-orange-50 px-3 py-1 rounded-lg">{draftConfig.turnDurationTantangan} Detik</span>
+                </div>
+                <input 
+                  type="range" min="30" max="300" step="30"
+                  value={draftConfig.turnDurationTantangan}
+                  onChange={(e) => setDraftConfig({...draftConfig, turnDurationTantangan: parseInt(e.target.value)})}
+                  className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-orange-500"
+                />
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex justify-between items-end">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Waktu Aksi (Praktik)</label>
+                  <span className="text-sm font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-lg">{draftConfig.turnDurationAksi} Detik</span>
+                </div>
+                <input 
+                  type="range" min="10" max="120" step="5"
+                  value={draftConfig.turnDurationAksi}
+                  onChange={(e) => setDraftConfig({...draftConfig, turnDurationAksi: parseInt(e.target.value)})}
+                  className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                />
               </div>
             </div>
           </div>

@@ -389,6 +389,7 @@ export const useGameStore = create<GameState & GameActions>()(
 
 
         createRoom: async (config) => {
+          const toastId = toast.loading("Sedang menyiapkan ruangan permainan...");
           try {
             const room = await api.post("/api/rooms", {
               durationMinutes: config.gameDurationSec / 60,
@@ -399,6 +400,8 @@ export const useGameStore = create<GameState & GameActions>()(
               questionSetId: config.questionSetId
             });
             const newCode = room.code;
+            toast.dismiss(toastId);
+            toast.success(`Ruangan berhasil dibuat! Kode: ${newCode}`);
             set({
               gameStatus: 'LOBBY',
               roomCode: newCode,
@@ -440,6 +443,8 @@ export const useGameStore = create<GameState & GameActions>()(
               });
             }
           } catch (err: any) {
+            toast.dismiss(toastId);
+            toast.error("Gagal membuat ruangan: " + (err.message || "Terjadi kesalahan"));
             console.error(err);
           }
         },
@@ -618,10 +623,12 @@ export const useGameStore = create<GameState & GameActions>()(
           try {
             const newSet = await api.post("/api/sets", { title, description });
             await get().fetchQuestionSets(1, false); 
-            toast.success("Paket soal berhasil dibuat!", { id: toastId });
+            toast.dismiss(toastId);
+            toast.success("Paket soal berhasil dibuat!");
             return newSet;
           } catch (err: any) {
-            toast.error("Gagal membuat paket soal: " + err.message, { id: toastId });
+            toast.dismiss(toastId);
+            toast.error("Gagal membuat paket soal: " + err.message);
             throw err;
           }
         },
@@ -630,10 +637,12 @@ export const useGameStore = create<GameState & GameActions>()(
           try {
             const updated = await api.put(`/api/sets/${id}`, { title, description });
             await get().fetchQuestionSets(get().pagination.sets.page, false);
-            toast.success("Paket soal berhasil diperbarui!", { id: toastId });
+            toast.dismiss(toastId);
+            toast.success("Paket soal berhasil diperbarui!");
             return updated;
           } catch (err: any) {
-            toast.error("Gagal memperbarui paket soal: " + err.message, { id: toastId });
+            toast.dismiss(toastId);
+            toast.error("Gagal memperbarui paket soal: " + err.message);
             throw err;
           }
         },
@@ -651,9 +660,11 @@ export const useGameStore = create<GameState & GameActions>()(
             set((state) => ({ 
               activeQuestionSet: state.activeQuestionSet?.id === id ? null : state.activeQuestionSet
             }));
-            toast.success("Paket soal berhasil dihapus!", { id: toastId });
+            toast.dismiss(toastId);
+            toast.success("Paket soal berhasil dihapus!");
           } catch (err: any) {
-            toast.error("Gagal menghapus paket soal: " + err.message, { id: toastId });
+            toast.dismiss(toastId);
+            toast.error("Gagal menghapus paket soal: " + err.message);
             throw err;
           }
         },
@@ -662,10 +673,12 @@ export const useGameStore = create<GameState & GameActions>()(
           try {
             const newSet = await api.post(`/api/sets/${id}/duplicate`, {});
             await get().fetchQuestionSets(get().pagination.sets.page, false);
-            toast.success("Paket soal berhasil disalin!", { id: toastId });
+            toast.dismiss(toastId);
+            toast.success("Paket soal berhasil disalin!");
             return newSet;
           } catch (err: any) {
-            toast.error("Gagal menyalin paket: " + err.message, { id: toastId });
+            toast.dismiss(toastId);
+            toast.error("Gagal menyalin paket: " + err.message);
             throw err;
           }
         },
@@ -674,9 +687,11 @@ export const useGameStore = create<GameState & GameActions>()(
           try {
             await api.post(`/api/sets/${setId}/import`, { questions });
             await get().fetchQuestions(setId, 1, false);
-            toast.success(`Berhasil mengimport ${questions.length} soal!`, { id: toastId });
+            toast.dismiss(toastId);
+            toast.success(`Berhasil mengimport ${questions.length} soal!`);
           } catch (err: any) {
-            toast.error("Gagal mengimport soal: " + err.message, { id: toastId });
+            toast.dismiss(toastId);
+            toast.error("Gagal mengimport soal: " + err.message);
             throw err;
           }
         },
@@ -694,9 +709,11 @@ export const useGameStore = create<GameState & GameActions>()(
           try {
             const newQ = await api.post("/api/questions", { setId, ...q });
             syncSet((state) => ({ questions: [newQ, ...state.questions] }));
-            toast.success("Pertanyaan berhasil ditambahkan!", { id: toastId });
+            toast.dismiss(toastId);
+            toast.success("Pertanyaan berhasil ditambahkan!");
           } catch (err: any) {
-            toast.error("Gagal menyimpan pertanyaan: " + err.message, { id: toastId });
+            toast.dismiss(toastId);
+            toast.error("Gagal menyimpan pertanyaan: " + err.message);
             throw err;
           }
         },
@@ -705,9 +722,11 @@ export const useGameStore = create<GameState & GameActions>()(
           try {
             const newQ = await api.put(`/api/questions/${id}`, updatedQ);
             syncSet((state) => ({ questions: state.questions.map(q => q.id === id ? newQ : q) }));
-            toast.success("Pertanyaan berhasil diperbarui!", { id: toastId });
+            toast.dismiss(toastId);
+            toast.success("Pertanyaan berhasil diperbarui!");
           } catch (err: any) {
-            toast.error("Gagal memperbarui pertanyaan: " + err.message, { id: toastId });
+            toast.dismiss(toastId);
+            toast.error("Gagal memperbarui pertanyaan: " + err.message);
             throw err;
           }
         },
@@ -724,9 +743,11 @@ export const useGameStore = create<GameState & GameActions>()(
                 await get().fetchQuestions(activeSet.id, currentPage - 1, false);
               }
             }
-            toast.success("Pertanyaan berhasil dihapus!", { id: toastId });
+            toast.dismiss(toastId);
+            toast.success("Pertanyaan berhasil dihapus!");
           } catch (err: any) {
-            toast.error("Gagal menghapus pertanyaan: " + err.message, { id: toastId });
+            toast.dismiss(toastId);
+            toast.error("Gagal menghapus pertanyaan: " + err.message);
             throw err;
           }
         },
@@ -969,12 +990,20 @@ export const useGameStore = create<GameState & GameActions>()(
             if (isGuru) {
               // Give the active student a 1.5-second grace period to submit their drafted answer
               setTimeout(() => {
+                const currentState = get();
                 // If the card is STILL open, meaning the student didn't submit it in time (or is offline)
-                if (get().currentCard?.id === state.currentCard?.id) {
-                   if (state.currentCard?.type === 'DASAR' || state.currentCard?.type === 'AKSI') {
-                     get().submitAnswerObjektif(activeG.id, "TIMEOUT");
-                   } else if (state.currentCard?.type === 'TANTANGAN') {
-                     get().submitAnswerSubjektif(activeG.id, "(Waktu habis, siswa tidak merespon)");
+                if (currentState.currentCard?.id === state.currentCard?.id) {
+                   if (currentState.currentCard?.type === 'DASAR') {
+                     currentState.submitAnswerObjektif(activeG.id, "TIMEOUT");
+                   } else if (currentState.currentCard?.type === 'TANTANGAN' || currentState.currentCard?.type === 'AKSI') {
+                     // Only submit fallback if the student hasn't submitted yet
+                     const alreadySubmitted = currentState.pendingReviews.some(r => r.groupId === activeG.id);
+                     if (!alreadySubmitted) {
+                        const fallbackMsg = currentState.currentCard?.type === 'TANTANGAN' 
+                          ? "(Waktu habis, siswa tidak merespon)"
+                          : "(Waktu habis, aksi belum selesai)";
+                        currentState.submitAnswerSubjektif(activeG.id, fallbackMsg);
+                     }
                    }
                 }
               }, 1500);
