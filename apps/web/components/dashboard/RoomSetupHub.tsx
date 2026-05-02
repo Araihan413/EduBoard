@@ -96,14 +96,14 @@ export default function RoomSetupHub() {
                     onClick={() => setSelectedSetId(set.id)}
                     className={`p-5 rounded-[1.5rem] border-2 text-left transition-all relative overflow-hidden group ${
                       selectedSetId === set.id 
-                        ? (set.isPreset ? 'bg-emerald-50 border-emerald-500 shadow-lg shadow-emerald-100' : 'bg-blue-50 border-blue-600 shadow-lg shadow-blue-100')
+                        ? (set.isPreset ? 'bg-amber-50 border-amber-500 shadow-lg shadow-amber-100' : 'bg-blue-50 border-blue-600 shadow-lg shadow-blue-100')
                         : 'bg-white border-slate-100 hover:border-slate-200'
                     }`}
                   >
                     {set.isPreset ? (
-                      <div className="absolute top-2 right-2 text-emerald-500 flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                      <div className="absolute top-2 right-2 text-amber-500 flex items-center gap-1 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">
                         <ShieldCheck size={10} />
-                        <span className="text-[8px] font-black uppercase tracking-tighter">Official</span>
+                        <span className="text-[8px] font-black uppercase tracking-tighter">Preset</span>
                       </div>
                     ) : selectedSetId === set.id ? (
                       <div className="absolute top-2 right-2 text-blue-600">
@@ -114,7 +114,7 @@ export default function RoomSetupHub() {
                         <User size={12} />
                       </div>
                     )}
-                    <h5 className={`font-black text-sm mb-1 truncate pr-12 ${selectedSetId === set.id ? (set.isPreset ? 'text-emerald-900' : 'text-blue-900') : 'text-slate-700'}`}>{set.title}</h5>
+                    <h5 className={`font-black text-sm mb-1 truncate pr-12 ${selectedSetId === set.id ? (set.isPreset ? 'text-amber-900' : 'text-blue-900') : 'text-slate-700'}`}>{set.title}</h5>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                       {set._count?.questions || 0} Pertanyaan
                     </p>
@@ -195,7 +195,7 @@ export default function RoomSetupHub() {
                   <span className="text-sm font-black text-slate-600 bg-slate-100 px-3 py-1 rounded-lg">{draftConfig.turnDurationDasar} Detik</span>
                 </div>
                 <input 
-                  type="range" min="10" max="120" step="10"
+                  type="range" min="10" max="120" step="5"
                   value={draftConfig.turnDurationDasar}
                   onChange={(e) => setDraftConfig({...draftConfig, turnDurationDasar: parseInt(e.target.value)})}
                   className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-blue-600"
@@ -208,7 +208,7 @@ export default function RoomSetupHub() {
                   <span className="text-sm font-black text-orange-600 bg-orange-50 px-3 py-1 rounded-lg">{draftConfig.turnDurationTantangan} Detik</span>
                 </div>
                 <input 
-                  type="range" min="30" max="300" step="30"
+                  type="range" min="30" max="300" step="5"
                   value={draftConfig.turnDurationTantangan}
                   onChange={(e) => setDraftConfig({...draftConfig, turnDurationTantangan: parseInt(e.target.value)})}
                   className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-orange-500"

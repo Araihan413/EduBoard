@@ -46,8 +46,8 @@ export default function AboutPage() {
               </p>
               <div className="grid grid-cols-2 gap-6">
                  <div className="p-6 rounded-2xl bg-white border border-slate-100 shadow-sm">
-                    <div className="text-[#2c49c5] font-black text-3xl mb-2">95%</div>
-                    <p className="text-xs text-slate-400 font-bold uppercase tracking-widest leading-tight">Siswa lebih antusias belajar</p>
+                    <div className="text-[#2c49c5] font-black text-3xl mb-2">Digital</div>
+                    <p className="text-xs text-slate-400 font-bold uppercase tracking-widest leading-tight">Media belajar PAI berbasis teknologi</p>
                  </div>
                  <div className="p-6 rounded-2xl bg-white border border-slate-100 shadow-sm">
                     <div className="text-[#ffda59] font-black text-3xl mb-2">Realtime</div>
@@ -137,4 +137,3 @@ function ValueCard({ icon, title, desc }: { icon: React.ReactNode, title: string
     </div>
   );
 }
-

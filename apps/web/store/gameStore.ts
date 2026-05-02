@@ -687,6 +687,8 @@ export const useGameStore = create<GameState & GameActions>()(
           try {
             await api.post(`/api/sets/${setId}/import`, { questions });
             await get().fetchQuestions(setId, 1, false);
+            // Refresh counts in library
+            await get().fetchQuestionSets(get().pagination.sets.page, false);
             toast.dismiss(toastId);
             toast.success(`Berhasil mengimport ${questions.length} soal!`);
           } catch (err: any) {
@@ -709,6 +711,8 @@ export const useGameStore = create<GameState & GameActions>()(
           try {
             const newQ = await api.post("/api/questions", { setId, ...q });
             syncSet((state) => ({ questions: [newQ, ...state.questions] }));
+            // Refresh counts in library
+            await get().fetchQuestionSets(get().pagination.sets.page, false);
             toast.dismiss(toastId);
             toast.success("Pertanyaan berhasil ditambahkan!");
           } catch (err: any) {
@@ -742,6 +746,8 @@ export const useGameStore = create<GameState & GameActions>()(
               if (get().questions.length === 0 && currentPage > 1) {
                 await get().fetchQuestions(activeSet.id, currentPage - 1, false);
               }
+              // Refresh counts in library
+              await get().fetchQuestionSets(get().pagination.sets.page, false);
             }
             toast.dismiss(toastId);
             toast.success("Pertanyaan berhasil dihapus!");

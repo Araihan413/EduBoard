@@ -100,12 +100,12 @@ export default function Navbar() {
           )}
 
           {isLoggedIn ? (
-            <Link href="/dashboard" className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-[#2c49c5] hover:text-[#1a34a8] transition-all px-4 py-2 bg-blue-50 hover:bg-blue-100 rounded-xl">
+            <Link href="/dashboard" className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-[#2c49c5] hover:text-[#1a34a8] transition-all px-4 py-3 bg-blue-50 hover:bg-blue-100 rounded-xl">
               <LayoutDashboard className="w-4 h-4" />
               Dashboard
             </Link>
           ) : (
-            <Link href="/login" className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-[#2c49c5] transition-all px-4 py-2">
+            <Link href="/login" className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-[#2c49c5] transition-all px-4 py-3">
               <LogIn className="w-4 h-4" />
               Login Guru
             </Link>

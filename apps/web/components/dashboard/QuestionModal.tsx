@@ -41,11 +41,9 @@ export default function QuestionModal({ isOpen, onClose, editingQuestion, setId 
     try {
       if (editingQuestion) {
         await updateQuestion(editingQuestion.id!, newQ);
-        toast.success("Pertanyaan diperbarui!");
       } else {
         if (!setId) throw new Error("setId is required for new questions");
         await addQuestion(setId, newQ as any);
-        toast.success("Pertanyaan baru ditambahkan!");
       }
       onClose();
     } catch (err: any) {

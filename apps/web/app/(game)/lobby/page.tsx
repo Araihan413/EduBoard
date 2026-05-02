@@ -275,14 +275,29 @@ export default function LobbyPage() {
                 <div className="flex flex-col md:flex-row gap-8 items-center">
                   <div className="relative">
                     <div className={`w-32 h-32 rounded-[2rem] ${selectedColor.bg} ${selectedColor.shadow} shadow-lg transition-all duration-500 relative z-10 overflow-hidden`}>
-                      <NextImage 
-                        src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${AVATAR_SEEDS[avatarIndex]}`} 
-                        alt="Avatar" 
-                        width={128}
-                        height={128}
-                        className="w-full h-full object-cover scale-110 translate-y-3"
-                        unoptimized
-                      />
+                      <AnimatePresence mode="popLayout" initial={false}>
+                        <motion.div
+                          key={avatarIndex}
+                          initial={{ opacity: 0, scale: 0.8, x: 20 }}
+                          animate={{ opacity: 1, scale: 1, x: 0 }}
+                          exit={{ opacity: 0, scale: 0.8, x: -20 }}
+                          transition={{ 
+                            type: "spring", 
+                            stiffness: 300, 
+                            damping: 30 
+                          }}
+                          className="w-full h-full"
+                        >
+                          <NextImage 
+                            src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${AVATAR_SEEDS[avatarIndex]}`} 
+                            alt="Avatar" 
+                            width={128}
+                            height={128}
+                            className="w-full h-full object-cover scale-110 translate-y-3"
+                            unoptimized
+                          />
+                        </motion.div>
+                      </AnimatePresence>
                     </div>
                     
                     <button 
@@ -511,6 +526,16 @@ export default function LobbyPage() {
           </motion.div>
         )}
       </AnimatePresence>
+      {/* Preload all avatars to prevent flickering when selecting */}
+      <div className="hidden" aria-hidden="true">
+        {AVATAR_SEEDS.map((seed) => (
+          <img 
+            key={seed} 
+            src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${seed}`} 
+            alt="" 
+          />
+        ))}
+      </div>
     </div>
   );
 }

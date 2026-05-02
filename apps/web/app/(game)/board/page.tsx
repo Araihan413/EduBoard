@@ -5,7 +5,6 @@ import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import {
   useGameStore,
-  socket,
   type QuestionCard,
   type Group,
   type PendingReview,
@@ -206,44 +205,6 @@ function BoardPage() {
   // Submit timeout logic natively for the active student
   const lastTimeoutCardRef = useRef<string | null>(null);
 
-  // Master Timer Loop (Guru Only)
-  useEffect(() => {
-    if (role !== "guru") return;
-
-    const interval = setInterval(() => {
-      const state = useGameStore.getState();
-      if (state.gameStatus !== 'PLAYING') return;
-
-      const updates: any = {};
-
-      // 1. Decrement Global Timer
-      if (state.globalTimer > 0) {
-        updates.globalTimer = state.globalTimer - 1;
-      } else if (state.globalTimer === 0 && state.gameStatus === 'PLAYING') {
-        // End game when global timer reaches zero
-        state.endGame();
-        return;
-      }
-
-      // 2. Decrement Turn Timer
-      if (state.isTimerRunning && state.timer > 0) {
-        updates.timer = state.timer - 1;
-      } else if (state.isTimerRunning && state.timer <= 0) {
-        // Handle Timeout centrally
-        state.decrementTimer(); // This triggers the "TIMEOUT" submission logic
-      }
-
-      if (Object.keys(updates).length > 0) {
-        useGameStore.setState(updates);
-        // Sync to all clients
-        if (socket && roomCode) {
-          socket.emit("game:sync_state", { roomCode, state: updates });
-        }
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [role, roomCode, endGame]);
 
 
   useEffect(() => {

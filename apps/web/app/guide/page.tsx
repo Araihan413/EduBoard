@@ -170,7 +170,7 @@ function GuideCard({ icon, title, desc, color }: { icon: React.ReactNode, title:
   return (
     <motion.div 
       whileHover={{ y: -10 }}
-      className={`p-10 rounded-[2rem] border-2 bg-white flex flex-col items-center text-center shadow-xl transition-all ${colorMap[color]}`}
+      className={`p-10 rounded-[2rem] border-2 bg-white flex flex-col items-center text-center shadow-xl ${colorMap[color]}`}
     >
       <div className={`w-20 h-20 rounded-2xl flex items-center justify-center mb-8 shadow-inner ${colorMap[color]}`}>
         {icon}

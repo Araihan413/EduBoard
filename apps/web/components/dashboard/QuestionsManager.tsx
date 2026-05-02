@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useGameStore, QuestionCard, QuestionType, QuestionSet } from "../../store/gameStore";
 import { QuestionSchema } from "@repo/types";
 import Papa from "papaparse";
+import * as XLSX from "xlsx";
 import { useDebounce } from "../../hooks/useDebounce";
 import QuestionModal from "./QuestionModal";
 import ConfirmModal from "../shared/ConfirmModal";
@@ -90,87 +91,123 @@ export default function QuestionsManager() {
 
 
   const handleDownloadTemplate = () => {
-    const headers = "type,text,points,answerKey,options_1,options_2,options_3,options_4";
-    const examples = [
-      "DASAR,Sebutkan rukun Islam yang pertama,10,Syahadat,Syahadat,Shalat,Zakat,Puasa",
-      "AKSI,Praktikkan tata cara wudhu dengan benar di depan kelas!,20,Teacher Grade,,,,",
-      "TANTANGAN,Sebutkan minimal 3 hikmah dari ibadah puasa Ramadan!,25,Teacher Grade,,,,"
-    ].join("\n");
-    const blob = new Blob([`${headers}\n${examples}`], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'template_soal_eduboard.csv';
-    a.click();
+    const data = [
+      ["type", "text", "points", "answerKey", "options_1", "options_2", "options_3", "options_4"],
+      ["DASAR", "Sebutkan rukun Islam yang pertama", 10, "Syahadat", "Syahadat", "Shalat", "Zakat", "Puasa"],
+      ["AKSI", "Praktikkan tata cara wudhu dengan benar di depan kelas!", 20, "Teacher Grade", "", "", "", ""],
+      ["TANTANGAN", "Sebutkan minimal 3 hikmah dari ibadah puasa Ramadan!", 25, "Teacher Grade", "", "", "", ""]
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    
+    // Set column widths for better readability
+    ws['!cols'] = [
+      { wch: 15 }, // type
+      { wch: 50 }, // text
+      { wch: 10 }, // points
+      { wch: 20 }, // answerKey
+      { wch: 15 }, // options_1
+      { wch: 15 }, // options_2
+      { wch: 15 }, // options_3
+      { wch: 15 }, // options_4
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Template Soal");
+    XLSX.writeFile(wb, "template_soal_eduboard.xlsx");
   };
 
-  const handleImportCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const processImportData = async (rows: any[]) => {
+    const validQuestions: any[] = [];
+    const errors: string[] = [];
+
+    rows.forEach((row, index) => {
+      try {
+        // Transform options from flat columns (options_1, etc) to array
+        const options = [
+          row.options_1,
+          row.options_2,
+          row.options_3,
+          row.options_4
+        ].filter(v => v !== undefined && v !== null && v !== "").map(s => String(s).trim());
+
+        const rawData = {
+          type: String(row.type || "").toUpperCase(),
+          text: String(row.text || ""),
+          points: parseInt(row.points) || 10,
+          answerKey: String(row.answerKey || ""),
+          options: options.length > 0 ? options : undefined
+        };
+
+        // Validate with Zod
+        const validated = QuestionSchema.parse(rawData);
+        validQuestions.push(validated);
+      } catch (err: any) {
+        const msg = err.errors?.[0]?.message || "Format tidak valid";
+        errors.push(`Baris ${index + 2}: ${msg}`);
+      }
+    });
+
+    if (errors.length > 0) {
+      toast.error(
+        <div className="space-y-2">
+          <p className="font-bold">Gagal mengimport beberapa soal:</p>
+          <ul className="text-[10px] list-disc pl-4 max-h-32 overflow-y-auto">
+            {errors.map((err, i) => <li key={i}>{err}</li>)}
+          </ul>
+          {validQuestions.length > 0 && (
+            <button 
+              onClick={() => proceedImport(validQuestions)}
+              className="mt-2 text-[10px] bg-blue-600 text-white px-3 py-1 rounded-lg font-black uppercase tracking-widest"
+            >
+              Lanjutkan Import {validQuestions.length} Soal Valid
+            </button>
+          )}
+        </div>,
+        { duration: 6000 }
+      );
+    } else if (validQuestions.length > 0) {
+      await proceedImport(validQuestions);
+    } else {
+      toast.error("File kosong atau tidak memiliki data yang valid.");
+    }
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !activeQuestionSet) return;
 
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: async (results) => {
-        const rows = results.data as any[];
-        const validQuestions: any[] = [];
-        const errors: string[] = [];
+    const fileName = file.name.toLowerCase();
 
-        rows.forEach((row, index) => {
-          try {
-            // Transform options from flat columns (options_1, etc) to array
-            const options = [
-              row.options_1,
-              row.options_2,
-              row.options_3,
-              row.options_4
-            ].filter(Boolean).map(s => s.trim());
-
-            const rawData = {
-              type: row.type?.toUpperCase(),
-              text: row.text,
-              points: parseInt(row.points) || 10,
-              answerKey: row.answerKey,
-              options: options.length > 0 ? options : undefined
-            };
-
-            // Validate with Zod
-            const validated = QuestionSchema.parse(rawData);
-            validQuestions.push(validated);
-          } catch (err: any) {
-            const msg = err.errors?.[0]?.message || "Format tidak valid";
-            errors.push(`Baris ${index + 2}: ${msg}`);
-          }
-        });
-
-        if (errors.length > 0) {
-          toast.error(
-            <div className="space-y-2">
-              <p className="font-bold">Gagal mengimport beberapa soal:</p>
-              <ul className="text-[10px] list-disc pl-4 max-h-32 overflow-y-auto">
-                {errors.map((err, i) => <li key={i}>{err}</li>)}
-              </ul>
-              {validQuestions.length > 0 && (
-                <button 
-                  onClick={() => proceedImport(validQuestions)}
-                  className="mt-2 text-[10px] bg-blue-600 text-white px-3 py-1 rounded-lg font-black uppercase tracking-widest"
-                >
-                  Lanjutkan Import {validQuestions.length} Soal Valid
-                </button>
-              )}
-            </div>,
-            { duration: 6000 }
-          );
-        } else if (validQuestions.length > 0) {
-          await proceedImport(validQuestions);
-        } else {
-          toast.error("File CSV kosong atau tidak memiliki data yang valid.");
+    if (fileName.endsWith('.csv')) {
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+          processImportData(results.data);
+        },
+        error: (err) => {
+          toast.error("Gagal membaca file CSV: " + err.message);
         }
-      },
-      error: (err) => {
-        toast.error("Gagal membaca file CSV: " + err.message);
-      }
-    });
+      });
+    } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const data = new Uint8Array(event.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const rows = XLSX.utils.sheet_to_json(worksheet);
+          processImportData(rows);
+        } catch (err) {
+          toast.error("Gagal membaca file Excel.");
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      toast.error("Format file tidak didukung. Gunakan .xlsx atau .csv");
+    }
     
     e.target.value = ""; // Reset input
   };
@@ -179,7 +216,6 @@ export default function QuestionsManager() {
     if (!activeQuestionSet) return;
     try {
       await importQuestions(activeQuestionSet.id, data);
-      toast.success(`Berhasil mengimport ${data.length} soal!`);
     } catch {
       toast.error("Gagal menyimpan soal ke server.");
     }
@@ -542,14 +578,14 @@ export default function QuestionsManager() {
             <>
               <button 
                 onClick={handleDownloadTemplate}
-                className="p-4 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-2xl transition-all flex items-center gap-2 text-sm font-bold"
-                title="Unduh Template CSV"
+                className="px-4 py-3 bg-slate-50 hover:bg-slate-200 text-slate-600 rounded-xl transition-all flex items-center gap-2 text-xs font-bold cursor-pointer"
+                title="Unduh Template Excel"
               >
                 <Download size={20} /> <span className="hidden sm:inline">Template</span>
               </button>
-              <label className="p-4 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-2xl transition-all flex items-center gap-2 text-sm font-bold cursor-pointer">
-                <FileUp size={20} /> <span className="hidden sm:inline">Import CSV</span>
-                <input type="file" accept=".csv" className="hidden" onChange={handleImportCSV} />
+              <label className="px-4 py-3 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-xl transition-all flex items-center gap-2 text-xs font-bold cursor-pointer">
+                <FileUp size={20} /> <span className="hidden sm:inline">Import Excel/CSV</span>
+                <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportFile} />
               </label>
               <button 
                 onClick={() => { setEditingQuestion(null); setShowQuestionModal(true); }}
