@@ -120,6 +120,7 @@ interface GameState {
   countdown: number | null;
   activeTab: 'SESI' | 'SOAL' | 'RIWAYAT';
   selectedSession: any | null;
+  isGrading: boolean;
 }
 
 interface GameActions {
@@ -364,6 +365,7 @@ export const useGameStore = create<GameState & GameActions>()(
         countdown: null,
         activeTab: 'SESI',
         selectedSession: null,
+        isGrading: false,
 
         toggleMute: () => set((state) => ({ isMuted: !state.isMuted })),
         setCountdown: (val) => syncSet({ countdown: val }),
@@ -409,6 +411,7 @@ export const useGameStore = create<GameState & GameActions>()(
               roomConfig: config,
               groups: [], // CLEAR old groups
               pendingReviews: [], // CLEAR old reviews
+              isGrading: false,
               winner: null,
               currentCard: null,
               timer: 0,
@@ -478,6 +481,7 @@ export const useGameStore = create<GameState & GameActions>()(
               winner: null,
               currentCard: null,
               lastResult: null,
+              isGrading: false,
               timer: 0,
               globalTimer: roomData.globalTimer || 0,
               isTimerRunning: false
@@ -592,7 +596,8 @@ export const useGameStore = create<GameState & GameActions>()(
             globalTimer: 0,
             isTimerRunning: false,
             isGlobalTimerRunning: false,
-            pendingReviews: []
+            pendingReviews: [],
+            isGrading: false
           });
           
           // Allow re-joining later if they manually enter a code
@@ -890,7 +895,16 @@ export const useGameStore = create<GameState & GameActions>()(
         submitAnswerSubjektif: (groupId, answerText) => {
           const state = get();
           const card = state.currentCard;
-          if (socket && card) {
+          if (!card) return;
+
+          // Guard: If we already have a pending review for this group in this turn, don't submit again
+          const alreadyHasReview = state.pendingReviews.some(r => r.groupId === groupId);
+          if (alreadyHasReview) {
+            console.warn(`[submitAnswerSubjektif] Submission ignored: Group ${groupId} already has a pending review.`);
+            return;
+          }
+
+          if (socket) {
             socket.emit("student:submit_answer", {
               roomCode: state.roomCode,
               groupId,
@@ -908,11 +922,18 @@ export const useGameStore = create<GameState & GameActions>()(
 
         reviewSubmission: (reviewId, score) => {
           const state = get();
+          
+          // Guard: Prevent double grading
+          if (state.isGrading) return;
+
           const review = state.pendingReviews.find(r => r.id === reviewId);
           if (!review) {
-            console.error(`[gradeSubjektif] Review tidak ditemukan: id=${reviewId}. Daftar review:`, state.pendingReviews);
+            // Silently return if review is gone (likely already processed by another tab or sync)
+            console.warn(`[gradeSubjektif] Review ${reviewId} not found. Likely already processed.`);
             return;
           }
+
+          set({ isGrading: true });
 
           if (socket) {
             socket.emit("teacher:grade_answer", {
@@ -977,7 +998,8 @@ export const useGameStore = create<GameState & GameActions>()(
             timer: 0,
             isTimerRunning: false,
             isMoving: false,
-            isRolling: false
+            isRolling: false,
+            isGrading: false
           }));
         },
 
@@ -998,7 +1020,8 @@ export const useGameStore = create<GameState & GameActions>()(
               setTimeout(() => {
                 const currentState = get();
                 // If the card is STILL open, meaning the student didn't submit it in time (or is offline)
-                if (currentState.currentCard?.id === state.currentCard?.id) {
+                // AND we are not currently in the middle of a grading process
+                if (currentState.currentCard?.id === state.currentCard?.id && !currentState.isGrading) {
                    if (currentState.currentCard?.type === 'DASAR') {
                      currentState.submitAnswerObjektif(activeG.id, "TIMEOUT");
                    } else if (currentState.currentCard?.type === 'TANTANGAN' || currentState.currentCard?.type === 'AKSI') {
@@ -1006,13 +1029,13 @@ export const useGameStore = create<GameState & GameActions>()(
                      const alreadySubmitted = currentState.pendingReviews.some(r => r.groupId === activeG.id);
                      if (!alreadySubmitted) {
                         const fallbackMsg = currentState.currentCard?.type === 'TANTANGAN' 
-                          ? "(Waktu habis, siswa tidak merespon)"
+                          ? "(Waktu habis, jawaban belum selesai)"
                           : "(Waktu habis, aksi belum selesai)";
                         currentState.submitAnswerSubjektif(activeG.id, fallbackMsg);
                      }
                    }
                 }
-              }, 1500);
+              }, 5000);
             }
           }
         },

@@ -28,6 +28,7 @@ import {
   LayoutDashboard,
   Trophy,
   Rocket,
+  Loader2,
   Volume2,
   VolumeX,
 } from "lucide-react";
@@ -104,7 +105,6 @@ function BoardPage() {
     fetchQuestions,
     isGuru,
     roomConfig,
-    endGame,
     isMuted,
     toggleMute
   } = useGameStore();
@@ -118,6 +118,7 @@ function BoardPage() {
   const [tantanganText, setTantanganText] = useState("");
   const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Page protection - only redirect if we are SURE we are not in a room after rehydration
   useEffect(() => {
@@ -147,9 +148,9 @@ function BoardPage() {
 
   const activeGroup = groups[activeGroupIndex];
   const myGroup = groups.find(g => g.name === myGroupName);
-  const isUnderReview = role === "guru"
+  const isUnderReview = (role === "guru"
     ? pendingReviews.length > 0
-    : pendingReviews.some((r) => r.groupId === activeGroup?.id || r.groupId === myGroup?.id);
+    : pendingReviews.some((r) => r.groupId === activeGroup?.id || r.groupId === myGroup?.id)) || isSubmitting;
 
   // Card State Machine — single effect, ref-driven to prevent race conditions
   const syncTimerRef    = useRef<NodeJS.Timeout | null>(null);
@@ -194,6 +195,7 @@ function BoardPage() {
           returnTimerRef.current = null;
           setStickyCardData(null);
           setTantanganText("");
+          setIsSubmitting(false); // RESET submission state when card closes
           updatePhase("idle");
         }, 800);
       }
@@ -215,13 +217,29 @@ function BoardPage() {
         if (currentCard.type === 'DASAR') {
           submitAnswerObjektif(activeGroup.id, "TIMEOUT");
         } else if (currentCard.type === 'TANTANGAN' || currentCard.type === 'AKSI') {
-          submitAnswerSubjektif(activeGroup.id, tantanganText.trim() || "(Waktu habis, tidak ada jawaban)");
+          setTimeout(() => setIsSubmitting(true), 0);
+          const fallbackMsg = currentCard.type === 'TANTANGAN' 
+            ? "(Waktu habis, jawaban belum selesai)" 
+            : "(Waktu habis, aksi belum selesai)";
+          submitAnswerSubjektif(activeGroup.id, tantanganText.trim() || fallbackMsg);
           setTimeout(() => setTantanganText(""), 0);
         }
       }
     }
   }, [timer, role, activeGroup, myGroupName, currentCard, tantanganText, submitAnswerObjektif, submitAnswerSubjektif]);
 
+
+  // Reset isSubmitting when a review arrives or the teacher grades it (lastResult arrives)
+  useEffect(() => {
+    if (!isSubmitting) return;
+
+    const hasMyReview = pendingReviews.some((r) => r.groupId === activeGroup?.id || r.groupId === myGroup?.id);
+    const hasMyResult = lastResult?.groupName === myGroupName || lastResult?.groupName === activeGroup?.name;
+
+    if (hasMyReview || hasMyResult || !currentCard) {
+      setTimeout(() => setIsSubmitting(false), 0);
+    }
+  }, [pendingReviews, lastResult, myGroupName, activeGroup, myGroup, isSubmitting, currentCard]);
 
   useEffect(() => {
     if (gameStatus !== "FINISHED") return;
@@ -558,6 +576,8 @@ function BoardPage() {
         submitAnswerObjektif={submitAnswerObjektif}
         submitAnswerSubjektif={submitAnswerSubjektif}
         gradeSubjektif={gradeSubjektif}
+        setIsSubmitting={setIsSubmitting}
+        isSubmitting={isSubmitting}
         pendingReviews={pendingReviews}
       />
 
@@ -806,6 +826,8 @@ interface CardOverlayProps {
   submitAnswerObjektif: (groupId: string, answer: string) => void;
   submitAnswerSubjektif: (groupId: string, answerText: string) => void;
   gradeSubjektif: (reviewId: string, score: number) => void;
+  setIsSubmitting: (v: boolean) => void;
+  isSubmitting: boolean;
   pendingReviews: PendingReview[];
 }
 
@@ -824,6 +846,8 @@ function CardOverlay({
   submitAnswerObjektif,
   submitAnswerSubjektif,
   gradeSubjektif,
+  setIsSubmitting,
+  isSubmitting,
   pendingReviews,
 }: CardOverlayProps) {
   const [isFlipped, setIsFlipped] = useState(false);
@@ -933,6 +957,8 @@ function CardOverlay({
                   submitAnswerObjektif={submitAnswerObjektif}
                   submitAnswerSubjektif={submitAnswerSubjektif}
                   gradeSubjektif={gradeSubjektif}
+                  setIsSubmitting={setIsSubmitting}
+                  isSubmitting={isSubmitting}
                   pendingReviews={pendingReviews}
                 />
               </div>
@@ -959,6 +985,8 @@ function CardFrontFace({
   submitAnswerObjektif,
   submitAnswerSubjektif,
   gradeSubjektif,
+  setIsSubmitting,
+  isSubmitting,
   pendingReviews,
 }: {
   cardType: string;
@@ -975,8 +1003,30 @@ function CardFrontFace({
   submitAnswerObjektif: (groupId: string, answer: string) => void;
   submitAnswerSubjektif: (groupId: string, answerText: string) => void;
   gradeSubjektif: (reviewId: string, score: number) => void;
+  setIsSubmitting: (v: boolean) => void;
+  isSubmitting: boolean;
   pendingReviews: PendingReview[];
 }) {
+  const { isGrading } = useGameStore();
+  // Removed local isSubmitting, now using prop from parent
+  
+  // Reset local submitting state when the review changes
+  const review = pendingReviews.find((r) => r.groupId === activeGroup?.id) || pendingReviews[0];
+  const lastReviewId = useRef(review?.id);
+
+  useEffect(() => {
+    if (review?.id !== lastReviewId.current) {
+      setIsSubmitting(false);
+      lastReviewId.current = review?.id;
+    }
+  }, [review?.id]);
+
+  const handleGrade = (id: string, score: number) => {
+    if (isSubmitting || isGrading) return;
+    setIsSubmitting(true);
+    gradeSubjektif(id, score);
+  };
+
   const accent =
     isUnderReview 
       ? (cardType === "AKSI" 
@@ -1022,6 +1072,14 @@ function CardFrontFace({
          <div className="flex-1 overflow-y-auto min-h-0 pr-1">
           {isUnderReview ? (
             <div className="space-y-6">
+              {pendingReviews.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-12 space-y-4 animate-in fade-in zoom-in duration-300">
+                  <div className="w-16 h-16 bg-zinc-50 rounded-full flex items-center justify-center border-2 border-zinc-100 shadow-inner">
+                    <Loader2 className="w-8 h-8 text-zinc-300 animate-spin" />
+                  </div>
+                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.3em]">Sedang mengirim...</p>
+                </div>
+              )}
               {pendingReviews
                 .filter((r) => r.groupId === activeGroup?.id || pendingReviews.length === 1)
                 .slice(0, 1) // Only show one at a time for focus
@@ -1103,6 +1161,7 @@ function CardFrontFace({
                           )}
                           <button
                             onClick={() => {
+                              setIsSubmitting(true);
                               submitAnswerSubjektif(activeGroup.id, currentCard.type === "AKSI" ? "Siswa telah melakukan aksi." : tantanganText);
                               setTantanganText("");
                             }}
@@ -1176,31 +1235,34 @@ function CardFrontFace({
 
                   <div className="grid grid-cols-3 gap-3">
                   <button
+                    disabled={isSubmitting || isGrading}
                     onClick={() => {
                       const review = pendingReviews.find((r) => r.groupId === activeGroup?.id) || pendingReviews[0];
-                      if (review) gradeSubjektif(review.id, 0);
+                      if (review) handleGrade(review.id, 0);
                     }}
-                    className="flex flex-col items-center gap-1 p-4 rounded-2xl border-2 border-red-200 bg-red-50 hover:bg-red-100 transition-all shadow-sm group"
+                    className="flex flex-col items-center gap-1 p-4 rounded-2xl border-2 border-red-200 bg-red-50 hover:bg-red-100 transition-all shadow-sm group disabled:opacity-50 disabled:grayscale"
                   >
                     <XCircle className="w-6 h-6 text-red-500 group-hover:scale-110 transition-transform" />
                     <span className="font-black text-red-700 text-[10px] tracking-tight uppercase">Salah</span>
                   </button>
                   <button
+                    disabled={isSubmitting || isGrading}
                     onClick={() => {
                       const r = pendingReviews.find((r) => r.groupId === activeGroup?.id) || pendingReviews[0];
-                      if (r) gradeSubjektif(r.id, Math.floor((r.points || 10) / 2));
+                      if (r) handleGrade(r.id, Math.floor((r.points || 10) / 2));
                     }}
-                    className="flex flex-col items-center gap-1 p-4 rounded-2xl border-2 border-orange-200 bg-orange-50 hover:bg-orange-100 transition-all shadow-sm group"
+                    className="flex flex-col items-center gap-1 p-4 rounded-2xl border-2 border-orange-200 bg-orange-50 hover:bg-orange-100 transition-all shadow-sm group disabled:opacity-50 disabled:grayscale"
                   >
                     <div className="w-6 h-6 rounded-full border-2 border-orange-400 border-t-transparent animate-spin-slow group-hover:animate-none" />
                     <span className="font-black text-orange-700 text-[10px] tracking-tight uppercase">Sebagian (+{Math.floor(( (pendingReviews.find((r) => r.groupId === activeGroup?.id) || pendingReviews[0])?.points || 10) / 2)})</span>
                   </button>
                   <button
+                    disabled={isSubmitting || isGrading}
                     onClick={() => {
                       const r = pendingReviews.find((r) => r.groupId === activeGroup?.id) || pendingReviews[0];
-                      if (r) gradeSubjektif(r.id, r.points || 10);
+                      if (r) handleGrade(r.id, r.points || 10);
                     }}
-                    className="flex flex-col items-center gap-1 p-4 rounded-2xl border-2 border-emerald-200 bg-emerald-50 hover:bg-emerald-100 transition-all shadow-sm group"
+                    className="flex flex-col items-center gap-1 p-4 rounded-2xl border-2 border-emerald-200 bg-emerald-50 hover:bg-emerald-100 transition-all shadow-sm group disabled:opacity-50 disabled:grayscale"
                   >
                     <CheckCircle2 className="w-6 h-6 text-emerald-500 group-hover:scale-110 transition-transform" />
                     <span className="font-black text-emerald-700 text-[10px] tracking-tight uppercase">Tepat (+{(pendingReviews.find((r) => r.groupId === activeGroup?.id) || pendingReviews[0])?.points || 10})</span>

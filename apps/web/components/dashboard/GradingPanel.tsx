@@ -1,16 +1,32 @@
 "use client";
 
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, XCircle, AlertCircle, Bookmark, Star, Sparkles } from "lucide-react";
 import { useGameStore } from "../../store/gameStore";
 
 export default function GradingPanel() {
-  const { pendingReviews, gradeSubjektif } = useGameStore();
+  const { pendingReviews, gradeSubjektif, isGrading } = useGameStore();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Reset local submitting state when the review changes
+  const currentReview = pendingReviews[0];
+  const lastReviewId = useRef(currentReview?.id);
+
+  useEffect(() => {
+    if (currentReview?.id !== lastReviewId.current) {
+      setIsSubmitting(false);
+      lastReviewId.current = currentReview?.id;
+    }
+  }, [currentReview?.id]);
 
   if (pendingReviews.length === 0) return null;
 
-  // We only show the most recent one for focus
-  const currentReview = pendingReviews[0];
+  const handleGrade = (score: number) => {
+    if (isSubmitting || isGrading) return;
+    setIsSubmitting(true);
+    gradeSubjektif(currentReview.id, score);
+  };
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-6">
@@ -72,8 +88,9 @@ export default function GradingPanel() {
               
               <div className="grid grid-cols-3 gap-2 md:gap-4">
                 <button 
-                  onClick={() => gradeSubjektif(currentReview.id, 0)}
-                  className="flex flex-col items-center gap-2 md:gap-3 p-3 md:p-5 rounded-2xl md:rounded-3xl bg-white border-2 border-slate-100 hover:border-red-500 hover:bg-red-50 transition-all group"
+                  disabled={isSubmitting || isGrading}
+                  onClick={() => handleGrade(0)}
+                  className="flex flex-col items-center gap-2 md:gap-3 p-3 md:p-5 rounded-2xl md:rounded-3xl bg-white border-2 border-slate-100 hover:border-red-500 hover:bg-red-50 transition-all group disabled:opacity-50 disabled:grayscale"
                 >
                     <XCircle className="w-6 h-6 md:w-8 md:h-8 text-slate-300 group-hover:text-red-500 transition-colors" />
                     <div className="text-center">
@@ -83,8 +100,9 @@ export default function GradingPanel() {
                 </button>
                 
                 <button 
-                  onClick={() => gradeSubjektif(currentReview.id, Math.floor(currentReview.points / 2))}
-                  className="flex flex-col items-center gap-2 md:gap-3 p-3 md:p-5 rounded-2xl md:rounded-3xl bg-white border-2 border-slate-100 hover:border-orange-500 hover:bg-orange-50 transition-all group"
+                  disabled={isSubmitting || isGrading}
+                  onClick={() => handleGrade(Math.floor(currentReview.points / 2))}
+                  className="flex flex-col items-center gap-2 md:gap-3 p-3 md:p-5 rounded-2xl md:rounded-3xl bg-white border-2 border-slate-100 hover:border-orange-500 hover:bg-orange-50 transition-all group disabled:opacity-50 disabled:grayscale"
                 >
                     <Star className="w-6 h-6 md:w-8 md:h-8 text-slate-300 group-hover:text-orange-500 transition-colors" />
                     <div className="text-center">
@@ -94,8 +112,9 @@ export default function GradingPanel() {
                 </button>
                 
                 <button 
-                  onClick={() => gradeSubjektif(currentReview.id, currentReview.points)}
-                  className="flex flex-col items-center gap-2 md:gap-3 p-3 md:p-5 rounded-2xl md:rounded-3xl bg-white border-2 border-slate-100 hover:border-emerald-500 hover:bg-emerald-50 transition-all group shadow-sm hover:shadow-xl hover:shadow-emerald-500/10"
+                  disabled={isSubmitting || isGrading}
+                  onClick={() => handleGrade(currentReview.points)}
+                  className="flex flex-col items-center gap-2 md:gap-3 p-3 md:p-5 rounded-2xl md:rounded-3xl bg-white border-2 border-slate-100 hover:border-emerald-500 hover:bg-emerald-50 transition-all group shadow-sm hover:shadow-xl hover:shadow-emerald-500/10 disabled:opacity-50 disabled:grayscale"
                 >
                     <CheckCircle2 className="w-6 h-6 md:w-8 md:h-8 text-slate-300 group-hover:text-emerald-500 transition-colors" />
                     <div className="text-center">

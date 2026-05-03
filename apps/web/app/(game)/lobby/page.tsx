@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useSyncExternalStore } from "react";
+import { useState, useEffect, useSyncExternalStore, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import NextImage from "next/image";
 import { 
@@ -79,6 +79,39 @@ export default function LobbyPage() {
     return PREMIUM_COLORS[0];
   });
 
+  const lastSentAvatarRef = useRef<string | null>(null);
+  const lastSentColorRef = useRef<string | null>(null);
+
+  const [direction, setDirection] = useState(0);
+  const [isChanging, setIsChanging] = useState(false);
+  const [targetAvatar, setTargetAvatar] = useState<string | null>(null);
+
+  const avatarVariants = {
+    enter: (direction: number) => ({
+      x: direction > 0 ? -120 : 120,
+      rotateY: direction > 0 ? -90 : 90,
+      filter: "blur(12px) brightness(1.5)",
+      opacity: 0,
+      scale: 0.7,
+    }),
+    center: {
+      zIndex: 1,
+      x: 0,
+      rotateY: 0,
+      filter: "blur(0px) brightness(1)",
+      opacity: 1,
+      scale: 1,
+    },
+    exit: (direction: number) => ({
+      zIndex: 0,
+      x: direction > 0 ? 120 : -120,
+      rotateY: direction > 0 ? 90 : -90,
+      filter: "blur(12px) brightness(0.5)",
+      opacity: 0,
+      scale: 0.7,
+    }),
+  };
+
   // Auto-recovery & Sync local customization with store
   useEffect(() => {
     if (!isMounted) return;
@@ -110,13 +143,17 @@ export default function LobbyPage() {
           if (myGroupName && groups.length > 0) {
             const me = groups.find(g => g.name === myGroupName);
             if (me) {
-              if (me.avatar) {
+              if (me.avatar && me.avatar !== lastSentAvatarRef.current) {
                 const idx = AVATAR_SEEDS.indexOf(me.avatar);
                 if (idx !== -1 && avatarIndex !== idx) setAvatarIndex(idx);
+                lastSentAvatarRef.current = me.avatar;
               }
-              if (me.color) {
+              if (me.color && me.color !== lastSentColorRef.current) {
                 const col = PREMIUM_COLORS.find(c => c.hex === me.color);
-                if (col && selectedColor.hex !== col.hex) setSelectedColor(col);
+                if (col && selectedColor.hex !== col.hex) {
+                  setSelectedColor(col);
+                  lastSentColorRef.current = col.hex;
+                }
               }
             }
           }
@@ -153,6 +190,8 @@ export default function LobbyPage() {
     
     setAvatarIndex(randomAvatarIdx);
     setSelectedColor(randomColor);
+    lastSentAvatarRef.current = AVATAR_SEEDS[randomAvatarIdx];
+    lastSentColorRef.current = randomColor.hex;
 
     try {
       await joinRoom(
@@ -170,17 +209,49 @@ export default function LobbyPage() {
   };
 
   const updateProfile = (newAvatarIdx: number, newColor: typeof PREMIUM_COLORS[0]) => {
-    setAvatarIndex(newAvatarIdx);
-    setSelectedColor(newColor);
+    // Only update immediately if it's just a color change
+    if (AVATAR_SEEDS[newAvatarIdx] === AVATAR_SEEDS[avatarIndex]) {
+       setSelectedColor(newColor);
+       syncProfile(newAvatarIdx, newColor);
+       return;
+    }
+
+    // Otherwise, wait for the image to be ready to avoid flickering
+    setTargetAvatar(AVATAR_SEEDS[newAvatarIdx]);
+    setIsChanging(true);
+    setSelectedColor(newColor); // Color can change immediately for feedback
     
+    // The actual setAvatarIndex and sync will be called in the hidden img's onLoad
+  };
+
+  const syncProfile = useCallback((newAvatarIdx: number, newColor: typeof PREMIUM_COLORS[0]) => {
     const me = groups.find(g => g.name === myGroupName);
     if (me) {
+      lastSentAvatarRef.current = AVATAR_SEEDS[newAvatarIdx];
+      lastSentColorRef.current = newColor.hex;
       updateGroup(me.id, { 
         avatar: AVATAR_SEEDS[newAvatarIdx], 
         color: newColor.hex 
       });
     }
-  };
+  }, [groups, myGroupName, updateGroup]);
+
+  // Handle avatar preloading in the background
+  useEffect(() => {
+    if (isChanging && targetAvatar) {
+      const img = new window.Image();
+      img.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${targetAvatar}`;
+      img.onload = () => {
+        const idx = AVATAR_SEEDS.indexOf(targetAvatar);
+        if (idx !== -1) {
+          setAvatarIndex(idx);
+          setIsChanging(false);
+          setTargetAvatar(null);
+          syncProfile(idx, selectedColor);
+        }
+      };
+    }
+  }, [isChanging, targetAvatar, selectedColor, syncProfile]);
 
   if (!isMounted) return null;
 
@@ -275,16 +346,20 @@ export default function LobbyPage() {
                 <div className="flex flex-col md:flex-row gap-8 items-center">
                   <div className="relative">
                     <div className={`w-32 h-32 rounded-[2rem] ${selectedColor.bg} ${selectedColor.shadow} shadow-lg transition-all duration-500 relative z-10 overflow-hidden`}>
-                      <AnimatePresence mode="popLayout" initial={false}>
+                      <AnimatePresence mode="popLayout" initial={false} custom={direction}>
                         <motion.div
                           key={avatarIndex}
-                          initial={{ opacity: 0, scale: 0.8, x: 20 }}
-                          animate={{ opacity: 1, scale: 1, x: 0 }}
-                          exit={{ opacity: 0, scale: 0.8, x: -20 }}
+                          custom={direction}
+                          variants={avatarVariants}
+                          initial="enter"
+                          animate="center"
+                          exit="exit"
                           transition={{ 
-                            type: "spring", 
-                            stiffness: 300, 
-                            damping: 30 
+                            x: { type: "spring", stiffness: 260, damping: 28 },
+                            rotateY: { type: "spring", stiffness: 260, damping: 28 },
+                            opacity: { duration: 0.35, ease: "easeInOut" },
+                            filter: { duration: 0.35, ease: "easeInOut" },
+                            scale: { duration: 0.35, ease: "easeOut" }
                           }}
                           className="w-full h-full"
                         >
@@ -301,13 +376,19 @@ export default function LobbyPage() {
                     </div>
                     
                     <button 
-                      onClick={() => updateProfile(avatarIndex > 0 ? avatarIndex - 1 : AVATAR_SEEDS.length - 1, selectedColor)}
+                      onClick={() => {
+                        setDirection(-1);
+                        updateProfile(avatarIndex > 0 ? avatarIndex - 1 : AVATAR_SEEDS.length - 1, selectedColor);
+                      }}
                       className="absolute left-[-16px] top-1/2 -translate-y-1/2 w-10 h-10 bg-white border border-slate-200 rounded-full shadow-md flex items-center justify-center z-20 hover:bg-slate-50 transition-colors"
                     >
                       <ChevronLeft size={20} className="text-slate-400" />
                     </button>
                     <button 
-                      onClick={() => updateProfile(avatarIndex < AVATAR_SEEDS.length - 1 ? avatarIndex + 1 : 0, selectedColor)}
+                      onClick={() => {
+                        setDirection(1);
+                        updateProfile(avatarIndex < AVATAR_SEEDS.length - 1 ? avatarIndex + 1 : 0, selectedColor);
+                      }}
                       className="absolute right-[-16px] top-1/2 -translate-y-1/2 w-10 h-10 bg-white border border-slate-200 rounded-full shadow-md flex items-center justify-center z-20 hover:bg-slate-50 transition-colors"
                     >
                       <ChevronRight size={20} className="text-slate-400" />
@@ -373,14 +454,24 @@ export default function LobbyPage() {
                         className="w-10 h-10 rounded-xl flex-shrink-0 overflow-hidden" 
                         style={{ backgroundColor: `${g.color || '#e2e8f0'}20` }}
                       >
-                        <NextImage 
-                          src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${g.avatar || g.name}`} 
-                          alt={g.name}
-                          width={40}
-                          height={40}
-                          className="w-full h-full object-cover scale-110 translate-y-1"
-                          unoptimized
-                        />
+                        <AnimatePresence mode="popLayout" initial={false}>
+                          <motion.div
+                            key={g.avatar}
+                            initial={{ opacity: 0, scale: 0.5, y: 10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.5, y: -10 }}
+                            className="w-full h-full"
+                          >
+                            <NextImage 
+                              src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${g.avatar || g.name}`} 
+                              alt={g.name}
+                              width={40}
+                              height={40}
+                              className="w-full h-full object-cover scale-110 translate-y-1"
+                              unoptimized
+                            />
+                          </motion.div>
+                        </AnimatePresence>
                       </div>
                       <div className="flex flex-col min-w-0">
                         <div className="flex items-center gap-1 mb-0.5">

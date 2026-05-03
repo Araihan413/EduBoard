@@ -26,7 +26,7 @@ export default function FinishedState() {
              animate={{ opacity: 1, x: 0 }}
              transition={{ delay: idx * 0.1 }}
              key={g.id} 
-             className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
+             className={`flex items-center justify-between p-4 rounded-2xl border ${
                idx === 0 
                  ? 'bg-blue-50 border-blue-100 shadow-sm' 
                  : 'bg-slate-50/50 border-slate-100'

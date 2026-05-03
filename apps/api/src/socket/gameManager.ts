@@ -443,6 +443,11 @@ export function handleSocketEvents(io: Server, socket: Socket) {
 
     // Persist room-level game state (turn, current index)
     if (data.state.activeGroupIndex !== undefined || data.state.currentTurn !== undefined) {
+      // Clear submission locks for the new turn/group
+      if ((room as any).submissionLocks) {
+        (room as any).submissionLocks.clear();
+      }
+
       prisma.room.update({
         where: { code: data.roomCode },
         data: {
@@ -657,7 +662,27 @@ export function handleSocketEvents(io: Server, socket: Socket) {
     const room = activeRooms.get(data.roomCode);
     if (!room) return;
 
-    console.log(`[SUBMIT_ANSWER] Room: ${data.roomCode}, Group: ${data.groupId}, Q: ${data.questionId}`);
+    // 1. SYNC GUARD: Prevent double submission for the same group in this turn
+    // We use a temporary dynamic property on the room object for immediate locking
+    if (!(room as any).submissionLocks) (room as any).submissionLocks = new Set<string>();
+    const submissionKey = `${data.groupId}-${data.turnNumber || room.currentTurn}`;
+    
+    if ((room as any).submissionLocks.has(submissionKey)) {
+      console.log(`[SUBMIT_ANSWER] [GUARD] Ignored duplicate submission for group ${data.groupId} in room ${data.roomCode}`);
+      return;
+    }
+    
+    // Check pendingReviews as a fallback
+    const alreadyInReviews = room.pendingReviews.some(r => r.groupId === data.groupId);
+    if (alreadyInReviews) {
+       console.log(`[SUBMIT_ANSWER] [GUARD] Submission already exists in pendingReviews for group ${data.groupId}`);
+       return;
+    }
+
+    // Set the lock IMMEDIATELY (synchronously) before any await calls
+    (room as any).submissionLocks.add(submissionKey);
+
+    console.log(`[SUBMIT_ANSWER] Processing submission for Room: ${data.roomCode}, Group: ${data.groupId}, Q: ${data.questionId}`);
 
     try {
       let dbRoom = await prisma.room.findUnique({ 
