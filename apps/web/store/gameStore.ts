@@ -809,9 +809,16 @@ export const useGameStore = create<GameState & GameActions>()(
         rollDice: () => {
           const val = Math.floor(Math.random() * 6) + 1;
           syncSet({ diceValue: val, isRolling: true, logs: [`Dadu dikocok... hasil: ${val}`, ...get().logs] });
+
+          // Step 1: Stop dice animation after 1500ms (dice settles on result)
           setTimeout(() => {
             syncSet({ isRolling: false });
-            get().moveGroup(get().groups[get().activeGroupIndex].id, val);
+
+            // Step 2: Wait 600ms so the player can "read" the dice result,
+            // then start moving the pawn
+            setTimeout(() => {
+              get().moveGroup(get().groups[get().activeGroupIndex].id, val);
+            }, 600);
           }, 1500);
         },
 
@@ -829,6 +836,12 @@ export const useGameStore = create<GameState & GameActions>()(
             groups: s.groups.map(g => g.id === groupId ? { ...g, position: newPos } : g),
             logs: [`${group.name} melangkah ${steps} petak ke posisi ${newPos}`, ...s.logs]
           }));
+          // --- Animation Sequencing Fix ---
+          // BoardCanvas animates pion at (steps * 0.4)s = steps*400ms per Framer Motion config.
+          // We FIRST set isMoving=false after the visual is done (+50ms buffer),
+          // then wait an additional 300ms "settle" before drawing the card.
+          // This prevents the card overlay from appearing while the pion is still moving.
+          const pionAnimDuration = steps * 400 + 50; // matches (currentPath.length-1)*0.4s in BoardCanvas
           setTimeout(() => {
             syncSet({ isMoving: false });
             const finalType = getTileTypeAt(newPos);
@@ -836,9 +849,12 @@ export const useGameStore = create<GameState & GameActions>()(
               syncSet((s) => ({ logs: [`${group.name} mendarat di SKIP!`, ...s.logs] }));
               setTimeout(() => get().nextTurn(), 1000);
             } else {
-              get().drawCard(finalType as QuestionType);
+              // 300ms settle delay: let pion visually rest before card appears
+              setTimeout(() => {
+                get().drawCard(finalType as QuestionType);
+              }, 300);
             }
-          }, steps * 500);
+          }, pionAnimDuration);
         },
 
         submitAnswerObjektif: (groupId, answer) => {

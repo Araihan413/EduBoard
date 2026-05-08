@@ -154,12 +154,14 @@ function BoardPage() {
 
   // Card State Machine — single effect, ref-driven to prevent race conditions
   const syncTimerRef    = useRef<NodeJS.Timeout | null>(null);
+  const settleTimerRef  = useRef<NodeJS.Timeout | null>(null); // pion settle delay
   const drawTimerRef    = useRef<NodeJS.Timeout | null>(null);
   const revealTimerRef  = useRef<NodeJS.Timeout | null>(null);
   const returnTimerRef  = useRef<NodeJS.Timeout | null>(null);
 
   const clearAllCardTimers = () => {
     if (syncTimerRef.current)   { clearTimeout(syncTimerRef.current);   syncTimerRef.current   = null; }
+    if (settleTimerRef.current) { clearTimeout(settleTimerRef.current); settleTimerRef.current = null; }
     if (drawTimerRef.current)   { clearTimeout(drawTimerRef.current);   drawTimerRef.current   = null; }
     if (revealTimerRef.current) { clearTimeout(revealTimerRef.current); revealTimerRef.current = null; }
     if (returnTimerRef.current) { clearTimeout(returnTimerRef.current); returnTimerRef.current = null; }
@@ -173,18 +175,31 @@ function BoardPage() {
     }
 
     if (currentCard && !isMoving) {
-      // New card is ready — cancel any pending return and start drawing
+      // New card is ready — cancel any pending return, then wait for pion to visually settle
       if (returnTimerRef.current) {
         clearTimeout(returnTimerRef.current);
         returnTimerRef.current = null;
       }
       if (cardPhaseRef.current === "idle" || cardPhaseRef.current === "returning") {
-        clearAllCardTimers();
-        updatePhase("drawing");
-        revealTimerRef.current = setTimeout(() => {
-          revealTimerRef.current = null;
-          updatePhase("revealed");
-        }, 550);
+        // Cancel any existing settle/draw/reveal timers first
+        if (settleTimerRef.current) { clearTimeout(settleTimerRef.current); settleTimerRef.current = null; }
+        if (drawTimerRef.current)   { clearTimeout(drawTimerRef.current);   drawTimerRef.current   = null; }
+        if (revealTimerRef.current) { clearTimeout(revealTimerRef.current); revealTimerRef.current = null; }
+
+        // --- Pion Settle Delay ---
+        // Wait 350ms for Framer Motion's onAnimationComplete to fire in BoardCanvas
+        // and for the pion to visually rest at its final tile before the card appears.
+        settleTimerRef.current = setTimeout(() => {
+          settleTimerRef.current = null;
+          // Double-check: only draw if we're still in idle/returning (not cancelled by a nextTurn)
+          if (cardPhaseRef.current === "idle" || cardPhaseRef.current === "returning") {
+            updatePhase("drawing");
+            revealTimerRef.current = setTimeout(() => {
+              revealTimerRef.current = null;
+              updatePhase("revealed");
+            }, 550);
+          }
+        }, 350);
       }
     } else if (!currentCard && !isUnderReview) {
       // Card gone — only close if currently open or drawing
@@ -202,6 +217,7 @@ function BoardPage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentCard, isMoving, isUnderReview]);
+
 
 
   // Submit timeout logic natively for the active student
