@@ -86,7 +86,7 @@ export default function DashboardNavbar({
                 width={160}
                 height={40}
                 priority
-                style={{ height: '60px', width: 'auto' }}
+                style={{ height: '50px', width: 'auto' }}
                 className="object-contain transition-transform group-hover:scale-105"
               />
             </button>

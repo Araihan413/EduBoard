@@ -27,7 +27,7 @@ model Room {
   durationMinutes    Int
   turnDurationDasar     Int         @default(30)
   turnDurationTantangan Int         @default(60)
-  turnDurationAksi      Int         @default(15)
+  turnDurationPemahaman Int         @default(90)
   activeGroupIndex      Int         @default(0)
   currentTurn           Int         @default(1)
   maxGroups             Int         @default(6)
@@ -37,7 +37,7 @@ model Room {
 
   // Relation to QuestionSet
   questionSetId      String?
-  questionSet        QuestionSet? @relation(fields: [questionSetId], references: [id])
+  questionSet        QuestionSet? @relation(fields: [questionSetId], references: [id], onDelete: SetNull)
 }
 
 enum RoomStatus { 
@@ -94,8 +94,8 @@ model Question {
 
 enum QuestionType { 
   DASAR 
-  AKSI 
   TANTANGAN 
+  PEMAHAMAN 
 }
 
 model GameSession {
@@ -116,7 +116,7 @@ model Answer {
   groupId    String
   group      Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
   questionId String
-  question   Question    @relation(fields: [questionId], references: [id])
+  question   Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
   answerText String?
   isCorrect  Boolean?
   scoreGiven Int?

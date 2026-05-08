@@ -52,7 +52,7 @@ export default async function roomRoutes(fastify: FastifyInstance) {
             durationMinutes: config.durationMinutes,
             turnDurationDasar: config.turnDurationDasar,
             turnDurationTantangan: config.turnDurationTantangan,
-            turnDurationAksi: config.turnDurationAksi,
+            turnDurationPemahaman: config.turnDurationPemahaman,
             maxGroups: config.maxGroups,
             questionSetId: (request.body as any).questionSetId || null
           }

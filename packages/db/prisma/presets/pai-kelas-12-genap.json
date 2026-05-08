@@ -1,0 +1,23 @@
+{
+  "name": "PAI Kelas 12 (Genap)",
+  "description": "Kumpulan Soal PAI Kelas 12 Semester Genap",
+  "questions": [
+    {
+      "type": "DASAR",
+      "text": "Ketentuan hukum Islam tentang pembagian harta warisan disebut ilmu...",
+      "options": ["Fiqih", "Faraid", "Kalam", "Tasawuf"],
+      "answerKey": "Faraid",
+      "points": 10
+    },
+    {
+      "type": "TANTANGAN",
+      "text": "Jelaskan secara lisan rukun nikah dalam Islam!",
+      "points": 20
+    },
+    {
+      "type": "PEMAHAMAN",
+      "text": "Jelaskan hikmah dari adanya syariat mawaris (pembagian warisan) bagi keharmonisan keluarga menurut ajaran Islam!",
+      "points": 30
+    }
+  ]
+}

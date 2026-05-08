@@ -1,0 +1,23 @@
+{
+  "name": "PAI Kelas 10 (Genap)",
+  "description": "Kumpulan Soal PAI Kelas 10 Semester Genap",
+  "questions": [
+    {
+      "type": "DASAR",
+      "text": "Malaikat yang bertugas mencabut nyawa adalah...",
+      "options": ["Jibril", "Mikail", "Izrail", "Isrofil"],
+      "answerKey": "Izrail",
+      "points": 10
+    },
+    {
+      "type": "TANTANGAN",
+      "text": "Sebutkan 3 macam puasa sunnah beserta hari pelaksanaannya!",
+      "points": 20
+    },
+    {
+      "type": "PEMAHAMAN",
+      "text": "Jelaskan hikmah beriman kepada Malaikat dalam kehidupan sehari-hari!",
+      "points": 30
+    }
+  ]
+}

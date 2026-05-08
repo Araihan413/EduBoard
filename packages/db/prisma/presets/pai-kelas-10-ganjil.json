@@ -1,0 +1,23 @@
+{
+  "name": "PAI Kelas 10 (Ganjil)",
+  "description": "Kumpulan Soal PAI Kelas 10 Semester Ganjil",
+  "questions": [
+    {
+      "type": "DASAR",
+      "text": "Sifat wajib bagi Allah yang berarti Maha Mengetahui adalah...",
+      "options": ["Al-Alim", "Al-Khabir", "As-Sami'", "Al-Bashir"],
+      "answerKey": "Al-Alim",
+      "points": 10
+    },
+    {
+      "type": "TANTANGAN",
+      "text": "Sebutkan 3 contoh perilaku jujur (Syaja'ah) dalam kehidupan sehari-hari di sekolah!",
+      "points": 20
+    },
+    {
+      "type": "PEMAHAMAN",
+      "text": "Jelaskan mengapa Al-Qur'an disebut sebagai pedoman hidup (Hudan) bagi umat manusia!",
+      "points": 30
+    }
+  ]
+}

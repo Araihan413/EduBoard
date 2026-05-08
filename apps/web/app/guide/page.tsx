@@ -108,14 +108,14 @@ export default function GuidePage() {
             />
             <GuideCard 
               icon={<Target className="w-8 h-8" />}
-              title="Kartu Aksi"
-              desc="Misi interaktif yang memerlukan kerja tim. Bisa berupa instruksi langsung atau tantangan fisik yang seru."
+              title="Kartu Tantangan"
+              desc="Tantangan menjawab secara lisan atau praktik di depan kelas. Guru akan menilai performamu secara langsung."
               color="red"
             />
             <GuideCard 
               icon={<Flame className="w-8 h-8" />}
-              title="Kartu Tantangan"
-              desc="Tugas esai atau unjuk performa. Jawabanmu akan dievaluasi dan diberi nilai langsung oleh Guru melalui Dashboard."
+              title="Kartu Pemahaman"
+              desc="Tugas menulis jawaban singkat atau esai melalui input teks. Guru akan mengevaluasi jawabanmu melalui dashboard."
               color="orange"
             />
           </div>

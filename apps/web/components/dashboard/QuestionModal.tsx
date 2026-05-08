@@ -32,9 +32,16 @@ export default function QuestionModal({ isOpen, onClose, editingQuestion, setId 
       return;
     }
 
-    if (newQ.type === 'DASAR' && (!newQ.answerKey || newQ.options?.some(o => !o))) {
-      toast.error("Harap isi semua opsi dan kunci jawaban!");
-      return;
+    if (newQ.type === 'DASAR') {
+      const filledOptions = newQ.options?.filter(o => o && o.trim() !== "") || [];
+      if (filledOptions.length < 2) {
+        toast.error("Minimal harus ada 2 pilihan jawaban (misal: Benar & Salah)!");
+        return;
+      }
+      if (!newQ.answerKey || !filledOptions.includes(newQ.answerKey)) {
+        toast.error("Harap pilih kunci jawaban yang valid dari pilihan yang tersedia!");
+        return;
+      }
     }
 
     setIsSaving(true);
@@ -92,7 +99,7 @@ export default function QuestionModal({ isOpen, onClose, editingQuestion, setId 
               <Layers size={14} className="text-[#2c49c5]" /> Kategori Kartu
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {(["DASAR", "AKSI", "TANTANGAN"] as const).map((type) => (
+              {(["DASAR", "TANTANGAN", "PEMAHAMAN"] as const).map((type) => (
                 <button
                   key={type}
                   onClick={() => setNewQ({...newQ, type})}
@@ -186,7 +193,7 @@ export default function QuestionModal({ isOpen, onClose, editingQuestion, setId 
           )}
 
           {/* Reference Answer for Non-DASAR types */}
-          {(newQ.type === 'AKSI' || newQ.type === 'TANTANGAN') && (
+          {(newQ.type === 'TANTANGAN' || newQ.type === 'PEMAHAMAN') && (
             <motion.div 
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}

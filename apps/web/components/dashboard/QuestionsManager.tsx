@@ -94,8 +94,8 @@ export default function QuestionsManager() {
     const data = [
       ["type", "text", "points", "answerKey", "options_1", "options_2", "options_3", "options_4"],
       ["DASAR", "Sebutkan rukun Islam yang pertama", 10, "Syahadat", "Syahadat", "Shalat", "Zakat", "Puasa"],
-      ["AKSI", "Praktikkan tata cara wudhu dengan benar di depan kelas!", 20, "Teacher Grade", "", "", "", ""],
-      ["TANTANGAN", "Sebutkan minimal 3 hikmah dari ibadah puasa Ramadan!", 25, "Teacher Grade", "", "", "", ""]
+      ["TANTANGAN", "Bacakan niat puasa Ramadhan beserta artinya!", 20, "Teacher Grade", "", "", "", ""],
+      ["PEMAHAMAN", "Sebutkan minimal 3 hikmah dari ibadah puasa Ramadhan!", 25, "Teacher Grade", "", "", "", ""]
     ];
 
     const ws = XLSX.utils.aoa_to_sheet(data);
@@ -271,8 +271,8 @@ export default function QuestionsManager() {
   const getTypeStyle = (type: QuestionType) => {
     switch (type) {
       case 'DASAR': return { icon: <BookOpen size={14}/>, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100' };
-      case 'AKSI': return { icon: <Target size={14}/>, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-100' };
-      case 'TANTANGAN': return { icon: <Flame size={14}/>, color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-100' };
+      case 'TANTANGAN': return { icon: <Target size={14}/>, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-100' };
+      case 'PEMAHAMAN': return { icon: <Flame size={14}/>, color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-100' };
     }
   };
 
@@ -614,7 +614,7 @@ export default function QuestionsManager() {
             />
           </div>
           <div className="flex gap-2 overflow-x-auto p-1 no-scrollbar bg-slate-50 rounded-2xl border border-slate-100 flex-1">
-            {(["ALL", "DASAR", "AKSI", "TANTANGAN"] as const).map(f => (
+            {(["ALL", "DASAR", "TANTANGAN", "PEMAHAMAN"] as const).map(f => (
               <button
                 key={f}
                 onClick={() => setActiveFilter(f)}

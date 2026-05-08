@@ -232,11 +232,11 @@ function BoardPage() {
         
         if (currentCard.type === 'DASAR') {
           submitAnswerObjektif(activeGroup.id, "TIMEOUT");
-        } else if (currentCard.type === 'TANTANGAN' || currentCard.type === 'AKSI') {
+        } else if (currentCard.type === 'PEMAHAMAN' || currentCard.type === 'TANTANGAN') {
           setTimeout(() => setIsSubmitting(true), 0);
-          const fallbackMsg = currentCard.type === 'TANTANGAN' 
-            ? "(Waktu habis, jawaban belum selesai)" 
-            : "(Waktu habis, aksi belum selesai)";
+          const fallbackMsg = currentCard.type === 'PEMAHAMAN' 
+            ? "Waktu habis, jawaban tulisan belum selesai." 
+            : "Waktu habis, siswa belum selesai menjawab lisan.";
           submitAnswerSubjektif(activeGroup.id, tantanganText.trim() || fallbackMsg);
           setTimeout(() => setTantanganText(""), 0);
         }
@@ -559,8 +559,8 @@ function BoardPage() {
 
           <div className="flex items-center gap-3 lg:gap-6 -translate-y-6 lg:-translate-y-8">
             <PhysicalDeck type="DASAR" label="Dasar" isDrawn={isCardActive && displayCard?.type === "DASAR"} />
-            <PhysicalDeck type="AKSI" label="Aksi" isDrawn={isCardActive && displayCard?.type === "AKSI"} />
             <PhysicalDeck type="TANTANGAN" label="Tantangan" isDrawn={isCardActive && displayCard?.type === "TANTANGAN"} />
+            <PhysicalDeck type="PEMAHAMAN" label="Pemahaman" isDrawn={isCardActive && displayCard?.type === "PEMAHAMAN"} />
           </div>
         </div>
 
@@ -758,7 +758,7 @@ function BoardPage() {
 function PhysicalDeck({ type, label, isDrawn }: { type: string; label: string; isDrawn: boolean }) {
   const accent = 
     type === "DASAR" ? { bg: "bg-[#2c49c5]", text: "text-[#2c49c5]", border: "border-[#2c49c5]/30", glow: "rgba(44,73,197,0.2)" } :
-    type === "AKSI" ? { bg: "bg-red-500", text: "text-red-500", border: "border-red-500/30", glow: "rgba(239,68,68,0.2)" } :
+    type === "TANTANGAN" ? { bg: "bg-red-500", text: "text-red-500", border: "border-red-500/30", glow: "rgba(239,68,68,0.2)" } :
     { bg: "bg-orange-500", text: "text-orange-500", border: "border-orange-500/30", glow: "rgba(249,115,22,0.2)" };
 
   return (
@@ -780,8 +780,8 @@ function PhysicalDeck({ type, label, isDrawn }: { type: string; label: string; i
         {/* Card Icon Header */}
         <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-3 ${accent.bg} shadow-lg shadow-black/10`}>
           {type === "DASAR" && <BookOpen className="w-5 h-5 text-white" />}
-          {type === "AKSI" && <Target className="w-5 h-5 text-white" />}
-          {type === "TANTANGAN" && <Flame className="w-5 h-5 text-white" />}
+          {type === "TANTANGAN" && <Target className="w-5 h-5 text-white" />}
+          {type === "PEMAHAMAN" && <Flame className="w-5 h-5 text-white" />}
         </div>
         
         <span className={`text-[9px] font-black uppercase tracking-[0.2em] text-slate-800`}>{label}</span>
@@ -803,7 +803,7 @@ function PhysicalDeck({ type, label, isDrawn }: { type: string; label: string; i
 function CardBackFace({ type, className }: { type: string; className?: string }) {
   const accent = 
     type === "DASAR" ? { bg: "bg-[#2c49c5]", glow: "shadow-blue-500/20" } :
-    type === "AKSI" ? { bg: "bg-red-500", glow: "shadow-red-500/20" } :
+    type === "TANTANGAN" ? { bg: "bg-red-500", glow: "shadow-red-500/20" } :
     { bg: "bg-orange-500", glow: "shadow-orange-500/20" };
 
   return (
@@ -1045,11 +1045,11 @@ function CardFrontFace({
 
   const accent =
     isUnderReview 
-      ? (cardType === "AKSI" 
+      ? (cardType === "TANTANGAN" 
           ? { bg: "bg-red-600", text: "text-red-600", light: "bg-red-50" }
           : { bg: "bg-orange-500", text: "text-orange-600", light: "bg-orange-50" })
       : cardType === "DASAR" ? { bg: "bg-[#2c49c5]", text: "text-[#2c49c5]", light: "bg-blue-50" } :
-        cardType === "AKSI" ? { bg: "bg-red-600", text: "text-red-600", light: "bg-red-50" } : 
+        cardType === "TANTANGAN" ? { bg: "bg-red-600", text: "text-red-600", light: "bg-red-50" } : 
         { bg: "bg-orange-600", text: "text-orange-600", light: "bg-orange-50" };
 
   return (
@@ -1140,29 +1140,31 @@ function CardFrontFace({
                 <div className="mt-4 pt-4 border-t-2 border-zinc-100">
                   {currentCard?.type === "DASAR" && currentCard.options ? (
                     <div className="grid grid-cols-1 gap-2.5">
-                      {currentCard.options.map((opt, i) => (
-                        <button
-                          key={i}
-                          onClick={() => submitAnswerObjektif(activeGroup.id, opt)}
-                          className="w-full text-left px-5 py-3.5 rounded-xl border-2 border-zinc-900 bg-white text-base font-black text-zinc-900 hover:bg-zinc-50 hover:-translate-y-0.5 shadow-[4px_4px_0_0_rgba(0,0,0,0.85)] active:translate-y-0 active:shadow-none transition-all"
-                        >
-                          {opt}
-                        </button>
+                      {currentCard.options
+                        .filter((opt) => opt && opt.trim() !== "")
+                        .map((opt, i) => (
+                          <button
+                            key={i}
+                            onClick={() => submitAnswerObjektif(activeGroup.id, opt)}
+                            className="w-full text-left px-5 py-3.5 rounded-xl border-2 border-zinc-900 bg-white text-base font-black text-zinc-900 hover:bg-zinc-50 hover:-translate-y-0.5 shadow-[4px_4px_0_0_rgba(0,0,0,0.85)] active:translate-y-0 active:shadow-none transition-all"
+                          >
+                            {opt}
+                          </button>
                       ))}
                     </div>
-                  ) : (currentCard?.type === "TANTANGAN" || currentCard?.type === "AKSI") ? (
+                  ) : (currentCard?.type === "PEMAHAMAN" || currentCard?.type === "TANTANGAN") ? (
                     <div className="space-y-3">
                       {isUnderReview ? (
-                        <div className={`flex flex-col items-center justify-center py-10 ${accent.light} rounded-2xl border-2 border-dashed ${cardType === "AKSI" ? "border-red-200" : "border-orange-200"} animate-pulse`}>
-                          <div className={`w-12 h-12 ${cardType === "AKSI" ? "bg-red-100" : "bg-orange-100"} rounded-full flex items-center justify-center mb-4`}>
+                        <div className={`flex flex-col items-center justify-center py-10 ${accent.light} rounded-2xl border-2 border-dashed ${cardType === "TANTANGAN" ? "border-red-200" : "border-orange-200"} animate-pulse`}>
+                          <div className={`w-12 h-12 ${cardType === "TANTANGAN" ? "bg-red-100" : "bg-orange-100"} rounded-full flex items-center justify-center mb-4`}>
                             <Rocket className={`w-6 h-6 ${accent.text} animate-bounce`} />
                           </div>
-                          <p className={`${cardType === "AKSI" ? "text-red-900" : "text-orange-900"} font-black text-center uppercase tracking-widest text-xs`}>Menunggu Penilaian Guru</p>
+                          <p className={`${cardType === "TANTANGAN" ? "text-red-900" : "text-orange-900"} font-black text-center uppercase tracking-widest text-xs`}>Menunggu Penilaian Guru</p>
                           <p className={`${accent.text} opacity-60 font-bold text-[10px] mt-1 italic`}>Tugasmu sedang ditinjau...</p>
                         </div>
                       ) : (
                         <>
-                          {currentCard.type === "TANTANGAN" ? (
+                          {currentCard.type === "PEMAHAMAN" ? (
                             <textarea
                               autoFocus
                               className="w-full min-h-[100px] bg-white border-2 border-zinc-900 rounded-xl px-5 py-4 text-zinc-900 text-base font-bold focus:outline-none focus:ring-4 focus:ring-orange-500/15 resize-none shadow-inner"
@@ -1172,19 +1174,19 @@ function CardFrontFace({
                             />
                           ) : (
                             <div className="py-8 px-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-center mb-2">
-                               <p className="text-xs font-bold text-slate-500">Lakukan aksi di atas, lalu klik tombol di bawah jika sudah selesai!</p>
+                               <p className="text-xs font-bold text-slate-500">Jawab pertanyaan di atas secara lisan, lalu klik tombol di bawah jika sudah selesai!</p>
                             </div>
                           )}
                           <button
                             onClick={() => {
                               setIsSubmitting(true);
-                              submitAnswerSubjektif(activeGroup.id, currentCard.type === "AKSI" ? "Siswa telah melakukan aksi." : tantanganText);
+                              submitAnswerSubjektif(activeGroup.id, currentCard.type === "TANTANGAN" ? "Siswa telah selesai menjawab lisan." : tantanganText);
                               setTantanganText("");
                             }}
-                            disabled={currentCard.type === "TANTANGAN" && !tantanganText.trim()}
+                            disabled={currentCard.type === "PEMAHAMAN" && !tantanganText.trim()}
                             className="w-full py-3.5 rounded-xl bg-zinc-900 text-white font-black tracking-[0.2em] uppercase hover:bg-zinc-800 disabled:opacity-20 transition-all shadow-[4px_4px_0_0_rgba(0,0,0,0.2)]"
                           >
-                            {currentCard.type === "AKSI" ? "SAYA SUDAH SELESAI" : "KIRIM JAWABAN"}
+                            {currentCard.type === "TANTANGAN" ? "SAYA SUDAH SELESAI" : "KIRIM JAWABAN"}
                           </button>
                         </>
                       )}

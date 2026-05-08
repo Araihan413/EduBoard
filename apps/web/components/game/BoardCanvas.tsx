@@ -19,8 +19,8 @@ interface TileInfo {
 const getTileIcon = (type: string) => {
   switch (type) {
     case "DASAR": return <BookOpen className="w-8 h-8 text-blue-50/40" />;
-    case "AKSI": return <Target className="w-8 h-8 text-red-50/40" />;
-    case "TANTANGAN": return <Flame className="w-8 h-8 text-orange-50/40" />;
+    case "TANTANGAN": return <Target className="w-8 h-8 text-red-50/40" />;
+    case "PEMAHAMAN": return <Flame className="w-8 h-8 text-orange-50/40" />;
     case "SKIP": return <Moon className="w-8 h-8 text-slate-200" />;
     default: return null;
   }
@@ -29,8 +29,8 @@ const getTileIcon = (type: string) => {
 const getTileColor = (type: string) => {
   switch (type) {
     case "SKIP": return "bg-zinc-100 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700";
-    case "AKSI": return "bg-red-500 dark:bg-red-600 border-red-400 dark:border-red-500";
-    case "TANTANGAN": return "bg-orange-500 dark:bg-orange-600 border-orange-400 dark:border-orange-500";
+    case "TANTANGAN": return "bg-red-500 dark:bg-red-600 border-red-400 dark:border-red-500";
+    case "PEMAHAMAN": return "bg-orange-500 dark:bg-orange-600 border-orange-400 dark:border-orange-500";
     default: return "bg-blue-500 dark:bg-blue-600 border-blue-400 dark:border-blue-500";
   }
 };

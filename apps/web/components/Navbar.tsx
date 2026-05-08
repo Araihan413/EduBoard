@@ -53,6 +53,7 @@ export default function Navbar() {
   return (
     <>
       <nav className="fixed top-0 left-0 right-0 h-20 bg-white/80 backdrop-blur-xl border-b border-slate-100 z-[100] flex items-center justify-between px-6 md:px-8 lg:px-12 shadow-sm">
+      <div className="flex gap-12 justify-start">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-3 group relative z-[110]">
           <Image 
@@ -61,13 +62,13 @@ export default function Navbar() {
             width={160}
             height={40}
             priority
-            style={{ height: '60px', width: 'auto' }}
+            style={{ height: '50px', width: 'auto' }}
             className="object-contain transition-transform group-hover:scale-105"
           />
         </Link>
 
         {/* Desktop Links */}
-        <div className="hidden md:flex items-center gap-8">
+        <div className="hidden lg:flex items-center gap-6">
           <Link 
             href="/guide"
             className={`text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-colors ${pathname === '/guide' ? 'text-[#2c49c5]' : 'text-slate-500 hover:text-[#2c49c5]'}`}
@@ -84,8 +85,10 @@ export default function Navbar() {
           </Link>
         </div>
 
+        </div>
+
         {/* Desktop Buttons */}
-        <div className="hidden md:flex items-center gap-4">
+        <div className="hidden lg:flex items-center gap-4">
           {pathname === "/lobby" && (
             <button 
               onClick={toggleMute}
@@ -123,7 +126,7 @@ export default function Navbar() {
         {/* Mobile Toggle */}
         <button 
           onClick={() => setIsMenuOpen(!isMenuOpen)}
-          className="md:hidden relative z-[110] w-10 h-10 flex items-center justify-center text-slate-900"
+          className="lg:hidden relative z-[110] w-10 h-10 flex items-center justify-center text-slate-900"
         >
           {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
@@ -137,7 +140,7 @@ export default function Navbar() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-[90] bg-white pt-24 px-6 md:hidden overflow-y-auto"
+            className="fixed inset-0 z-[90] bg-white pt-24 px-6 lg:hidden overflow-y-auto"
           >
             <div className="flex flex-col gap-1">
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-4 ml-2">Navigasi Utama</p>

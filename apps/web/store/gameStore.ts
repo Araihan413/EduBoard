@@ -8,7 +8,7 @@ import { createClient } from '../lib/supabase/client';
 // Types
 export type GroupStatus = 'ACTIVE' | 'SKIP_NEXT' | 'WAITING' | 'SURRENDERED';
 export type GameStatus = 'IDLE' | 'LOBBY' | 'PLAYING' | 'FINISHED';
-export type QuestionType = 'DASAR' | 'AKSI' | 'TANTANGAN';
+export type QuestionType = 'DASAR' | 'TANTANGAN' | 'PEMAHAMAN';
 
 export interface Group {
   id: string;
@@ -48,7 +48,7 @@ export interface RoomConfig {
   gameDurationSec: number;
   turnDurationDasar: number;
   turnDurationTantangan: number;
-  turnDurationAksi: number;
+  turnDurationPemahaman: number;
   maxGroups: number;
   questionSetId?: string;
 }
@@ -195,11 +195,11 @@ let isJoining = false;
 export const getTileTypeAt = (index: number): QuestionType | "SKIP" => {
   if (index === 0) return "DASAR";
   const patterns: (QuestionType | "SKIP")[] = [
-    "DASAR", "DASAR", "AKSI", "TANTANGAN", "SKIP", 
-    "DASAR", "DASAR", "TANTANGAN", "AKSI", "TANTANGAN", "AKSI",
-    "DASAR", "TANTANGAN", "SKIP", "DASAR", "AKSI", "TANTANGAN",
-    "DASAR", "SKIP", "AKSI", "DASAR", "TANTANGAN", "DASAR",
-    "AKSI", "TANTANGAN", "AKSI", "DASAR", "SKIP", "TANTANGAN", "AKSI"
+    "DASAR", "DASAR", "TANTANGAN", "PEMAHAMAN", "SKIP", 
+    "DASAR", "DASAR", "PEMAHAMAN", "TANTANGAN", "PEMAHAMAN", "TANTANGAN",
+    "DASAR", "PEMAHAMAN", "SKIP", "DASAR", "TANTANGAN", "PEMAHAMAN",
+    "DASAR", "SKIP", "TANTANGAN", "DASAR", "PEMAHAMAN", "DASAR",
+    "TANTANGAN", "PEMAHAMAN", "TANTANGAN", "DASAR", "SKIP", "PEMAHAMAN", "TANTANGAN"
   ];
   return patterns[(index - 1) % 30];
 };
@@ -330,7 +330,7 @@ export const useGameStore = create<GameState & GameActions>()(
           gameDurationSec: 600, 
           turnDurationDasar: 30, 
           turnDurationTantangan: 60, 
-          turnDurationAksi: 15, 
+          turnDurationPemahaman: 90, 
           maxGroups: 4
         },
         groups: [],
@@ -397,7 +397,7 @@ export const useGameStore = create<GameState & GameActions>()(
               durationMinutes: config.gameDurationSec / 60,
               turnDurationDasar: config.turnDurationDasar,
               turnDurationTantangan: config.turnDurationTantangan,
-              turnDurationAksi: config.turnDurationAksi,
+              turnDurationPemahaman: config.turnDurationPemahaman,
               maxGroups: config.maxGroups,
               questionSetId: config.questionSetId
             });
@@ -797,10 +797,9 @@ export const useGameStore = create<GameState & GameActions>()(
 
           return {
             currentCard: card,
-            lastResult: null,
-            timer: (card.type === 'TANTANGAN' ? state.roomConfig.turnDurationTantangan :
-                   card.type === 'AKSI' ? state.roomConfig.turnDurationAksi :
-                   state.roomConfig.turnDurationDasar) || (card.type === 'TANTANGAN' ? 60 : card.type === 'AKSI' ? 15 : 30),
+            timer: (card.type === 'PEMAHAMAN' ? state.roomConfig.turnDurationPemahaman :
+                   card.type === 'TANTANGAN' ? state.roomConfig.turnDurationTantangan :
+                   state.roomConfig.turnDurationDasar) || (card.type === 'PEMAHAMAN' ? 90 : card.type === 'TANTANGAN' ? 60 : 30),
             isTimerRunning: true,
             logs: [`Kartu ${card.type} ditarik: ${card.text}`, ...state.logs]
           };
@@ -867,7 +866,7 @@ export const useGameStore = create<GameState & GameActions>()(
           const isCorrect = isInfoCard ? true : (card.answerKey === answer);
           
           // Action cards should give points when completed
-          const score = (isInfoCard && card.type === 'AKSI') ? (card.points || 10) : (isCorrect ? (card.points || 10) : 0);
+          const score = (isInfoCard && card.type === 'TANTANGAN') ? (card.points || 10) : (isCorrect ? (card.points || 10) : 0);
           
           if (socket) {
             socket.emit("student:submit_objektif", {
@@ -889,13 +888,13 @@ export const useGameStore = create<GameState & GameActions>()(
             const group = get().groups.find(g => g.id === groupId);
             syncSet({
               lastResult: { 
-                type: isInfoCard ? (card.type === 'AKSI' ? 'SUCCESS' : 'INFO') : (isCorrect ? 'SUCCESS' : 'FAILURE'),
-                title: isInfoCard ? (card.type === 'AKSI' ? 'BERHASIL!' : 'LANJUT!') : (isCorrect ? 'BENAR!' : 'SALAH!'),
+                type: isInfoCard ? (card.type === 'TANTANGAN' ? 'SUCCESS' : 'INFO') : (isCorrect ? 'SUCCESS' : 'FAILURE'),
+                title: isInfoCard ? (card.type === 'TANTANGAN' ? 'BERHASIL!' : 'LANJUT!') : (isCorrect ? 'BENAR!' : 'SALAH!'),
                 message: isInfoCard 
-                  ? (card.type === 'AKSI' ? `Aksi berhasil dilakukan!` : `Giliran tim ${group?.name} selesai.`)
+                  ? (card.type === 'TANTANGAN' ? `Jawaban lisan berhasil disampaikan!` : `Giliran tim ${group?.name} selesai.`)
                   : (isCorrect 
                       ? `Selamat! Jawaban kamu tepat.` 
-                      : (card.type === 'AKSI')
+                      : (card.type === 'TANTANGAN')
                         ? `Waktu habis atau aksi belum selesai.`
                         : `Yah, kurang tepat. Jawabannya adalah: ${card.answerKey}`),
                 points: score,
@@ -1040,13 +1039,13 @@ export const useGameStore = create<GameState & GameActions>()(
                 if (currentState.currentCard?.id === state.currentCard?.id && !currentState.isGrading) {
                    if (currentState.currentCard?.type === 'DASAR') {
                      currentState.submitAnswerObjektif(activeG.id, "TIMEOUT");
-                   } else if (currentState.currentCard?.type === 'TANTANGAN' || currentState.currentCard?.type === 'AKSI') {
+                   } else if (currentState.currentCard?.type === 'PEMAHAMAN' || currentState.currentCard?.type === 'TANTANGAN') {
                      // Only submit fallback if the student hasn't submitted yet
                      const alreadySubmitted = currentState.pendingReviews.some(r => r.groupId === activeG.id);
                      if (!alreadySubmitted) {
-                        const fallbackMsg = currentState.currentCard?.type === 'TANTANGAN' 
-                          ? "(Waktu habis, jawaban belum selesai)"
-                          : "(Waktu habis, aksi belum selesai)";
+                        const fallbackMsg = currentState.currentCard?.type === 'PEMAHAMAN' 
+                          ? "Waktu habis, jawaban tulisan belum selesai." 
+                          : "Waktu habis, siswa belum selesai menjawab lisan.";
                         currentState.submitAnswerSubjektif(activeG.id, fallbackMsg);
                      }
                    }

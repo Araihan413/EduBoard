@@ -10,13 +10,13 @@ export const CreateRoomSchema = z.object({
   durationMinutes: z.number().min(1),
   turnDurationDasar: z.number().min(10).max(120),
   turnDurationTantangan: z.number().min(10).max(300),
-  turnDurationAksi: z.number().min(5).max(120),
+  turnDurationPemahaman: z.number().min(10).max(300),
   maxGroups: z.number().min(2).max(8),
 });
 export type CreateRoomInput = z.infer<typeof CreateRoomSchema>;
 
 export const QuestionSchema = z.object({
-  type: z.enum(["DASAR", "AKSI", "TANTANGAN"]),
+  type: z.enum(["DASAR", "TANTANGAN", "PEMAHAMAN"]),
   text: z.string().min(5),
   options: z.array(z.string()).optional(),
   answerKey: z.string().optional(),
