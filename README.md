@@ -40,7 +40,7 @@ Sebelum menjalankan proyek ini, pastikan Anda telah menginstal perangkat lunak b
 ### 1. Clone Repository
 
 ```bash
-git clone <URL_REPOSITORY_ANDA>
+git clone git@github.com:Araihan413/EduBoard.git
 cd EduBoard
 ```
 
