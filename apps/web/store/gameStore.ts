@@ -471,7 +471,7 @@ export const useGameStore = create<GameState & GameActions>()(
                 gameDurationSec: roomData.durationMinutes * 60,
                 turnDurationDasar: roomData.turnDurationDasar,
                 turnDurationTantangan: roomData.turnDurationTantangan,
-                turnDurationAksi: roomData.turnDurationAksi,
+                turnDurationPemahaman: roomData.turnDurationPemahaman,
                 maxGroups: roomData.maxGroups,
                 questionSetId: roomData.questionSetId
               },
