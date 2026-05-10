@@ -17,7 +17,7 @@ Proyek ini dibangun menggunakan arsitektur **Monorepo (Turborepo)** dengan pemis
 ## 🛠️ Stack Teknologi
 
 - **Monorepo**: Turborepo
-- **Frontend (`apps/web`)**: Next.js 14 (App Router), Tailwind CSS v3, Zustand, TanStack Query, Konva.js (Papan Digital), Framer Motion
+- **Frontend (`apps/web`)**: Next.js 16+ (App Router), Tailwind CSS v3, Zustand, TanStack Query, Konva.js (Papan Digital), Framer Motion
 - **Backend (`apps/api`)**: Fastify v4, Socket.io v4 (Real-time Engine), Zod
 - **Database & ORM (`packages/db`)**: PostgreSQL 16+ (Supabase), Prisma v5
 - **Package Manager**: pnpm
