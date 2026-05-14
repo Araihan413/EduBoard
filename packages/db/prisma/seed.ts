@@ -36,7 +36,7 @@ async function main() {
     
     const questionSet = await prisma.questionSet.create({
       data: {
-        id: `preset-${preset.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+        id: `preset-${preset.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')}`,
         title: preset.name,
         description: preset.description,
         isPreset: true,

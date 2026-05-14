@@ -54,34 +54,96 @@ pnpm install
 
 ### 3. Konfigurasi Environment Variables
 
-Buat file `.env` di root proyek (sejajar dengan `package.json`). Anda dapat menyalin konfigurasi dari `.env.example` jika tersedia, atau isi dengan nilai konfigurasi Supabase Anda:
+Karena proyek ini menggunakan struktur monorepo, Anda perlu menyiapkan beberapa file `.env` di lokasi yang berbeda. Silakan buat file-file berikut:
 
+#### A. Root Directory (`/.env`)
+Digunakan untuk konfigurasi global dan perintah Prisma dari root.
 ```env
-# Koneksi Database Supabase
-DATABASE_URL="postgresql://postgres.[PROYEK-ANDA]:[PASSWORD-ANDA]@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
-DIRECT_URL="postgresql://postgres.[PROYEK-ANDA]:[PASSWORD-ANDA]@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres"
+DATABASE_URL="postgresql://postgres.[PROYEK]:[PASSWORD]@..."
+DIRECT_URL="postgresql://postgres.[PROYEK]:[PASSWORD]@..."
+NEXT_PUBLIC_SUPABASE_URL="https://[PROYEK].supabase.co"
+NEXT_PUBLIC_SUPABASE_ANON_KEY="eyJhbGci..."
+```
 
-# Kredensial Supabase untuk Frontend
-NEXT_PUBLIC_SUPABASE_URL="https://[PROYEK-ANDA].supabase.co"
-NEXT_PUBLIC_SUPABASE_ANON_KEY="eyJhb..."
-
-# URL WebSocket (Opsional: Jika backend berjalan di localhost)
+#### B. Frontend (`/apps/web/.env.local`)
+Digunakan oleh Next.js untuk autentikasi dan koneksi WebSocket.
+```env
+NEXT_PUBLIC_SUPABASE_URL="https://[PROYEK].supabase.co"
+NEXT_PUBLIC_SUPABASE_ANON_KEY="eyJhbGci..."
 NEXT_PUBLIC_WS_URL="http://localhost:4000"
 ```
 
-### 4. Setup Database (Prisma)
+#### C. Backend (`/apps/api/.env`)
+Digunakan oleh Fastify untuk koneksi database dan keamanan JWT.
+```env
+DATABASE_URL="postgresql://postgres.[PROYEK]:[PASSWORD]@..."
+JWT_SECRET="masukkan-string-acak-bebas"
+PORT=4000
+```
 
-Lakukan sinkronisasi skema Prisma ke database Supabase Anda dan *generate* Prisma Client:
+#### D. Database Package (`/packages/db/.env`)
+Wajib ada jika Anda ingin menjalankan perintah Prisma langsung di dalam folder `packages/db`.
+```env
+DATABASE_URL="postgresql://postgres.[PROYEK]:[PASSWORD]@..."
+DIRECT_URL="postgresql://postgres.[PROYEK]:[PASSWORD]@..."
+```
+
+### 4. Konfigurasi Supabase & Google Auth
+
+Aplikasi ini menggunakan **Google OAuth** untuk autentikasi Guru. Berikut langkah-langkah pengaturannya:
+
+#### A. Google Cloud Console
+1. Buka [Google Cloud Console](https://console.cloud.google.com/).
+2. Buat proyek baru atau pilih proyek yang sudah ada.
+3. Buka **APIs & Services > OAuth consent screen**. Pilih User Type **External**, lalu isi informasi aplikasi.
+4. Buka **APIs & Services > Credentials**. Klik **Create Credentials > OAuth client ID**.
+5. Pilih Application Type **Web application**.
+6. Pada bagian **Authorized redirect URIs**, masukkan URL callback dari Supabase Anda (bisa didapatkan di langkah B.3 di bawah). Formatnya biasanya: `https://[PROYEK-ANDA].supabase.co/auth/v1/callback`.
+7. Simpan, lalu catat **Client ID** dan **Client Secret**.
+
+#### B. Dashboard Supabase
+1. Buka dashboard proyek [Supabase](https://supabase.com/) Anda.
+2. Pergi ke menu **Authentication > Providers > Google**.
+3. Aktifkan (Enable) Google Provider.
+4. Masukkan **Client ID** dan **Client Secret** yang Anda dapatkan dari Google Cloud Console tadi.
+5. Pada menu **Authentication > URL Configuration**:
+   - **Site URL**: `http://localhost:3000` (untuk dev) atau domain produksi Anda.
+   - **Redirect URLs**: Tambahkan `http://localhost:3000/**` agar redirect setelah login berjalan lancar di lokal.
+
+### 5. Setup Database (Prisma)
+
+Karena skema database berada di dalam package tersendiri, Anda dapat menjalankan perintah Prisma melalui `pnpm` dari root atau masuk ke foldernya langsung:
 
 ```bash
-# Push skema database
-npx prisma db push
+# Opsi 1: Dari root menggunakan pnpm filter (Direkomendasikan)
+pnpm --filter @repo/db db:push
+pnpm --filter @repo/db db:generate
 
-# Generate Prisma Client
+# Opsi 2: Masuk ke direktori package secara manual
+cd packages/db
+npx prisma db push
 npx prisma generate
 ```
 
-### 5. Jalankan Development Server
+> [!IMPORTANT]
+> Pastikan Anda menjalankan `db:generate` setidaknya sekali sebelum menjalankan server agar TypeScript dapat mengenali skema database terbaru.
+
+### 6. Import Data Preset (Seeding)
+
+Aplikasi ini dilengkapi dengan data soal preset (PAI Kelas X s.d XII). Untuk memasukkannya ke database, jalankan perintah berikut:
+
+```bash
+# Opsi 1: Dari root menggunakan pnpm filter (Direkomendasikan)
+pnpm --filter @repo/db db:seed
+
+# Opsi 2: Masuk ke direktori package secara manual
+cd packages/db
+npx prisma db seed
+```
+
+Proses ini akan membersihkan data lama dan memasukkan data soal baru dari folder `packages/db/prisma/presets` ke database Anda.
+
+### 7. Jalankan Development Server
 
 Jalankan semua aplikasi (frontend dan backend) secara serentak menggunakan Turborepo:
 

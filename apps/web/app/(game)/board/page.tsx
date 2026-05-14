@@ -451,7 +451,6 @@ function BoardPage() {
               const isLeader = rank === 0 && g.score > 0 && g.status !== 'SURRENDERED';
               const isSurrendered = g.status === 'SURRENDERED';
               const isOffline = g.isOffline;
-              const colorData = PREMIUM_COLORS.find(c => c.hex === g.color);
               
               return (
                 <motion.div 

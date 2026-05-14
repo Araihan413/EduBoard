@@ -5,7 +5,7 @@ import { useDebounce } from "../../hooks/useDebounce";
 import { toast } from "sonner";
 
 export default function RoomSetupHub() {
-  const { createRoom, questionSets, fetchQuestionSets } = useGameStore();
+  const { createRoom, questionSets, fetchQuestionSets, isLoadingSets } = useGameStore();
   const [selectedSetId, setSelectedSetId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 300);
@@ -89,7 +89,16 @@ export default function RoomSetupHub() {
           <div className="relative">
             {/* Scrollable Container */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[320px] overflow-y-auto pr-2 custom-scrollbar p-1">
-              {filteredSets.length > 0 ? (
+              {isLoadingSets ? (
+                Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="p-5 rounded-[1.5rem] border-2 border-slate-100 bg-white animate-pulse">
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="w-24 h-4 bg-slate-100 rounded-lg" />
+                    </div>
+                    <div className="w-32 h-3 bg-slate-50 rounded-lg mb-1" />
+                  </div>
+                ))
+              ) : filteredSets.length > 0 ? (
                 filteredSets.map((set) => (
                   <button
                     key={set.id}
