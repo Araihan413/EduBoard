@@ -2,6 +2,8 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import { Server } from "socket.io";
 import { prisma } from "@repo/db";
+import * as dotenv from "dotenv";
+import * as path from "path";
 
 import fastifyJwt from "@fastify/jwt";
 import authRoutes from "./routes/auth";
@@ -10,18 +12,42 @@ import roomRoutes from "./routes/rooms";
 import { questionSetRoutes } from "./routes/questionSets";
 import { handleSocketEvents } from "./socket/gameManager";
 
+// ─── Load Environment Variables ───────────────────────────────────────────────
+// Priority: apps/api/.env → root .env (fallback for local dev)
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
+dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
+
+// ─── Validate Required Environment Variables ──────────────────────────────────
+const jwtSecret = process.env.JWT_SECRET;
+if (!jwtSecret) {
+  console.error(
+    "[FATAL] JWT_SECRET environment variable is not set. " +
+    "Generate one with: openssl rand -base64 32"
+  );
+  process.exit(1);
+}
+
+const port = parseInt(process.env.PORT || "4000", 10);
+
+// CORS_ORIGIN: comma-separated list of allowed origins for production.
+// Example: "https://eduboard.vercel.app,https://www.eduboard.com"
+// In development, defaults to localhost:3000.
+const corsOrigins: string | string[] | boolean = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(",").map((o) => o.trim())
+  : "http://localhost:3000";
+
+// ─── Fastify Instance ─────────────────────────────────────────────────────────
 const fastify = Fastify({ logger: true });
 
 // Register Plugins
-// Register Plugins
 fastify.register(cors, {
-  origin: true, 
+  origin: true,
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 });
 
 fastify.register(fastifyJwt, {
-  secret: process.env.JWT_SECRET || "supersekretkeyygdijagabenerbener", 
+  secret: jwtSecret,
 });
 
 fastify.get("/health", async () => {
@@ -35,21 +61,21 @@ fastify.register(questionSetRoutes, { prefix: "/api/sets" });
 
 const start = async () => {
   try {
-    await fastify.listen({ port: 4000, host: '0.0.0.0' });
-    
+    await fastify.listen({ port, host: "0.0.0.0" });
+
     // Initialize Socket.io attached to Fastify's raw server
     const io = new Server(fastify.server, {
       cors: {
-        origin: "http://localhost:3000",
-        methods: ["GET", "POST"]
-      }
+        origin: corsOrigins,
+        methods: ["GET", "POST"],
+      },
     });
 
     io.on("connection", (socket) => {
       handleSocketEvents(io, socket);
     });
 
-    console.log("Server and Socket.io started on port 4000");
+    console.log(`Server and Socket.io started on port ${port}`);
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);

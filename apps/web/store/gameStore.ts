@@ -1,14 +1,14 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
+
 import { io, Socket } from 'socket.io-client';
 import { toast } from 'sonner';
 import { api } from '../lib/api';
 import { createClient } from '../lib/supabase/client';
 
-// Types
-export type GroupStatus = 'ACTIVE' | 'SKIP_NEXT' | 'WAITING' | 'SURRENDERED';
-export type GameStatus = 'IDLE' | 'LOBBY' | 'PLAYING' | 'FINISHED';
-export type QuestionType = 'DASAR' | 'TANTANGAN' | 'PEMAHAMAN';
+// Primitive game types — defined in types/game.ts to avoid circular dependencies.
+export type { GroupStatus, GameStatus, QuestionType } from '../types/game';
+import type { GroupStatus, GameStatus, QuestionType } from '../types/game';
 
 export interface Group {
   id: string;
@@ -96,6 +96,7 @@ interface GameState {
   diceValue: number;
   isRolling: boolean;
   isMoving: boolean;
+  hasRolled: boolean;
   
   questionSets: QuestionSet[];
   activeQuestionSet: QuestionSet | null;
@@ -121,6 +122,16 @@ interface GameState {
   activeTab: 'SESI' | 'SOAL' | 'RIWAYAT';
   selectedSession: any | null;
   isGrading: boolean;
+  // Branching path state
+  stepsRemaining: number;
+  isChoosingPath: boolean;
+  availablePaths: number[];
+  // Star Spin State
+  isSpinningStar: boolean;
+  starSpinResult: string | null;
+  isSpinAnimating: boolean;
+  lastLocalMoveTime: number;
+  isSuperseded: boolean;
 }
 
 interface GameActions {
@@ -148,12 +159,17 @@ interface GameActions {
   addQuestion: (setId: string, q: Omit<QuestionCard, 'id' | 'setId'>) => Promise<void>;
   updateQuestion: (id: string, q: Partial<QuestionCard>) => Promise<void>;
   deleteQuestion: (id: string) => Promise<void>;
-  fetchQuestions: (setId: string, page?: number, showSkeleton?: boolean) => Promise<void>;
+  fetchQuestions: (setId: string, page?: number, showSkeleton?: boolean, limit?: number) => Promise<void>;
 
   // Actions - Mekanik Permainan
   drawCard: (type?: QuestionType) => void;
   rollDice: () => void;
   moveGroup: (groupId: string, steps: number) => void;
+  selectBranch: (nextTileId: number) => void;
+  /** @internal — dipanggil oleh moveGroup dan selectBranch, jangan panggil langsung dari UI */
+  _movePionBySteps: (groupId: string, fromTileId: number, steps: number) => void;
+  /** @internal — dipanggil saat pion berhenti di tile akhir */
+  _landOnTile: (groupId: string, tileId: number) => void;
   submitAnswerObjektif: (groupId: string, answer: string) => void;
   submitAnswerSubjektif: (groupId: string, answerText: string) => void;
   reviewSubmission: (reviewId: string, score: number) => void;
@@ -167,9 +183,13 @@ interface GameActions {
   leaveRoom: (roomCode: string, name: string) => void;
   cancelRoom: (roomCode: string) => void;
   
+  spinStar: () => void;
+  
   // Sync
   setStateFromSync: (state: Partial<GameState>) => void;
   handleAutoRejoin: () => void;
+  reactivateSession: () => void;
+  exitToLobby: () => void;
 }
 
 
@@ -192,17 +212,9 @@ const setLeavingFlag = (val: boolean) => {
 };
 let isJoining = false;
 
-export const getTileTypeAt = (index: number): QuestionType | "SKIP" => {
-  if (index === 0) return "DASAR";
-  const patterns: (QuestionType | "SKIP")[] = [
-    "DASAR", "DASAR", "TANTANGAN", "PEMAHAMAN", "SKIP", 
-    "DASAR", "DASAR", "PEMAHAMAN", "TANTANGAN", "PEMAHAMAN", "TANTANGAN",
-    "DASAR", "PEMAHAMAN", "SKIP", "DASAR", "TANTANGAN", "PEMAHAMAN",
-    "DASAR", "SKIP", "TANTANGAN", "DASAR", "PEMAHAMAN", "DASAR",
-    "TANTANGAN", "PEMAHAMAN", "TANTANGAN", "DASAR", "SKIP", "PEMAHAMAN", "TANTANGAN"
-  ];
-  return patterns[(index - 1) % 30];
-};
+// Tile graph helpers — single source of truth is gameConfig.ts
+import { getTileTypeAt, getTileById } from '../components/game/config/gameConfig';
+export { getTileTypeAt };
 
 export const useGameStore = create<GameState & GameActions>()(
   persist(
@@ -285,20 +297,76 @@ export const useGameStore = create<GameState & GameActions>()(
               }
             }
 
-            const myGroup = newState.groups?.find(g => g.name === finalGroupName);
+            // Cari grup secara case-insensitive agar toleran terhadap perbedaan huruf kapital saat rejoin.
+            const myGroup = newState.groups?.find(
+              g => g.name.trim().toLowerCase() === finalGroupName?.trim().toLowerCase()
+            );
+
+            // Koreksi huruf kapital nama kelompok lokal agar 100% sama dengan data resmi server
+            if (myGroup && finalGroupName !== myGroup.name) {
+              finalGroupName = myGroup.name;
+            }
             
             // PROTECT QUESTIONS: Don't overwrite existing questions with an empty array from server
             const finalQuestions = (newState.questions && newState.questions.length > 0) 
               ? newState.questions 
               : state.questions;
 
+            // PROTECT LOCAL PION POSITION DURING MOVEMENT (Solusi A):
+            // If we are currently moving our own group, we ignore the incoming group position from the server's state broadcast.
+            // This prevents rubber-banding / stuttering movement due to database/network latency.
+            let finalGroups = newState.groups;
+            if (finalGroups) {
+              finalGroups = [...finalGroups].sort((a, b) => a.id.localeCompare(b.id));
+            }
+            const isRecentlyMovedLocally = (Date.now() - state.lastLocalMoveTime) < 2000;
+            if (finalGroups && (state.isMoving || isRecentlyMovedLocally)) {
+              const activeGroup = state.groups[state.activeGroupIndex];
+              const isMyGroupActive = activeGroup && 
+                activeGroup.name?.trim().toLowerCase() === finalGroupName?.trim().toLowerCase();
+              if (isMyGroupActive) {
+                finalGroups = finalGroups.map(g => 
+                  g.id === activeGroup.id 
+                    ? { ...g, position: activeGroup.position } 
+                    : g
+                );
+              }
+            }
+
+            // PROTECT DICE STATE DURING ROLL:
+            // If it is our turn, and we are currently rolling or have already rolled,
+            // we protect the local dice states from being overwritten by stale server packets.
+            // Namun, jika giliran/ronde baru dimulai (isNewTurnStarted), kita harus mengizinkan
+            // status hasRolled dan isRolling untuk di-reset ke false agar pemain tersebut 
+            // bisa memutar dadu lagi (termasuk saat uji coba 1 pemain di mana indeks tetap sama tapi ronde bertambah).
+            const activeGroup = state.groups[state.activeGroupIndex];
+            const isNewTurnStarted = 
+              (newState.currentTurn !== undefined && newState.currentTurn !== state.currentTurn) ||
+              (newState.activeGroupIndex !== undefined && newState.activeGroupIndex !== state.activeGroupIndex);
+            const isMyTurn = !isGuru && activeGroup && activeGroup.name === finalGroupName;
+            
+            let finalDiceValue = newState.diceValue !== undefined ? newState.diceValue : state.diceValue;
+            let finalIsRolling = newState.isRolling !== undefined ? newState.isRolling : state.isRolling;
+            let finalHasRolled = newState.hasRolled !== undefined ? newState.hasRolled : state.hasRolled;
+
+            if (isMyTurn && !isNewTurnStarted && (state.isRolling || state.hasRolled)) {
+              finalDiceValue = state.diceValue;
+              finalIsRolling = state.isRolling;
+              finalHasRolled = state.hasRolled;
+            }
+
             return {
               ...state,
               ...newState,
+              isSuperseded: false,
+              ...(finalGroups ? { groups: finalGroups } : {}),
               questions: finalQuestions,
               isGuru,
               myGroupName: finalGroupName, 
               roomCode: finalRoomCode,
+              diceValue: finalDiceValue,
+              isRolling: finalIsRolling,
+              hasRolled: finalHasRolled,
               ...(myGroup ? {
                 myAvatar: myGroup.avatar || state.myAvatar,
                 myColor: myGroup.color || state.myColor
@@ -319,6 +387,20 @@ export const useGameStore = create<GameState & GameActions>()(
         socket.on("room:full", (data: { message: string }) => {
           set({ myGroupName: null, roomCode: '', gameStatus: 'IDLE' });
           toast.error(data.message || "Ruangan sudah penuh!");
+        });
+
+        socket.on("error", (data: any) => {
+          set({ myGroupName: null, roomCode: '', gameStatus: 'IDLE' });
+          const errMsg = typeof data === 'string' 
+            ? data 
+            : (data && data.message) 
+              ? data.message 
+              : "Terjadi kesalahan!";
+          toast.error(errMsg);
+        });
+
+        socket.on("room:superseded", (data: { message: string }) => {
+          set({ isSuperseded: true });
         });
       }
 
@@ -344,6 +426,7 @@ export const useGameStore = create<GameState & GameActions>()(
         diceValue: 1,
         isRolling: false,
         isMoving: false,
+        hasRolled: false,
         questionSets: [],
         activeQuestionSet: null,
         questions: [],
@@ -366,10 +449,18 @@ export const useGameStore = create<GameState & GameActions>()(
         activeTab: 'SESI',
         selectedSession: null,
         isGrading: false,
+        stepsRemaining: 0,
+        isChoosingPath: false,
+        availablePaths: [],
+        isSpinningStar: false,
+        starSpinResult: null,
+        isSpinAnimating: false,
+        lastLocalMoveTime: 0,
+        isSuperseded: false,
 
         toggleMute: () => set((state) => ({ isMuted: !state.isMuted })),
         setCountdown: (val) => syncSet({ countdown: val }),
-        updateGroups: (groups) => syncSet({ groups }),
+        updateGroups: (groups) => syncSet({ groups: [...groups].sort((a, b) => a.id.localeCompare(b.id)) }),
         updateGroup: (groupId, updates) => syncSet((state) => ({
           groups: state.groups.map(g => g.id === groupId ? { ...g, ...updates } : g)
         })),
@@ -386,6 +477,82 @@ export const useGameStore = create<GameState & GameActions>()(
             socket.emit("room:cancel", roomCode);
           }
           get().resetToIdle();
+        },
+        spinStar: () => {
+          const state = get();
+          const activeG = state.groups[state.activeGroupIndex];
+          if (!activeG) return;
+
+          // Only the active student whose turn it is can trigger the spin. Guru cannot spin.
+          const isMyTurn = !state.isGuru && activeG.name?.trim().toLowerCase() === state.myGroupName?.trim().toLowerCase();
+          if (!isMyTurn) return;
+
+          const options = ["+5", "-5", "DASAR", "TANTANGAN", "PEMAHAMAN", "SKIP"];
+          const result = options[Math.floor(Math.random() * options.length)];
+
+          syncSet({
+            isSpinAnimating: true,
+            starSpinResult: result,
+            logs: [`Roda putar STAR berputar untuk tim ${activeG.name}...`, ...state.logs]
+          });
+
+          // Spin animation duration: 2500ms
+          setTimeout(() => {
+            syncSet({ isSpinAnimating: false });
+
+            // Apply spin results after animation finishes
+            setTimeout(() => {
+              const innerState = get();
+              const activeGroupCurrent = innerState.groups[innerState.activeGroupIndex];
+              if (!activeGroupCurrent) return;
+
+              if (result === "+5" || result === "-5") {
+                const points = result === "+5" ? 5 : -5;
+                const newScore = Math.max(0, activeGroupCurrent.score + points);
+                
+                // Show custom result notification
+                syncSet((s) => ({
+                  groups: s.groups.map(g => g.id === activeGroupCurrent.id ? { ...g, score: newScore } : g),
+                  isSpinningStar: false,
+                  lastResult: {
+                    type: points > 0 ? "SUCCESS" : "FAILURE",
+                    title: points > 0 ? "BONUS POIN!" : "POIN DIKURANGI!",
+                    message: points > 0 
+                      ? `Selamat! Tim ${activeGroupCurrent.name} mendapatkan bonus +5 poin dari roda putar STAR.` 
+                      : `Aduh! Tim ${activeGroupCurrent.name} kehilangan -5 poin dari roda putar STAR.`,
+                    points: points,
+                    groupName: activeGroupCurrent.name
+                  },
+                  logs: [`Tim ${activeGroupCurrent.name} mendapat hasil roda putar: ${result} (Poin sekarang: ${newScore})`, ...s.logs]
+                }));
+                // Auto advance turn after showing result toast (3000ms)
+                if (resultTimeoutId) clearTimeout(resultTimeoutId);
+                resultTimeoutId = setTimeout(() => get().nextTurn(), 3000);
+
+              } else if (result === "SKIP") {
+                syncSet((s) => ({
+                  isSpinningStar: false,
+                  lastResult: {
+                    type: "INFO",
+                    title: "GILIRAN DILEWATI",
+                    message: `Tim ${activeGroupCurrent.name} mendapat SKIP. Tidak terjadi apa-apa dan giliran dilewati.`,
+                    points: 0,
+                    groupName: activeGroupCurrent.name
+                  },
+                  logs: [`Tim ${activeGroupCurrent.name} mendapat hasil roda putar: SKIP. Giliran dilewati.`, ...s.logs]
+                }));
+                if (resultTimeoutId) clearTimeout(resultTimeoutId);
+                resultTimeoutId = setTimeout(() => get().nextTurn(), 3000);
+
+              } else {
+                // It's a question card type: DASAR, TANTANGAN, or PEMAHAMAN!
+                syncSet({ isSpinningStar: false });
+                setTimeout(() => {
+                  get().drawCard(result as QuestionType);
+                }, 300);
+              }
+            }, 800); // 800ms settle delay to see the winning card before applying
+          }, 2500);
         },
         setStateFromSync: (newState) => set(newState),
 
@@ -423,12 +590,13 @@ export const useGameStore = create<GameState & GameActions>()(
             });
             
             if (typeof window !== 'undefined') {
-              localStorage.setItem(`eduboard_role_${newCode}`, 'guru');
+              // sessionStorage agar tidak bentrok dengan tab murid di browser yang sama
+              sessionStorage.setItem(`eduboard_role_${newCode}`, 'guru');
             }
             
             // PRE-FETCH QUESTIONS
             if (config.questionSetId) {
-              get().fetchQuestions(config.questionSetId);
+              get().fetchQuestions(config.questionSetId, 1, false, 999);
             }
 
             if (socket) {
@@ -475,7 +643,7 @@ export const useGameStore = create<GameState & GameActions>()(
                 maxGroups: roomData.maxGroups,
                 questionSetId: roomData.questionSetId
               },
-              groups: roomData.groups || [],
+              groups: (roomData.groups || []).sort((a: any, b: any) => a.id.localeCompare(b.id)),
               logs: [],
               pendingReviews: [],
               winner: null,
@@ -499,7 +667,7 @@ export const useGameStore = create<GameState & GameActions>()(
 
             // FETCH QUESTIONS FOR STUDENT
             if (roomData.questionSetId) {
-              get().fetchQuestions(roomData.questionSetId);
+              get().fetchQuestions(roomData.questionSetId, 1, false, 999);
             }
           } catch (err: any) {
             // Rollback state on error
@@ -548,7 +716,7 @@ export const useGameStore = create<GameState & GameActions>()(
                 set({ isGuru: true, roomCode });
 
                 if (roomData.questionSetId) {
-                  get().fetchQuestions(roomData.questionSetId);
+                  get().fetchQuestions(roomData.questionSetId, 1, false, 999);
                 }
               }
             } catch (err) {
@@ -590,6 +758,7 @@ export const useGameStore = create<GameState & GameActions>()(
             currentCard: null,
             isMoving: false,
             isRolling: false,
+            hasRolled: false,
             lastResult: null,
             countdown: null,
             timer: 0,
@@ -602,6 +771,43 @@ export const useGameStore = create<GameState & GameActions>()(
           
           // Allow re-joining later if they manually enter a code
           setTimeout(() => setLeavingFlag(false), 1000);
+        },
+        reactivateSession: () => {
+          const state = get();
+          if (socket && state.roomCode && state.myGroupName) {
+            socket.emit("room:join", {
+              roomCode: state.roomCode,
+              groupName: state.myGroupName,
+              role: 'siswa',
+              avatar: state.myAvatar,
+              color: state.myColor,
+            });
+          }
+        },
+        exitToLobby: () => {
+          set({
+            gameStatus: 'IDLE',
+            roomCode: '',
+            myGroupName: null,
+            myAvatar: undefined,
+            myColor: undefined,
+            groups: [],
+            winner: null,
+            logs: [],
+            currentCard: null,
+            isMoving: false,
+            isRolling: false,
+            hasRolled: false,
+            lastResult: null,
+            countdown: null,
+            timer: 0,
+            globalTimer: 0,
+            isTimerRunning: false,
+            isGlobalTimerRunning: false,
+            pendingReviews: [],
+            isGrading: false,
+            isSuperseded: false
+          });
         },
         setActiveTab: (tab) => set({ activeTab: tab }),
         setSelectedSession: (session) => set({ selectedSession: session }),
@@ -762,10 +968,10 @@ export const useGameStore = create<GameState & GameActions>()(
             throw err;
           }
         },
-        fetchQuestions: async (setId, page = 1, showSkeleton = true) => {
+        fetchQuestions: async (setId, page = 1, showSkeleton = true, limit = 50) => {
           try {
             if (showSkeleton) set({ isLoadingQuestions: true });
-            const res = await api.get(`/api/questions?setId=${setId}&page=${page}`);
+            const res = await api.get(`/api/questions?setId=${setId}&page=${page}&limit=${limit}`);
             syncSet((state) => ({ 
               questions: res.data || [],
               isLoadingQuestions: false,
@@ -807,7 +1013,7 @@ export const useGameStore = create<GameState & GameActions>()(
 
         rollDice: () => {
           const val = Math.floor(Math.random() * 6) + 1;
-          syncSet({ diceValue: val, isRolling: true, logs: [`Dadu dikocok... hasil: ${val}`, ...get().logs] });
+          syncSet({ diceValue: val, isRolling: true, hasRolled: true, logs: [`Dadu dikocok... hasil: ${val}`, ...get().logs] });
 
           // Step 1: Stop dice animation after 1500ms (dice settles on result)
           setTimeout(() => {
@@ -822,38 +1028,110 @@ export const useGameStore = create<GameState & GameActions>()(
         },
 
         moveGroup: (groupId, steps) => {
+          // Entry point for dice roll. Starts the step-by-step movement.
           const state = get();
           const group = state.groups.find(g => g.id === groupId);
           if (!group) return;
-          let newPos = group.position + steps;
-          if (newPos > 30) {
-            newPos = newPos % 30;
-            if (newPos === 0) newPos = 30; // 30 is the last tile, 1 is the first. 0 is only for start.
+          syncSet({ stepsRemaining: steps, isChoosingPath: false, availablePaths: [] });
+          get()._movePionBySteps(groupId, group.position, steps);
+        },
+
+        selectBranch: (nextTileId) => {
+          // Called when the active player chooses a direction at a fork.
+          const state = get();
+          const group = state.groups[state.activeGroupIndex];
+          if (!group) return;
+          const remaining = state.stepsRemaining;
+          syncSet({ isChoosingPath: false, availablePaths: [] });
+          // Move pion TO the chosen fork tile (1 step), then continue.
+          syncSet((s) => ({
+            groups: s.groups.map(g => g.id === group.id ? { ...g, position: nextTileId } : g),
+            isMoving: true,
+            lastLocalMoveTime: Date.now()
+          }));
+          if (socket) {
+            socket.emit('game:branch_selected', { roomCode: state.roomCode, groupId: group.id, tileId: nextTileId });
           }
+          setTimeout(() => {
+            const newRemaining = remaining - 1;
+            syncSet({ stepsRemaining: newRemaining });
+            if (newRemaining <= 0) {
+              get()._landOnTile(group.id, nextTileId);
+            } else {
+              get()._movePionBySteps(group.id, nextTileId, newRemaining);
+            }
+          }, 450);
+        },
+
+        // Internal: step-by-step movement. Not exposed in GameActions.
+        _movePionBySteps: (groupId: string, fromTileId: number, steps: number) => {
+          if (steps <= 0) {
+            get()._landOnTile(groupId, fromTileId);
+            return;
+          }
+          const currentTile = getTileById(fromTileId);
+          const nextIds = currentTile.next;
+
+          if (nextIds.length === 0) {
+            // Dead end (shouldn't happen in a loop board)
+            get()._landOnTile(groupId, fromTileId);
+            return;
+          }
+
+          if (nextIds.length > 1) {
+            // FORK: stop here and wait for player to choose
+            syncSet({
+              isMoving: false,
+              isChoosingPath: true,
+              availablePaths: nextIds,
+              stepsRemaining: steps,
+            });
+            return;
+          }
+
+          // Straight path: move one step
+          const nextId = nextIds[0];
           syncSet((s) => ({
             isMoving: true,
-            groups: s.groups.map(g => g.id === groupId ? { ...g, position: newPos } : g),
-            logs: [`${group.name} melangkah ${steps} petak ke posisi ${newPos}`, ...s.logs]
+            groups: s.groups.map(g => g.id === groupId ? { ...g, position: nextId } : g),
+            lastLocalMoveTime: Date.now()
           }));
-          // --- Animation Sequencing Fix ---
-          // BoardCanvas animates pion at (steps * 0.4)s = steps*400ms per Framer Motion config.
-          // We FIRST set isMoving=false after the visual is done (+50ms buffer),
-          // then wait an additional 300ms "settle" before drawing the card.
-          // This prevents the card overlay from appearing while the pion is still moving.
-          const pionAnimDuration = steps * 400 + 50; // matches (currentPath.length-1)*0.4s in BoardCanvas
+
           setTimeout(() => {
-            syncSet({ isMoving: false });
-            const finalType = getTileTypeAt(newPos);
-            if (finalType === "SKIP") {
-              syncSet((s) => ({ logs: [`${group.name} mendarat di SKIP!`, ...s.logs] }));
-              setTimeout(() => get().nextTurn(), 1000);
+            const remaining = steps - 1;
+            syncSet({ stepsRemaining: remaining });
+            if (remaining <= 0) {
+              get()._landOnTile(groupId, nextId);
             } else {
-              // 300ms settle delay: let pion visually rest before card appears
-              setTimeout(() => {
-                get().drawCard(finalType as QuestionType);
-              }, 300);
+              get()._movePionBySteps(groupId, nextId, remaining);
             }
-          }, pionAnimDuration);
+          }, 420); // ~0.4s per step matches Framer Motion animation duration
+        },
+
+        // Internal: handle landing on a tile after all steps are exhausted.
+        _landOnTile: (groupId: string, tileId: number) => {
+          syncSet({ isMoving: false, lastLocalMoveTime: Date.now() });
+          const tile = getTileById(tileId);
+          const group = get().groups.find(g => g.id === groupId);
+          if (!group) return;
+
+          if (tile.type === 'SKIP') {
+            syncSet((s) => ({ logs: [`${group.name} mendarat di SKIP!`, ...s.logs] }));
+            setTimeout(() => get().nextTurn(), 1000);
+          } else if (tile.type === 'STAR') {
+            // STAR is the intersection tile! Open the Star Spin Wheel.
+            syncSet((s) => ({ 
+              logs: [`${group.name} mendarat di petak STAR! Roda putar aktif.`, ...s.logs],
+              isSpinningStar: true,
+              starSpinResult: null,
+              isSpinAnimating: false
+            }));
+          } else {
+            // Draw a question card
+            setTimeout(() => {
+              get().drawCard(tile.type as QuestionType);
+            }, 300);
+          }
         },
 
         submitAnswerObjektif: (groupId, answer) => {
@@ -1014,7 +1292,11 @@ export const useGameStore = create<GameState & GameActions>()(
             isTimerRunning: false,
             isMoving: false,
             isRolling: false,
-            isGrading: false
+            hasRolled: false,
+            isGrading: false,
+            isSpinningStar: false,
+            starSpinResult: null,
+            isSpinAnimating: false
           }));
         },
 
@@ -1101,6 +1383,16 @@ export const useGameStore = create<GameState & GameActions>()(
     },
     {
       name: 'eduboard-storage',
+      // sessionStorage: isolasi per-tab, tidak bentrok saat guru & murid
+      // buka di tab terpisah dalam browser yang sama.
+      // localStorage: lintas tab, menyebabkan konflik role & state.
+      storage: createJSONStorage(() =>
+        typeof window !== 'undefined' ? window.sessionStorage : {
+          getItem: () => null,
+          setItem: () => {},
+          removeItem: () => {},
+        }
+      ),
       partialize: (state) => ({ 
         roomCode: state.roomCode, 
         gameStatus: state.gameStatus,
@@ -1117,8 +1409,9 @@ export const useGameStore = create<GameState & GameActions>()(
         if (!hydratedState) return;
 
         // RECOVERY LOGIC: If isGuru is false but backup key says otherwise, recover it.
+        // Backup juga pakai sessionStorage agar tidak bentrok antar tab.
         if (typeof window !== 'undefined' && hydratedState.roomCode) {
-          const backupRole = localStorage.getItem(`eduboard_role_${hydratedState.roomCode}`);
+          const backupRole = sessionStorage.getItem(`eduboard_role_${hydratedState.roomCode}`);
           if (backupRole === 'guru' && !hydratedState.isGuru) {
             hydratedState.isGuru = true;
           }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, X, Type, Star, Layers, CheckCircle2, ListFilter, Disc3, Settings2 } from "lucide-react";
+import { Plus, X, Type, Star, Layers, CheckCircle2, ListFilter, Disc3 } from "lucide-react";
 import { useGameStore, QuestionCard } from "../../store/gameStore";
 import { toast } from "sonner";
 import { motion} from "framer-motion";

@@ -4,10 +4,10 @@ import { prisma } from "@repo/db";
 import * as dotenv from "dotenv";
 import * as path from "path";
 
-// Load root .env
+// Load API's own .env first (production), then root .env as fallback (local dev)
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
 dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
-// Load apps/web/.env.local if available
-dotenv.config({ path: path.resolve(__dirname, "../../../apps/web/.env.local") });
+
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";

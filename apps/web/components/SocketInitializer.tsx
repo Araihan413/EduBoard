@@ -46,19 +46,23 @@ export default function SocketInitializer() {
 
     const handleConnect = () => {
       console.log("Socket connected, checking for active room session...");
-      if (roomCode) {
-        const role = localStorage.getItem(`eduboard_role_${roomCode}`);
+      const state = useGameStore.getState();
+      const currentRoomCode = state.roomCode;
+      const currentGroupName = state.myGroupName;
+
+      if (currentRoomCode) {
+        const role = localStorage.getItem(`eduboard_role_${currentRoomCode}`);
         
         if (role === 'guru') {
           s.emit("room:join", { 
-            roomCode, 
+            roomCode: currentRoomCode, 
             role: 'guru',
-            roomConfig: useGameStore.getState().roomConfig
+            roomConfig: state.roomConfig
           });
-        } else if (myGroupName) {
+        } else if (currentGroupName) {
           s.emit("room:join", { 
-            roomCode, 
-            groupName: myGroupName 
+            roomCode: currentRoomCode, 
+            groupName: currentGroupName 
           });
         }
       }
@@ -70,7 +74,7 @@ export default function SocketInitializer() {
     return () => {
       s.off("connect", handleConnect);
     };
-  }, [roomCode, myGroupName]);
+  }, []);
 
   return null;
 }

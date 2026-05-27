@@ -33,6 +33,8 @@ export default function SessionHistory() {
   const [history, setHistory] = useState<SessionType[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [visibleCount, setVisibleCount] = useState(25);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
 
   const fetchHistory = useCallback(async () => {
     try {
@@ -78,6 +80,36 @@ export default function SessionHistory() {
     s.roomCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
     s.winner.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+
+  // Infinite Scroll IntersectionObserver
+  useEffect(() => {
+    if (filteredHistory.length <= visibleCount || isFetchingMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setIsFetchingMore(true);
+          setTimeout(() => {
+            setVisibleCount((prev) => prev + 25);
+            setIsFetchingMore(false);
+          }, 800); // 800ms delay for premium loading animation feel
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    const sentinel = document.getElementById("infinite-scroll-sentinel");
+    if (sentinel) {
+      observer.observe(sentinel);
+    }
+
+    return () => {
+      if (sentinel) {
+        observer.unobserve(sentinel);
+      }
+    };
+  }, [filteredHistory.length, visibleCount, isFetchingMore]);
 
   if (selectedSession) {
     return (
@@ -206,7 +238,10 @@ export default function SessionHistory() {
             type="text" 
             placeholder="Cari Room atau Pemenang..." 
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setVisibleCount(25);
+            }}
             className="w-full bg-white border-2 border-slate-100 p-4 pl-12 rounded-2xl text-sm font-bold text-slate-700 focus:border-[#2c49c5] transition-all outline-none shadow-sm"
           />
         </div>
@@ -234,12 +269,12 @@ export default function SessionHistory() {
                  <p className="text-slate-400 font-medium mt-2 max-w-xs px-6">Selesaikan satu permainan untuk melihat statistik performa di sini.</p>
               </motion.div>
             ) : (
-              filteredHistory.map((ses, idx) => (
+              filteredHistory.slice(0, visibleCount).map((ses, idx) => (
                 <motion.div 
                   key={ses.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.05 }}
+                  transition={{ delay: (idx % 25) * 0.03 }}
                   onClick={() => setSelectedSession(ses)}
                   className="group cursor-pointer"
                 >
@@ -279,6 +314,20 @@ export default function SessionHistory() {
               ))
             )}
           </AnimatePresence>
+
+          {/* Infinite Scroll Loader & Sentinel target */}
+          {filteredHistory.length > visibleCount && !isFetchingMore && (
+            <div id="infinite-scroll-sentinel" className="h-4 w-full" />
+          )}
+
+          {isFetchingMore && (
+            <div className="py-8 flex flex-col items-center justify-center gap-3 bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm animate-in fade-in zoom-in-95 duration-200">
+              <div className="w-8 h-8 rounded-full border-4 border-slate-200 border-t-[#2c49c5] animate-spin" />
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest animate-pulse">
+                Memuat 25 data sesi berikutnya...
+              </span>
+            </div>
+          )}
         </div>
       )}
     </div>

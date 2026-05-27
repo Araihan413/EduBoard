@@ -6,14 +6,14 @@ import { useGameStore } from "../../store/gameStore";
 
 export default function BackgroundMusic() {
   const pathname = usePathname();
-  const { isMuted } = useGameStore();
+  const { isMuted, isSuperseded } = useGameStore();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [hasInteracted, setHasInteracted] = useState(false);
 
   // 1. Logic to determine which track to play
   const getTrack = (path: string) => {
-    if (path === "/board") return "/audio/gameplay-bgm.mp3";
-    if (path === "/lobby") return "/audio/lobby-bgm.mp3";
+    if (path === "/board") return "/audio/gameplay-bgm.opus";
+    if (path === "/lobby") return "/audio/lobby-bgm.opus";
     return null;
   };
 
@@ -46,7 +46,7 @@ export default function BackgroundMusic() {
     const audio = audioRef.current;
 
     // Handle Mute
-    audio.muted = isMuted;
+    audio.muted = isMuted || isSuperseded;
 
     // Handle Track Switch
     if (currentTrack) {
@@ -55,10 +55,12 @@ export default function BackgroundMusic() {
         audio.load();
       }
 
-      if (hasInteracted && !isMuted) {
+      if (hasInteracted && !isMuted && !isSuperseded) {
         audio.play().catch((err) => {
           console.warn("[AUDIO] Playback failed:", err);
         });
+      } else {
+        audio.pause();
       }
     } else {
       audio.pause();
@@ -70,7 +72,7 @@ export default function BackgroundMusic() {
         audio.pause();
       }
     };
-  }, [currentTrack, isMuted, hasInteracted]);
+  }, [currentTrack, isMuted, hasInteracted, isSuperseded]);
 
   // 4. Force Stop on Unmount
   useEffect(() => {

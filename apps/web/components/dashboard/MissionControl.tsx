@@ -13,7 +13,7 @@ import { toast } from "sonner";
 export default function MissionControl() {
   const { 
     gameStatus, groups, roomCode, roomConfig, countdown, 
-    startGame, endGame, resetToIdle, cancelRoom 
+    startGame, endGame, cancelRoom 
   } = useGameStore();
   const [copied, setCopied] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);

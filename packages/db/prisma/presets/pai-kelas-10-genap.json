@@ -1,23 +1,736 @@
 {
-  "name": "PAI Kelas 10 (Genap)",
-  "description": "Kumpulan Soal PAI Kelas 10 Semester Genap",
+  "name": "PAI dan BP Kelas 10 Semester Genap",
+  "description": "Pendidikan Agama Islam dan Budi Pekerti Kelas 10 Semester Genap",
   "questions": [
     {
       "type": "DASAR",
-      "text": "Malaikat yang bertugas mencabut nyawa adalah...",
-      "options": ["Jibril", "Mikail", "Izrail", "Isrofil"],
-      "answerKey": "Izrail",
-      "points": 10
+      "text": "Perbuatan zina termasuk dosa besar yang dilarang dalam Al-Qur'an, tepatnya dalam surah …",
+      "points": 10,
+      "options": [
+        "Al-Fatihah",
+        "Al-Isra'",
+        "Al-Kahfi",
+        "Al-Ma'un"
+      ],
+      "answerKey": "Al-Isra'"
     },
     {
-      "type": "TANTANGAN",
-      "text": "Sebutkan 3 macam puasa sunnah beserta hari pelaksanaannya!",
-      "points": 20
+      "type": "DASAR",
+      "text": "Berdasarkan Q.S. an-Nur/24: 2, jumlah hukuman dera (cambuk) yang wajib diterima oleh setiap pelaku zina adalah …",
+      "points": 10,
+      "options": [
+        "40 kali",
+        "60 kali",
+        "80 kali",
+        "100 kali"
+      ],
+      "answerKey": "100 kali"
+    },
+    {
+      "type": "DASAR",
+      "text": "Dalam Islam, mendekati zina saja sudah dilarang. Larangan tersebut terdapat dalam Q.S. Al-Isra ayat …",
+      "points": 10,
+      "options": [
+        "17",
+        "23",
+        "32",
+        "40"
+      ],
+      "answerKey": "32"
+    },
+    {
+      "type": "DASAR",
+      "text": "Perbuatan zina yang dilakukan oleh laki-laki dan perempuan yang sudah pernah menikah disebut …",
+      "points": 10,
+      "options": [
+        "Zina ghairu muhsan",
+        "Zina qadf",
+        "Zina muhsan",
+        "Zina li'an"
+      ],
+      "answerKey": "Zina muhsan"
+    },
+    {
+      "type": "DASAR",
+      "text": "Jumlah minimal saksi yang dibutuhkan untuk membuktikan tindak pidana zina dalam hukum Islam adalah …",
+      "points": 10,
+      "options": [
+        "1 orang",
+        "2 orang",
+        "3 orang",
+        "4 orang"
+      ],
+      "answerKey": "4 orang"
+    },
+    {
+      "type": "DASAR",
+      "text": "Sikap menyerahkan segala hasil usaha kepada Allah Swt. disebut …",
+      "points": 10,
+      "options": [
+        "Ikhtiar",
+        "Tawakal",
+        "Sabar",
+        "Syukur"
+      ],
+      "answerKey": "Tawakal"
+    },
+    {
+      "type": "DASAR",
+      "text": "Raja' berarti … kepada Allah Swt.",
+      "points": 10,
+      "options": [
+        "Takut",
+        "Marah",
+        "Berharap",
+        "Lalai"
+      ],
+      "answerKey": "Berharap"
+    },
+    {
+      "type": "DASAR",
+      "text": "Sikap khauf artinya …",
+      "points": 10,
+      "options": [
+        "Cinta",
+        "Takut",
+        "Senang",
+        "Ikhlas"
+      ],
+      "answerKey": "Takut"
+    },
+    {
+      "type": "DASAR",
+      "text": "Cinta kepada Allah Swt. yang berarti menempatkan Allah di dalam hati sanubari disebut …",
+      "points": 10,
+      "options": [
+        "Khaufullah",
+        "Raja'ullah",
+        "Mahabbatullah",
+        "Tawakalullah"
+      ],
+      "answerKey": "Mahabbatullah"
+    },
+    {
+      "type": "DASAR",
+      "text": "Tawakal secara istilah artinya menyerahkan segala permasalahan kepada Allah Swt. setelah …",
+      "points": 10,
+      "options": [
+        "Berdoa saja tanpa usaha",
+        "Melakukan usaha sekuat tenaga (ikhtiar)",
+        "Meminta pendapat orang banyak",
+        "Merenungkan kebesaran Allah"
+      ],
+      "answerKey": "Melakukan usaha sekuat tenaga (ikhtiar)"
+    },
+    {
+      "type": "DASAR",
+      "text": "Contoh akhlak mahmudah adalah …",
+      "points": 10,
+      "options": [
+        "Suudzon",
+        "Ghadhab",
+        "Tawadhu",
+        "Khianat"
+      ],
+      "answerKey": "Tawadhu"
+    },
+    {
+      "type": "DASAR",
+      "text": "Sikap berprasangka buruk kepada orang lain tanpa bukti disebut …",
+      "points": 10,
+      "options": [
+        "Amanah",
+        "Suudzon",
+        "Tawadhu",
+        "Ikhlas"
+      ],
+      "answerKey": "Suudzon"
+    },
+    {
+      "type": "DASAR",
+      "text": "Contoh perilaku ghadab adalah …",
+      "points": 10,
+      "options": [
+        "Menolong teman yang kesusahan",
+        "Menahan emosi saat diejek",
+        "Marah berlebihan hingga menyakiti orang lain",
+        "Menghormati orang tua"
+      ],
+      "answerKey": "Marah berlebihan hingga menyakiti orang lain"
+    },
+    {
+      "type": "DASAR",
+      "text": "Surah Al-Qur'an yang memuat perintah untuk menahan amarah dan berbuat kebaikan adalah …",
+      "points": 10,
+      "options": [
+        "Q.S. al-Baqarah/2: 133-134",
+        "Q.S. Ali Imran/3: 133-134",
+        "Q.S. an-Nisa/4: 133-134",
+        "Q.S. al-Maidah/5: 133-134"
+      ],
+      "answerKey": "Q.S. Ali Imran/3: 133-134"
+    },
+    {
+      "type": "DASAR",
+      "text": "Orang yang tidak menjaga titipan atau janji termasuk perilaku …",
+      "points": 10,
+      "options": [
+        "Khianat",
+        "Syukur",
+        "Qanaah",
+        "Sabar"
+      ],
+      "answerKey": "Khianat"
+    },
+    {
+      "type": "DASAR",
+      "text": "Al-Kulliyatul Khamsah berarti …",
+      "points": 10,
+      "options": [
+        "Lima rukun Islam",
+        "Lima prinsip dasar perlindungan dalam Islam",
+        "Lima waktu salat",
+        "Lima kitab Allah"
+      ],
+      "answerKey": "Lima prinsip dasar perlindungan dalam Islam"
+    },
+    {
+      "type": "DASAR",
+      "text": "Menjaga agama dalam Al-Kulliyatul Khamsah disebut …",
+      "points": 10,
+      "options": [
+        "Hifzun nafs",
+        "Hifzul maal",
+        "Hifzud diin",
+        "Hifzul aql"
+      ],
+      "answerKey": "Hifzud diin"
+    },
+    {
+      "type": "DASAR",
+      "text": "Larangan minuman keras bertujuan menjaga …",
+      "points": 10,
+      "options": [
+        "Harta",
+        "Jiwa",
+        "Akal",
+        "Keturunan"
+      ],
+      "answerKey": "Akal"
+    },
+    {
+      "type": "DASAR",
+      "text": "Tujuan utama disyariatkannya hukum Islam (maqashid al-syari'ah) adalah …",
+      "points": 10,
+      "options": [
+        "Menegakkan kekuasaan para ulama",
+        "Membatasi kebebasan individu",
+        "Mewujudkan kemaslahatan kehidupan manusia",
+        "Menyebarkan ajaran Islam ke seluruh dunia"
+      ],
+      "answerKey": "Mewujudkan kemaslahatan kehidupan manusia"
+    },
+    {
+      "type": "DASAR",
+      "text": "Menjaga keturunan dalam Islam disebut …",
+      "points": 10,
+      "options": [
+        "Hifzun nafs",
+        "Hifzul aql",
+        "Hifzun nasl",
+        "Hifzul maal"
+      ],
+      "answerKey": "Hifzun nasl"
+    },
+    {
+      "type": "DASAR",
+      "text": "Tokoh penyebar Islam di Pulau Jawa dikenal dengan sebutan …",
+      "points": 10,
+      "options": [
+        "Khulafaur Rasyidin",
+        "Ulul Azmi",
+        "Wali Songo",
+        "Muhajirin"
+      ],
+      "answerKey": "Wali Songo"
+    },
+    {
+      "type": "DASAR",
+      "text": "Salah satu metode dakwah Wali Songo adalah melalui …",
+      "points": 10,
+      "options": [
+        "Kekerasan",
+        "Peperangan",
+        "Kesenian dan budaya",
+        "Ancaman"
+      ],
+      "answerKey": "Kesenian dan budaya"
+    },
+    {
+      "type": "DASAR",
+      "text": "Sunan Kalijaga terkenal berdakwah menggunakan media …",
+      "points": 10,
+      "options": [
+        "Wayang",
+        "Perdagangan",
+        "Pertanian",
+        "Kedokteran"
+      ],
+      "answerKey": "Wayang"
+    },
+    {
+      "type": "DASAR",
+      "text": "Wali Songo menyebarkan Islam di wilayah …",
+      "points": 10,
+      "options": [
+        "Sumatra",
+        "Kalimantan",
+        "Jawa",
+        "Papua"
+      ],
+      "answerKey": "Jawa"
+    },
+    {
+      "type": "DASAR",
+      "text": "Strategi dakwah Wali Songo yang berarti 'bertahap' dan tidak memberlakukan ajaran Islam secara mendadak disebut …",
+      "points": 10,
+      "options": [
+        "'Adamul Haraj",
+        "Mujadalah",
+        "Bi al-hikmah",
+        "Tadrij"
+      ],
+      "answerKey": "Tadrij"
+    },
+    {
+      "type": "DASAR",
+      "text": "Hukuman untuk pelaku zina ghairu muhsan (yang belum pernah menikah) adalah rajam hingga meninggal dunia.",
+      "points": 5,
+      "options": [
+        "Benar",
+        "Salah"
+      ],
+      "answerKey": "Salah"
+    },
+    {
+      "type": "DASAR",
+      "text": "Menjaga pergaulan termasuk cara melindungi harkat dan martabat manusia.",
+      "points": 5,
+      "options": [
+        "Benar",
+        "Salah"
+      ],
+      "answerKey": "Benar"
+    },
+    {
+      "type": "DASAR",
+      "text": "Mahabbatullah merupakan tingkatan cinta tertinggi dan hakiki, dan cinta ini merupakan unsur terpenting dalam ibadah di samping khauf dan raja'.",
+      "points": 5,
+      "options": [
+        "Benar",
+        "Salah"
+      ],
+      "answerKey": "Benar"
+    },
+    {
+      "type": "DASAR",
+      "text": "Tawakal berarti menyerahkan semua urusan sepenuhnya kepada Allah Swt. tanpa perlu melakukan ikhtiar atau usaha apapun terlebih dahulu.",
+      "points": 5,
+      "options": [
+        "Benar",
+        "Salah"
+      ],
+      "answerKey": "Salah"
+    },
+    {
+      "type": "DASAR",
+      "text": "Sifat ghadhab termasuk dalam akhlak mahmudah yang dianjurkan dan dicontohkan oleh Rasulullah Saw.",
+      "points": 5,
+      "options": [
+        "Benar",
+        "Salah"
+      ],
+      "answerKey": "Salah"
+    },
+    {
+      "type": "DASAR",
+      "text": "Akhlak mahmudah adalah akhlak terpuji yang harus dibiasakan dalam kehidupan sehari-hari, sedangkan akhlak madzmumah adalah akhlak tercela yang harus dihindari.",
+      "points": 5,
+      "options": [
+        "Benar",
+        "Salah"
+      ],
+      "answerKey": "Benar"
+    },
+    {
+      "type": "DASAR",
+      "text": "Dalam ushul fiqih, al-kulliyatul al-khamsah juga disebut maqashid al-khamsah atau al-dharuriyyat al-khamsah.",
+      "points": 5,
+      "options": [
+        "Benar",
+        "Salah"
+      ],
+      "answerKey": "Benar"
+    },
+    {
+      "type": "DASAR",
+      "text": "Al-Kulliyatul Khamsah tidak berkaitan dengan kehidupan sehari-hari.",
+      "points": 5,
+      "options": [
+        "Benar",
+        "Salah"
+      ],
+      "answerKey": "Salah"
+    },
+    {
+      "type": "DASAR",
+      "text": "Wali Songo menyebarkan Islam di Nusantara dengan cara-cara kekerasan dan paksaan agar masyarakat mau memeluk Islam secara cepat.",
+      "points": 5,
+      "options": [
+        "Benar",
+        "Salah"
+      ],
+      "answerKey": "Salah"
+    },
+    {
+      "type": "DASAR",
+      "text": "Strategi dakwah 'Adamul Haraj yang diterapkan Wali Songo berarti tidak mengusik atau menyakiti tradisi asli masyarakat Nusantara dalam penyebaran Islam.",
+      "points": 5,
+      "options": [
+        "Benar",
+        "Salah"
+      ],
+      "answerKey": "Benar"
     },
     {
       "type": "PEMAHAMAN",
-      "text": "Jelaskan hikmah beriman kepada Malaikat dalam kehidupan sehari-hari!",
-      "points": 30
+      "text": "Zina yang dilakukan oleh laki-laki atau perempuan yang belum pernah menikah disebut zina ...",
+      "points": 20,
+      "answerKey": "Ghairu Muhsan"
+    },
+    {
+      "type": "PEMAHAMAN",
+      "text": "Dalam Q.S. al-Isra'/17:32, zina disebut sebagai perbuatan yang ... dan jalan yang buruk (sa'a sabilan).",
+      "points": 20,
+      "answerKey": "Keji (Fahisyah)"
+    },
+    {
+      "type": "PEMAHAMAN",
+      "text": "Menurut Q.S. an-Nur/24:2, hukuman dera bagi setiap pelaku zina (laki-laki maupun perempuan) adalah sebanyak ... kali.",
+      "points": 20,
+      "answerKey": "100 kali"
+    },
+    {
+      "type": "PEMAHAMAN",
+      "text": "Hukuman bagi pelaku zina muhsan yang sudah terbukti adalah hukuman ..., yaitu dilempari batu sampai meninggal dunia.",
+      "points": 20,
+      "answerKey": "Rajam"
+    },
+    {
+      "type": "PEMAHAMAN",
+      "text": "Menurut Imam Sayuti, salah satu dampak buruk perbuatan zina di dunia selain kehilangan kewibawaan dan kefakiran adalah ...",
+      "points": 20,
+      "answerKey": "Memperpendek umur"
+    },
+    {
+      "type": "PEMAHAMAN",
+      "text": "Dalam fikih, perbuatan menuduh orang lain berzina tanpa menghadirkan empat saksi disebut ...",
+      "points": 20,
+      "answerKey": "Qadf (Qadzf)"
+    },
+    {
+      "type": "PEMAHAMAN",
+      "text": "Rasa takut seorang hamba kepada Allah Swt. atas dosa yang diperbuat dan azab-Nya, dalam istilah akidah Islam disebut ...",
+      "points": 20,
+      "answerKey": "Khauf"
+    },
+    {
+      "type": "PEMAHAMAN",
+      "text": "Sikap penuh harap dan optimis terhadap rahmat serta ampunan Allah Swt. dalam terminologi akidah Islam disebut ...",
+      "points": 20,
+      "answerKey": "Raja'"
+    },
+    {
+      "type": "PEMAHAMAN",
+      "text": "Menyerahkan segala hasil usaha kepada Allah Swt. setelah berikhtiar dengan sungguh-sungguh disebut ...",
+      "points": 20,
+      "answerKey": "Tawakal"
+    },
+    {
+      "type": "PEMAHAMAN",
+      "text": "Menurut Q.S. Ali Imran/3:31, tanda seseorang mencintai Allah Swt. adalah dengan mengikuti dan meneladani ...",
+      "points": 20,
+      "answerKey": "Rasulullah SAW"
+    },
+    {
+      "type": "PEMAHAMAN",
+      "text": "Khauf dan raja' harus seimbang. Jika raja' berlebihan tanpa khauf, seseorang bisa terjatuh dalam sikap ...",
+      "points": 20,
+      "answerKey": "Merasa aman dari azab Allah (lalai)"
+    },
+    {
+      "type": "PEMAHAMAN",
+      "text": "Tawakal yang benar dalam Islam bukan berarti berdiam diri, melainkan harus disertai dengan ...",
+      "points": 20,
+      "answerKey": "Ikhtiar (usaha/bekerja keras)"
+    },
+    {
+      "type": "PEMAHAMAN",
+      "text": "Akhlak yang buruk, tercela, dan harus dihindari oleh seorang Muslim disebut akhlak ...",
+      "points": 20,
+      "answerKey": "Madzmumah"
+    },
+    {
+      "type": "PEMAHAMAN",
+      "text": "Akhlak yang baik, terpuji, dan harus dibiasakan dalam kehidupan sehari-hari disebut akhlak ...",
+      "points": 20,
+      "answerKey": "Mahmudah"
+    },
+    {
+      "type": "PEMAHAMAN",
+      "text": "Prasangka buruk kepada orang lain disebut ...",
+      "points": 20,
+      "answerKey": "Suudzon"
+    },
+    {
+      "type": "PEMAHAMAN",
+      "text": "Sikap tidak dapat dipercaya dan mengingkari amanah disebut ...",
+      "points": 20,
+      "answerKey": "Khianat"
+    },
+    {
+      "type": "PEMAHAMAN",
+      "text": "Mengambil hak orang lain termasuk perilaku ...",
+      "points": 20,
+      "answerKey": "Zalim"
+    },
+    {
+      "type": "PEMAHAMAN",
+      "text": "Menahan amarah merupakan salah satu bentuk akhlak …",
+      "points": 20,
+      "answerKey": "Mahmudah"
+    },
+    {
+      "type": "PEMAHAMAN",
+      "text": "Al-Kulliyatul Khamsah adalah lima pokok kemaslahatan dalam Islam. Hifzun nafs berarti kewajiban menjaga ...",
+      "points": 20,
+      "answerKey": "Jiwa (nyawa)"
+    },
+    {
+      "type": "PEMAHAMAN",
+      "text": "Salah satu dari al-Kulliyatul Khamsah adalah hifzul 'aql, yaitu kewajiban menjaga ... yang membedakan manusia dari makhluk lain.",
+      "points": 20,
+      "answerKey": "Akal"
+    },
+    {
+      "type": "PEMAHAMAN",
+      "text": "Kewajiban menjaga keturunan (hifzun nasl) menjadi dasar diharamkannya perbuatan ...",
+      "points": 20,
+      "answerKey": "Zina"
+    },
+    {
+      "type": "PEMAHAMAN",
+      "text": "Menjaga harta (hifzul mal) diwujudkan antara lain dengan diharamkannya mencuri, merampok, dan ...",
+      "points": 20,
+      "answerKey": "Riba"
+    },
+    {
+      "type": "PEMAHAMAN",
+      "text": "Salah satu pokok dari al-Kulliyatul Khamsah merupakan Hifzud din, yaitu menjaga ...",
+      "points": 20,
+      "answerKey": "Agama"
+    },
+    {
+      "type": "PEMAHAMAN",
+      "text": "Al-Kulliyatul Khamsah dikenal juga sebagai Al-Maqashid al-khamsah (Maqashid al-syari'ah) yang berarti ...",
+      "points": 20,
+      "answerKey": "Tujuan-tujuan pokok syariat Islam"
+    },
+    {
+      "type": "PEMAHAMAN",
+      "text": "Wali Songo yang dikenal sebagai tokoh penyebar Islam pertama di tanah Jawa dan berkedudukan di Gresik adalah ...",
+      "points": 20,
+      "answerKey": "Maulana Malik Ibrahim (Sunan Gresik)"
+    },
+    {
+      "type": "PEMAHAMAN",
+      "text": "Sunan Kalijaga berdakwah menggunakan pertunjukan dengan memasukkan nilai-nilai Islam di dalamnya. Pertunjukan kesenian yang digunakan Sunan Kalijaga tersebut yaitu …",
+      "points": 20,
+      "answerKey": "Wayang"
+    },
+    {
+      "type": "PEMAHAMAN",
+      "text": "Sunan Ampel (Raden Rahmat) mendirikan pesantren yang menjadi pusat pendidikan Islam awal di Jawa Timur. Pesantren tersebut berada di daerah ...",
+      "points": 20,
+      "answerKey": "Ampel Denta (Surabaya)"
+    },
+    {
+      "type": "PEMAHAMAN",
+      "text": "Metode dakwah Wali Songo yang menggunakan pendekatan kebudayaan lokal secara bijaksana disebut dakwah ...",
+      "points": 20,
+      "answerKey": "Bil hikmah (kultural/akulturasi)"
+    },
+    {
+      "type": "PEMAHAMAN",
+      "text": "Sunan Muria dikenal berdakwah di kalangan rakyat jelata menggunakan seni yang disesuaikan dengan pesan-pesan keislaman. Kesenian yang digunakan oleh Sunan Muria adalah ...",
+      "points": 20,
+      "answerKey": "Tembang (macapat), gamelan, wayang"
+    },
+    {
+      "type": "PEMAHAMAN",
+      "text": "Sunan Kudus menunjukkan toleransi budaya dengan membangun masjid yang menaranya menyerupai ... sebagai bentuk akulturasi Islam dengan budaya Hindu.",
+      "points": 20,
+      "answerKey": "Candi (arsitektur Hindu-Jawa)"
+    },
+    {
+      "type": "TANTANGAN",
+      "text": "Sebutkan ayat Al-Qur'an yang menjadi dalil larangan mendekati perbuatan zina beserta nama suratnya!",
+      "points": 30,
+      "answerKey": "Q.S. al-Isra'/17: 32 — larangan mendekati zina dan menyebutnya sebagai perbuatan keji dan jalan yang buruk. Q.S. an-Nur/24: 2 — ayat tentang hukuman bagi pezina (100 kali cambukan)."
+    },
+    {
+      "type": "TANTANGAN",
+      "text": "Jelaskan mengapa Islam menggunakan kata 'jangan mendekati zina' bukan langsung 'jangan berzina' dalam Q.S. al-Isra': 32!",
+      "points": 30,
+      "answerKey": "Untuk mencegah dari akar masalahnya. Zina diawali oleh pandangan, kemudian pikiran, lalu perbuatan. Menjauhi yang mendekatinya berarti memutus rantai tersebut sebelum sampai pada perbuatan zina."
+    },
+    {
+      "type": "TANTANGAN",
+      "text": "Sebutkan minimal lima dampak buruk (bahaya) dari perbuatan zina bagi individu dan masyarakat!",
+      "points": 30,
+      "answerKey": "Merusak harkat dan martabat manusia, menghancurkan institusi keluarga, menimbulkan penyakit menular seksual (HIV/AIDS, dsb.), lahirnya anak tanpa kejelasan nasab/silsilah keturunan, merusak moral dan tatanan sosial masyarakat, mendapat dosa besar dan azab dari Allah Swt, dikucilkan dari lingkungan sosial / aib keluarga."
+    },
+    {
+      "type": "TANTANGAN",
+      "text": "Jelaskan cara yang dapat dilakukan oleh seorang remaja muslim untuk menghindari pergaulan bebas di era digital!",
+      "points": 30,
+      "answerKey": "Menjaga pandangan (tidak mengakses konten negatif di media sosial/internet), memilih teman bergaul yang baik dan berakhlak mulia, mengisi waktu dengan kegiatan positif (mengaji, olahraga, organisasi), memperkuat iman dengan shalat, puasa, dan ibadah lainnya, terbuka kepada orang tua tentang pergaulan, menghindari tempat-tempat yang berpotensi menimbulkan kemaksiatan."
+    },
+    {
+      "type": "TANTANGAN",
+      "text": "Bacakan dengan lantang ayat Al-Qur'an yang melarang mendekati zina!",
+      "points": 30,
+      "answerKey": "Siswa membacakan QS. Al-Isra': 32"
+    },
+    {
+      "type": "TANTANGAN",
+      "text": "Jelaskan apa yang dimaksud dengan khauf dan raja' dalam ajaran Islam serta hubungan antara keduanya!",
+      "points": 30,
+      "answerKey": "Khauf adalah rasa takut kepada Allah SWT, dan Raja' adalah rasa harap kepada Allah SWT. Keduanya harus seimbang. Khauf tanpa raja' menimbulkan putus asa, sedangkan raja' tanpa khauf menimbulkan keberanian berbuat dosa."
+    },
+    {
+      "type": "TANTANGAN",
+      "text": "Bagaimana cara menerapkan Tawakal dalam kehidupan sehari-hari!",
+      "points": 30,
+      "answerKey": "Belajar sungguh-sungguh sebelum ujian, lalu berdoa dan menyerahkan hasilnya kepada Allah. Berikhtiar mencari rezeki dengan cara halal, lalu bertawakal atas hasilnya. Tidak panik berlebihan saat menghadapi masalah, karena yakin Allah Maha Mengetahui yang terbaik."
+    },
+    {
+      "type": "TANTANGAN",
+      "text": "Sebutkan tanda-tanda atau ciri-ciri seseorang yang benar-benar mencintai Allah Swt.!",
+      "points": 30,
+      "answerKey": "Mengikuti dan meneladani Rasulullah Saw. dalam segala aspek kehidupan, lebih mencintai Allah daripada segala sesuatu selain-Nya, rajin beribadah dan merasa rindu saat jauh dari ibadah, merasa tenang dan bahagia saat berdzikir dan mengingat Allah, rela berkorban di jalan Allah, bersabar dalam ujian dan bersyukur atas nikmat, mencintai apa yang dicintai Allah dan membenci apa yang dibenci Allah."
+    },
+    {
+      "type": "TANTANGAN",
+      "text": "Apa perbedaan antara mencintai Allah dan takut kepada Allah?",
+      "points": 30,
+      "answerKey": "Mencintai Allah (mahabbah): dorongan positif beribadah karena cinta, rindu, dan rasa syukur kepada Allah; ibadah terasa menyenangkan dan mengalir dengan ikhlas. Takut kepada Allah (khauf): dorongan dari kesadaran akan keagungan Allah dan rasa takut akan azab-Nya; mendorong seseorang untuk menjauhi maksiat."
+    },
+    {
+      "type": "TANTANGAN",
+      "text": "Berikan contoh nyata dalam kehidupan sehari-hari seorang pelajar yang menerapkan sikap raja' (berharap kepada Allah)!",
+      "points": 30,
+      "answerKey": "Seorang pelajar yang nilainya jelek tidak putus asa, tetapi tetap berdoa dan belajar lebih keras karena yakin Allah dapat mengubah keadaannya. Seorang pelajar yang pernah berbuat salah tidak merasa sudah 'terlalu kotor' untuk bertobat — ia segera istighfar dan memperbaiki diri karena berharap rahmat Allah. Tetap bersemangat meraih cita-cita meski menghadapi banyak rintangan, karena yakin Allah memiliki rencana terbaik."
+    },
+    {
+      "type": "TANTANGAN",
+      "text": "Apa dampak buruk ghadhab (marah yang berlebihan) bagi diri sendiri maupun orang lain!",
+      "points": 30,
+      "answerKey": "Dampak bagi diri sendiri: merusak kesehatan (tekanan darah tinggi, stres), menyesal setelah mengeluarkan kata-kata kasar, hilangnya ketenangan batin. Dampak bagi orang lain: menyakiti perasaan orang di sekitarnya, merusak hubungan pertemanan/keluarga, menimbulkan permusuhan dan konflik berkepanjangan."
+    },
+    {
+      "type": "TANTANGAN",
+      "text": "Sebutkan dampak buruk sifat suudzon terhadap hubungan pertemanan di sekolah!",
+      "points": 30,
+      "answerKey": "Menimbulkan permusuhan, hilangnya kepercayaan, suasana tidak nyaman, dan memicu konflik."
+    },
+    {
+      "type": "TANTANGAN",
+      "text": "Bacakan potongan ayat atau hadis yang mengajarkan untuk menjauhi prasangka buruk!",
+      "points": 30,
+      "answerKey": "Q.S. Al-Hujurat/49: 12 — perintah menjauhi kebanyakan prasangka buruk karena sebagian dari prasangka itu dosa. HR. Al-Bukhari & Muslim — peringatan bahwa prasangka buruk adalah sedusta-dusta ucapan."
+    },
+    {
+      "type": "TANTANGAN",
+      "text": "Sebutkan contoh perilaku khianat yang sering terjadi di lingkungan sekolah, lalu jelaskan cara menghindarinya!",
+      "points": 30,
+      "answerKey": "Contoh: berbohong, tidak menjaga amanah, membocorkan rahasia teman, mencontek. Cara menghindarinya: dengan jujur dan bertanggung jawab."
+    },
+    {
+      "type": "TANTANGAN",
+      "text": "Jelaskan perbedaan antara suudzon dan husnudzon!",
+      "points": 30,
+      "answerKey": "Husnudzon adalah berbaik sangka (positif), sedangkan suudzon adalah berburuk sangka (negatif)."
+    },
+    {
+      "type": "TANTANGAN",
+      "text": "Sebutkan lima prinsip dasar hukum Islam (al-kulliyatu al-khamsah) beserta artinya!",
+      "points": 30,
+      "answerKey": "Hifzhu al-din (Menjaga/memelihara agama), Hifzhu al-nafs (Menjaga/memelihara jiwa/nyawa), Hifzhu al-'aql (Menjaga/memelihara akal pikiran), Hifzhu al-nasl (Menjaga/memelihara keturunan/kehormatan), Hifzhu al-mal (Menjaga/memelihara harta benda)."
+    },
+    {
+      "type": "TANTANGAN",
+      "text": "Jelaskan kenapa meminum minuman keras dilarang dalam Islam, dan kaitannya dengan salah satu prinsip al-kulliyatu al-khamsah!",
+      "points": 30,
+      "answerKey": "Larangan minuman keras berkaitan dengan hifzhu al-'aql (menjaga akal). Alkohol/minuman keras merusak fungsi otak dan akal pikiran manusia. Islam melarang segala sesuatu yang dapat menghilangkan akal pikiran."
+    },
+    {
+      "type": "TANTANGAN",
+      "text": "Hubungkan larangan zina dengan salah satu prinsip al-kulliyatu al-khamsah dan jelaskan kaitannya!",
+      "points": 30,
+      "answerKey": "Hifzhu al-nasl (menjaga keturunan): Zina mengacaukan nasab/silsilah keturunan. Anak yang lahir di luar nikah kehilangan kejelasan identitas ayahnya, sehingga hak-hak hukumnya tidak terlindungi. Hifzhu al-'ird (kehormatan) yang juga masuk dalam hifzhu al-nasl: Zina merusak martabat dan kehormatan diri, keluarga, dan masyarakat."
+    },
+    {
+      "type": "TANTANGAN",
+      "text": "Berikan dua contoh penerapan prinsip hifzhu al-nafs (menjaga jiwa) dalam kehidupan sehari-hari!",
+      "points": 30,
+      "answerKey": "Menjaga kesehatan dengan pola makan teratur, olahraga, dan istirahat cukup. Menghindari tawuran, kekerasan, dan perbuatan berbahaya lainnya yang dapat mengancam nyawa sendiri atau orang lain."
+    },
+    {
+      "type": "TANTANGAN",
+      "text": "Sebutkan 3 nama Wali Songo dan jelaskan metode dakwah yang digunakan masing-masing!",
+      "points": 30,
+      "answerKey": "Sunan Gresik (Maulana Malik Ibrahim): berdagang, membantu masyarakat, mengajarkan pertanian, dan pendekatan sosial. Sunan Ampel: mendirikan pesantren dan mendidik para santri serta calon pemimpin Islam. Sunan Kalijaga: memakai budaya lokal seperti wayang, seni, pakaian adat, dan tradisi masyarakat Jawa. (Jawaban dapat menyebut 3 wali mana saja dari Wali Songo)"
+    },
+    {
+      "type": "TANTANGAN",
+      "text": "Sebutkan sembilan nama Wali Songo yang berperan dalam penyebaran Islam di tanah Jawa!",
+      "points": 30,
+      "answerKey": "Sunan Gresik (Maulana Malik Ibrahim), Sunan Ampel (Raden Rahmat), Sunan Bonang (Raden Makhdum Ibrahim), Sunan Drajat (Raden Qasim/Syarifuddin), Sunan Kudus (Ja'far Shadiq), Sunan Giri (Raden Paku/Muhammad Ainul Yaqin), Sunan Kalijaga (Raden Mas Said), Sunan Muria (Raden Umar Said), Sunan Gunung Jati (Syarif Hidayatullah)."
+    },
+    {
+      "type": "TANTANGAN",
+      "text": "Dari beberapa metode yang digunakan oleh Sunan Kalijaga dalam menyebarkan Islam di Jawa, jelaskan salah satu metode dakwah yang digunakan selain dengan menggunakan wayang kulit!",
+      "points": 30,
+      "answerKey": "Gamelan: menggunakan musik gamelan sebagai media menarik perhatian masyarakat sebelum menyampaikan ajaran Islam. Tembang/lagu Jawa: menciptakan lagu-lagu berisi pesan Islam dalam bahasa Jawa yang mudah dipahami. Baju Takwa/Blangkon: memadukan budaya Jawa dengan nilai Islam dalam pakaian dan tradisi."
+    },
+    {
+      "type": "TANTANGAN",
+      "text": "Jelaskan mengapa para Wali Songo memilih metode dakwah yang damai dan tidak memaksakan agama kepada masyarakat Jawa!",
+      "points": 30,
+      "answerKey": "Metode dakwah Wali Songo mengikuti petunjuk Allah dalam Q.S. an-Nahl/16: 125 — dakwah harus dilakukan dengan hikmah, nasihat yang baik, dan dialog yang santun. Masyarakat Jawa saat itu memiliki budaya dan kepercayaan yang sudah kuat (Hindu-Buddha); pemaksaan hanya akan menimbulkan penolakan dan konflik. Islam rahmatan lil 'alamin harus disampaikan dengan cara yang penuh kasih sayang dan menghormati budaya setempat. Metode damai terbukti efektif: Islam menyebar luas dan mengakar kuat di Nusantara tanpa peperangan besar."
+    },
+    {
+      "type": "TANTANGAN",
+      "text": "Jelaskan mengapa dakwah dengan sikap ramah dan menghargai budaya lebih mudah diterima masyarakat!",
+      "points": 30,
+      "answerKey": "Karena masyarakat merasa dihargai, tidak dipaksa, dakwah menjadi lebih damai, dan mudah dipahami."
+    },
+    {
+      "type": "TANTANGAN",
+      "text": "Jelaskan peran Sunan Ampel dalam penyebaran Islam di Nusantara dan jelaskan satu kontribusi terbesarnya!",
+      "points": 30,
+      "answerKey": "Mendirikan pesantren di Ampel Denta yang menjadi pusat pendidikan Islam pertama di Jawa. Dari pesantren inilah lahir banyak ulama dan wali lainnya, termasuk Sunan Bonang dan Sunan Drajat. Mengajarkan Islam melalui pendekatan budaya yang halus dan tidak konfrontatif. Berperan dalam pembentukan Kerajaan Demak sebagai kerajaan Islam pertama di Jawa."
     }
   ]
 }

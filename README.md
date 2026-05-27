@@ -17,7 +17,7 @@ Proyek ini dibangun menggunakan arsitektur **Monorepo (Turborepo)** dengan pemis
 ## 🛠️ Stack Teknologi
 
 - **Monorepo**: Turborepo
-- **Frontend (`apps/web`)**: Next.js 16+ (App Router), Tailwind CSS v3, Zustand, TanStack Query, Konva.js (Papan Digital), Framer Motion
+- **Frontend (`apps/web`)**: Next.js 16+ (App Router), Tailwind CSS v4, Zustand, React Three Fiber (@react-three/drei), Framer Motion, Supabase Auth
 - **Backend (`apps/api`)**: Fastify v4, Socket.io v4 (Real-time Engine), Zod
 - **Database & ORM (`packages/db`)**: PostgreSQL 16+ (Supabase), Prisma v5
 - **Package Manager**: pnpm
@@ -66,19 +66,26 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY="eyJhbGci..."
 ```
 
 #### B. Frontend (`/apps/web/.env.local`)
-Digunakan oleh Next.js untuk autentikasi dan koneksi WebSocket.
+Digunakan oleh Next.js untuk autentikasi, koneksi REST API, dan WebSocket.
 ```env
 NEXT_PUBLIC_SUPABASE_URL="https://[PROYEK].supabase.co"
 NEXT_PUBLIC_SUPABASE_ANON_KEY="eyJhbGci..."
+NEXT_PUBLIC_API_URL="http://localhost:4000"
 NEXT_PUBLIC_WS_URL="http://localhost:4000"
 ```
 
+
 #### C. Backend (`/apps/api/.env`)
-Digunakan oleh Fastify untuk koneksi database dan keamanan JWT.
+Digunakan oleh Fastify untuk koneksi database, keamanan JWT, dan konfigurasi CORS.
 ```env
 DATABASE_URL="postgresql://postgres.[PROYEK]:[PASSWORD]@..."
-JWT_SECRET="masukkan-string-acak-bebas"
+DIRECT_URL="postgresql://postgres.[PROYEK]:[PASSWORD]@..."
+NEXT_PUBLIC_SUPABASE_URL="https://[PROYEK].supabase.co"
+NEXT_PUBLIC_SUPABASE_ANON_KEY="eyJhbGci..."
+JWT_SECRET="string-acak-panjang-minimal-32-karakter"
 PORT=4000
+# Produksi: isi URL frontend. Kosongkan untuk dev (default localhost:3000)
+CORS_ORIGIN=
 ```
 
 #### D. Database Package (`/packages/db/.env`)

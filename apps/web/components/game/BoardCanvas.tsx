@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { BookOpen, Target, Flame, Moon } from "lucide-react";
-import { Group, QuestionType, getTileTypeAt } from "../../store/gameStore";
+import { BookOpen, Target, Flame, Moon, Star } from "lucide-react";
+import { Group, getTileTypeAt } from "../../store/gameStore";
+import type { TileType } from "../../types/game";
 
 interface BoardCanvasProps {
   groups: Group[];
@@ -11,7 +12,7 @@ interface BoardCanvasProps {
 
 interface TileInfo {
   index: number;
-  type: QuestionType | "SKIP";
+  type: TileType;
   x: number;
   y: number;
 }
@@ -22,6 +23,7 @@ const getTileIcon = (type: string) => {
     case "TANTANGAN": return <Target className="w-8 h-8 text-red-50/40" />;
     case "PEMAHAMAN": return <Flame className="w-8 h-8 text-orange-50/40" />;
     case "SKIP": return <Moon className="w-8 h-8 text-slate-200" />;
+    case "STAR": return <Star className="w-8 h-8 text-yellow-50/40 animate-pulse" />;
     default: return null;
   }
 };
@@ -31,6 +33,7 @@ const getTileColor = (type: string) => {
     case "SKIP": return "bg-zinc-100 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700";
     case "TANTANGAN": return "bg-red-500 dark:bg-red-600 border-red-400 dark:border-red-500";
     case "PEMAHAMAN": return "bg-orange-500 dark:bg-orange-600 border-orange-400 dark:border-orange-500";
+    case "STAR": return "bg-yellow-500 border-yellow-400 dark:bg-yellow-600 dark:border-yellow-500";
     default: return "bg-blue-500 dark:bg-blue-600 border-blue-400 dark:border-blue-500";
   }
 };

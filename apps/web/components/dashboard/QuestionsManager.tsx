@@ -678,7 +678,40 @@ export default function QuestionsManager() {
                           </div>
                           <span className="text-[10px] font-black text-slate-900">{q.points} PTS</span>
                         </div>
-                        <p className="text-slate-700 font-bold mb-6 line-clamp-3 leading-relaxed">{q.text}</p>
+                        <p className="text-slate-700 font-bold mb-4 line-clamp-3 leading-relaxed">{q.text}</p>
+                        
+                        {/* Options if multiple choice */}
+                        {q.options && q.options.length > 0 && (
+                          <div className="grid grid-cols-2 gap-2 mb-4">
+                            {q.options.map((opt, i) => {
+                              const isCorrect = opt === q.answerKey;
+                              return (
+                                <div 
+                                  key={i} 
+                                  className={`px-3 py-2 rounded-xl text-[11px] font-semibold border truncate ${
+                                    isCorrect 
+                                      ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-black shadow-sm shadow-emerald-100' 
+                                      : 'bg-slate-50/50 border-slate-100 text-slate-500'
+                                  }`}
+                                  title={opt}
+                                >
+                                  <span className="opacity-50 mr-1.5">{String.fromCharCode(65 + i)}.</span>
+                                  {opt}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* Answer Key if no options or if essay */}
+                        {q.answerKey && (!q.options || q.options.length === 0) && (
+                          <div className="bg-slate-50 border border-slate-100 rounded-2xl p-3.5 mb-4 text-xs">
+                            <span className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Kunci Jawaban</span>
+                            <span className="font-bold text-slate-700 leading-relaxed block max-h-16 overflow-y-auto scrollbar-none" title={q.answerKey}>
+                              {q.answerKey}
+                            </span>
+                          </div>
+                        )}
                         
                         {!activeQuestionSet.isPreset && (
                           <div className="flex justify-end gap-2 pt-4 border-t border-slate-50">
@@ -703,8 +736,18 @@ export default function QuestionsManager() {
                           {style?.icon}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-slate-700 font-bold truncate">{q.text}</p>
-                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{q.points} PTS</span>
+                          <p className="text-slate-700 font-bold truncate mb-1">{q.text}</p>
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{q.points} PTS</span>
+                            {q.answerKey && (
+                              <span 
+                                className="text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100/50 px-2 py-0.5 rounded-md truncate max-w-[250px]"
+                                title={q.answerKey}
+                              >
+                                Kunci: {q.answerKey}
+                              </span>
+                            )}
+                          </div>
                         </div>
                         {!activeQuestionSet.isPreset && (
                           <div className="flex gap-1 md:opacity-0 group-hover:opacity-100 transition-opacity">

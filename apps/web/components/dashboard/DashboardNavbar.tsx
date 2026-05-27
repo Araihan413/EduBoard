@@ -76,8 +76,8 @@ export default function DashboardNavbar({
           
           {/* Logo & Brand */}
           <div className="flex items-center gap-10">
-            <button 
-              onClick={() => setActiveTab('SESI')}
+            <Link 
+              href="/"
               className="flex items-center gap-3 group transition-transform active:scale-95"
             >
               <Image 
@@ -89,7 +89,7 @@ export default function DashboardNavbar({
                 style={{ height: '50px', width: 'auto' }}
                 className="object-contain transition-transform group-hover:scale-105"
               />
-            </button>
+            </Link>
 
             {/* Desktop Nav Items */}
             <div className="hidden lg:flex items-center gap-2">

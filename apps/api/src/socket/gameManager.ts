@@ -220,7 +220,7 @@ export function handleSocketEvents(io: Server, socket: Socket) {
               avatar: g.avatar,
               color: g.color,
               isOffline: false,
-            })),
+            })).sort((a: any, b: any) => a.id.localeCompare(b.id)),
             gameStatus: dbRoom.status as any,
             currentTurn: dbRoom.currentTurn,
             activeGroupIndex: dbRoom.activeGroupIndex,
@@ -277,6 +277,32 @@ export function handleSocketEvents(io: Server, socket: Socket) {
       const existingGroup = room.groups.find((g: any) => g.name.trim().toLowerCase() === normalizedName);
       
       if (existingGroup) {
+        // ─── SESI MULTI-TAB GUARD: Cegah dua tab aktif secara bersamaan ───────
+        // Cari apakah sudah ada socket lain yang terdaftar untuk tim ini di room ini
+        const oldSocketEntry = Array.from(socketToUser.entries()).find(([sid, u]) => 
+          u.roomCode === data.roomCode && 
+          u.role !== 'guru' &&
+          u.groupName &&
+          u.groupName.trim().toLowerCase() === normalizedName && 
+          sid !== socket.id
+        );
+
+        if (oldSocketEntry) {
+          const [oldSocketId] = oldSocketEntry;
+          console.log(`[DEBUG] [SERVER] Superseding old socket session ${oldSocketId} for group: "${existingGroup.name}"`);
+          
+          // Dapatkan instance socket lama dan kirimkan event supersede
+          const oldSocket = io.sockets.sockets.get(oldSocketId);
+          if (oldSocket) {
+            oldSocket.emit("room:superseded", { 
+              message: "Sesi Anda telah dibuka di tab atau perangkat lain." 
+            });
+            oldSocket.leave(data.roomCode);
+          }
+          socketToUser.delete(oldSocketId);
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
         if (existingGroup.status === 'SURRENDERED') {
           socket.emit("error", { message: "Anda sudah menyerah dari permainan ini." });
           socket.leave(data.roomCode);
@@ -284,23 +310,45 @@ export function handleSocketEvents(io: Server, socket: Socket) {
           return;
         }
         existingGroup.isOffline = false;
-        if (data.avatar) existingGroup.avatar = data.avatar;
-        if (data.color) existingGroup.color = data.color;
+        
+        // JANGAN menimpa avatar dan warna yang sudah terdaftar di server jika sudah ada.
+        // Hanya isi jika data tersebut masih kosong (sebagai fallback).
+        if (!existingGroup.avatar && data.avatar) {
+          existingGroup.avatar = data.avatar;
+        }
+        if (!existingGroup.color && data.color) {
+          existingGroup.color = data.color;
+        }
         
         room.logs = [`${existingGroup.name} kembali masuk.`, ...room.logs];
         
-        // Update DB in background
-        prisma.group.update({
-          where: { id: existingGroup.id },
-          data: { 
-            avatar: existingGroup.avatar, 
-            color: existingGroup.color 
-          }
-        }).catch(err => {
-          // If update fails because record is missing, it's okay, we'll rely on memory
-        });
+        // Update DB jika ada data kosong yang baru terisi
+        if (existingGroup.avatar === data.avatar || existingGroup.color === data.color) {
+          prisma.group.update({
+            where: { id: existingGroup.id },
+            data: { 
+              avatar: existingGroup.avatar, 
+              color: existingGroup.color 
+            }
+          }).catch(err => {
+            // If update fails because record is missing, it's okay, we'll rely on memory
+          });
+        }
 
       } else {
+        // ─── GUARD: Tolak bergabung jika permainan sudah berlangsung ──────────
+        // Hanya grup yang sudah terdaftar sejak LOBBY yang boleh reconnect.
+        // Ini mencegah "penumpang gelap" ikut di tengah permainan.
+        if (room.gameStatus === 'PLAYING') {
+          socket.emit("error", { 
+            message: "Permainan sudah berlangsung. Hanya peserta yang terdaftar dari awal yang dapat masuk kembali." 
+          });
+          socket.leave(data.roomCode);
+          socketToUser.delete(socket.id);
+          return;
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
         const maxG = room.roomConfig?.maxGroups || 4;
         if (room.groups.length >= maxG) {
           socket.emit("room:full", { message: `Maaf, ruangan ini sudah penuh (maks. ${maxG} kelompok).` });
@@ -324,6 +372,7 @@ export function handleSocketEvents(io: Server, socket: Socket) {
             isOffline: false
           };
           room.groups.push(newGroupEntry);
+          room.groups.sort((a: any, b: any) => a.id.localeCompare(b.id));
 
           // 2. Now perform the slow DB operations
           const dbRoom = await prisma.room.findUnique({ where: { code: data.roomCode } });
@@ -341,6 +390,7 @@ export function handleSocketEvents(io: Server, socket: Socket) {
 
             // 3. Update the memory entry with the real DB ID
             newGroupEntry.id = dbGroup.id;
+            room.groups.sort((a: any, b: any) => a.id.localeCompare(b.id));
             room.logs = [`${data.groupName} bergabung.`, ...room.logs];
           } else {
             // Rollback memory if room not found
@@ -353,6 +403,7 @@ export function handleSocketEvents(io: Server, socket: Socket) {
         }
       }
     }
+
 
     const { intervalId, ...roomData } = room;
     io.to(data.roomCode).emit("game:state", { ...roomData, roomCode: data.roomCode });
@@ -412,11 +463,11 @@ export function handleSocketEvents(io: Server, socket: Socket) {
       }
     });
 
-    // 3. Persist to DB if groups are updated (profile/score sync)
+    // 3. Persist to DB if groups are updated (profile/score sync) (Solusi B: Non-blocking DB updates)
     if (data.state.groups) {
-      await Promise.all(data.state.groups.map(async (g: any) => {
-        // Update DB
-        await prisma.group.update({
+      // Trigger database updates in the background (asynchronously) without blocking the WebSocket emit loop
+      Promise.all(data.state.groups.map((g: any) => 
+        prisma.group.update({
           where: { id: g.id },
           data: { 
             avatar: g.avatar, 
@@ -427,9 +478,13 @@ export function handleSocketEvents(io: Server, socket: Socket) {
           }
         }).catch(err => {
           console.error(`[DB_SYNC] Gagal update group ${g.id}:`, err.message);
-        });
+        })
+      )).catch(err => {
+        console.error(`[DB_SYNC] Promise.all failed:`, err);
+      });
 
-        // Also sync avatar/color into in-memory groups (since 'groups' is protected from bulk overwrite)
+      // Synchronously update in-memory room groups (immediate update for room state)
+      data.state.groups.forEach((g: any) => {
         const memGroup = room.groups.find((mg: any) => mg.id === g.id);
         if (memGroup) {
           if (g.avatar !== undefined) memGroup.avatar = g.avatar;
@@ -438,7 +493,8 @@ export function handleSocketEvents(io: Server, socket: Socket) {
           if (g.position !== undefined) memGroup.position = g.position;
           if (g.status !== undefined) memGroup.status = g.status;
         }
-      }));
+      });
+      room.groups.sort((a: any, b: any) => a.id.localeCompare(b.id));
     }
 
     // Persist room-level game state (turn, current index)
