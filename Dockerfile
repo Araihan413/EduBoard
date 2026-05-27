@@ -11,7 +11,7 @@ FROM base AS pruner
 RUN pnpm add -g turbo
 COPY . .
 # Isolasi paket api dan dependensinya (termasuk @repo/db, @repo/types)
-RUN turbo prune api --out=out
+RUN turbo prune api --out-dir=out
 
 # ─── Installer Stage (Install dependencies) ───────────────────────────────────
 FROM base AS installer
