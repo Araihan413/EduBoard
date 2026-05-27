@@ -1,3 +1,13 @@
+---
+title: EduBoard API
+emoji: 🎓
+colorFrom: indigo
+colorTo: blue
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # EduBoard PAI
 
 EduBoard PAI adalah aplikasi **web game digital edukatif** yang mengadaptasi mekanisme board game (papan permainan, giliran, kartu soal, tantangan, skor) ke dalam format digital. Produk ini dirancang khusus untuk mendukung pembelajaran Pendidikan Agama Islam (PAI) untuk jenjang SMA.
