@@ -49,3 +49,9 @@ next-env.d.ts
 PRD.md
 AGENTS.md
 CLAUDE.md
+
+# local workspace/cache
+.vscode/
+.turbo/
+dist/
+
