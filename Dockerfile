@@ -37,13 +37,8 @@ FROM base AS runner
 ENV NODE_ENV=production
 ENV PORT=7860
 
-# Salin package.json dan file lock dari pruner
-COPY --from=pruner /app/out/json/ .
-# Salin node_modules produksi dan source code terkompilasi
-COPY --from=builder /app/node_modules/ ./node_modules
-COPY --from=builder /app/apps/api/dist/ ./apps/api/dist
-COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
-COPY --from=builder /app/packages/db/ ./packages/db
+# Salin seluruh workspace terkompilasi dari builder stage agar seluruh symlink pnpm tetap utuh
+COPY --from=builder /app /app
 
 EXPOSE 7860
 
