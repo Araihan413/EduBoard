@@ -1041,6 +1041,11 @@ export const useGameStore = create<GameState & GameActions>()(
           const state = get();
           const group = state.groups[state.activeGroupIndex];
           if (!group) return;
+
+          // Only the active student whose turn it is can choose the branch
+          const isMyTurn = !state.isGuru && group.name?.trim().toLowerCase() === state.myGroupName?.trim().toLowerCase();
+          if (!isMyTurn) return;
+
           const remaining = state.stepsRemaining;
           syncSet({ isChoosingPath: false, availablePaths: [] });
           // Move pion TO the chosen fork tile (1 step), then continue.

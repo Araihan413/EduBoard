@@ -605,7 +605,7 @@ function BoardPage() {
       {/* Path Selector — muncul saat di persimpangan STAR (Force-closed when game finishes) */}
       {gameStatus !== "FINISHED" && (
         <PathSelector
-          isMyTurn={canRoll || isChoosingPath}
+          isMyTurn={role === "siswa" && activeGroup?.name === myGroupName}
           activeGroupName={activeGroup?.name ?? "..."}
         />
       )}

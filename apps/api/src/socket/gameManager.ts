@@ -408,42 +408,6 @@ export function handleSocketEvents(io: Server, socket: Socket) {
     const { intervalId, ...roomData } = room;
     io.to(data.roomCode).emit("game:state", { ...roomData, roomCode: data.roomCode });
   });
-
-  // Handle intentional leave — removes group from memory and DB
-  socket.on("room:leave", async (data: { roomCode: string; groupName: string }) => {
-    console.log(`[DEBUG] [SERVER] Received room:leave for room ${data.roomCode}, group ${data.groupName}`);
-    if (!data.roomCode || !data.groupName) {
-      console.warn('[DEBUG] [SERVER] room:leave ignored: missing roomCode or groupName');
-      return;
-    }
-    const room = activeRooms.get(data.roomCode);
-    if (!room) {
-      console.warn(`[DEBUG] [SERVER] room:leave ignored: room ${data.roomCode} not found in memory`);
-      return;
-    }
-
-    const normalizedName = data.groupName.trim().toLowerCase();
-    const groupIndex = room.groups.findIndex((g: any) => g.name.trim().toLowerCase() === normalizedName);
-
-    if (groupIndex !== -1) {
-      const [removed] = room.groups.splice(groupIndex, 1);
-      console.log(`[DEBUG] [SERVER] Group "${removed.name}" removed from memory for room ${data.roomCode}`);
-      
-      // Delete from DB so it doesn't reappear on guru refresh
-      if (removed.id) {
-        prisma.group.delete({ where: { id: removed.id } })
-          .then(() => console.log(`[DEBUG] [SERVER] Group ${removed.name} deleted from DB`))
-          .catch(err => console.error(`[DEBUG] [SERVER] Failed to delete group ${removed.id}:`, err.message));
-      }
-
-      room.logs = [`${removed.name} keluar dari ruang.`, ...room.logs];
-
-      // Broadcast updated state to remaining members
-      const { intervalId, ...roomData } = room;
-      io.to(data.roomCode).emit("game:state", { ...roomData, roomCode: data.roomCode });
-    }
-  });
-
   socket.on("game:sync_state", async (data: { roomCode: string, state: any }) => {
     const room = activeRooms.get(data.roomCode);
     if (!room) return;
