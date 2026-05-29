@@ -118,7 +118,7 @@ export default function StarSpinOverlay() {
                   duration: 2.5,
                   ease: [0.15, 0.85, 0.35, 1.0] // beautiful easeOut curve
                 } : { duration: 0 }}
-                style={{ originX: 0.5, originY: 0.5 }}
+                style={{ originX: 0.5, originY: 0.5, willChange: "transform" }}
               >
                 <svg viewBox="0 0 200 200" className="w-full h-full pointer-events-none filter drop-shadow-[0_10px_25px_rgba(0,0,0,0.6)]">
                   {/* Outer circle border */}

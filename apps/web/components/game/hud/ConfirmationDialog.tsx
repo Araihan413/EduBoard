@@ -32,7 +32,7 @@ export default function ConfirmationDialog({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onCancel}
-            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-slate-900/75"
           />
 
           {/* Modal Container */}
@@ -40,6 +40,7 @@ export default function ConfirmationDialog({
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
+            style={{ willChange: "transform, opacity" }}
             className="relative w-full max-w-sm bg-white rounded-[2.5rem] p-8 shadow-[0_40px_100px_rgba(0,0,0,0.3)] border border-slate-100 flex flex-col items-center text-center overflow-hidden"
           >
             {/* Decoration */}

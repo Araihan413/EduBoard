@@ -48,12 +48,14 @@ export default function LeaderboardOverlay({ groups, role, isMidGame = false, on
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="fixed inset-0 z-250 bg-black/45 backdrop-blur-[4px] flex items-center justify-center p-6 animate-fade-in"
+      style={{ willChange: "opacity" }}
+      className="fixed inset-0 z-250 bg-black/75 flex items-center justify-center p-6"
     >
       <motion.div
         initial={{ scale: 0.9, y: 20, opacity: 0 }}
         animate={{ scale: 1, y: 0, opacity: 1 }}
-        className="max-w-xl w-[92%] sm:w-full min-h-[50vh] max-h-[90vh] sm:min-h-[75vh] md:min-h-[80vh] bg-slate-950/95 backdrop-blur-3xl border border-white/10 rounded-[2rem] sm:rounded-[3.5rem] p-5 sm:p-10 md:p-14 shadow-[0_50px_100px_rgba(0,0,0,0.6)] flex flex-col items-center relative overflow-hidden"
+        style={{ willChange: "transform, opacity" }}
+        className="max-w-xl w-[92%] sm:w-full min-h-[50vh] max-h-[90vh] sm:min-h-[75vh] md:min-h-[80vh] bg-slate-950 border border-white/10 rounded-[2rem] sm:rounded-[3.5rem] p-5 sm:p-10 md:p-14 shadow-[0_50px_100px_rgba(0,0,0,0.8)] flex flex-col items-center relative overflow-hidden"
       >
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-80 h-80 bg-blue-500/20 blur-[100px] -z-10" />
 

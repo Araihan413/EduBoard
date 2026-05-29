@@ -46,6 +46,16 @@ export default function LobbyPage() {
       fetchQuestions(roomConfig.questionSetId);
     }
   }, [isGuru, storeRoomCode, fetchQuestions, roomConfig.questionSetId]);
+
+  // Preload map textures in background to eliminate initial game entry delay on mobile
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const mapImg = new window.Image();
+      mapImg.src = "/map/map.webp";
+      const bgImg = new window.Image();
+      bgImg.src = "/map/map_background.webp";
+    }
+  }, []);
   
   const [roomCodeInput, setRoomCodeInput] = useState("");
   const [groupNameInput, setGroupNameInput] = useState("");
@@ -90,7 +100,6 @@ export default function LobbyPage() {
     enter: (direction: number) => ({
       x: direction > 0 ? -120 : 120,
       rotateY: direction > 0 ? -90 : 90,
-      filter: "blur(12px) brightness(1.5)",
       opacity: 0,
       scale: 0.7,
     }),
@@ -98,7 +107,6 @@ export default function LobbyPage() {
       zIndex: 1,
       x: 0,
       rotateY: 0,
-      filter: "blur(0px) brightness(1)",
       opacity: 1,
       scale: 1,
     },
@@ -106,7 +114,6 @@ export default function LobbyPage() {
       zIndex: 0,
       x: direction > 0 ? 120 : -120,
       rotateY: direction > 0 ? 90 : -90,
-      filter: "blur(12px) brightness(0.5)",
       opacity: 0,
       scale: 0.7,
     }),
@@ -240,7 +247,7 @@ export default function LobbyPage() {
   useEffect(() => {
     if (isChanging && targetAvatar) {
       const img = new window.Image();
-      img.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${targetAvatar}`;
+      img.src = `https://api.dicebear.com/7.x/adventurer/png?seed=${targetAvatar}`;
       img.onload = () => {
         const idx = AVATAR_SEEDS.indexOf(targetAvatar);
         if (idx !== -1) {
@@ -357,14 +364,13 @@ export default function LobbyPage() {
                           transition={{ 
                             x: { type: "spring", stiffness: 260, damping: 28 },
                             rotateY: { type: "spring", stiffness: 260, damping: 28 },
-                            opacity: { duration: 0.35, ease: "easeInOut" },
-                            filter: { duration: 0.35, ease: "easeInOut" },
-                            scale: { duration: 0.35, ease: "easeOut" }
+                            opacity: { duration: 0.25, ease: "easeInOut" },
+                            scale: { duration: 0.25, ease: "easeOut" }
                           }}
                           className="w-full h-full"
                         >
                           <NextImage 
-                            src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${AVATAR_SEEDS[avatarIndex]}`} 
+                            src={`https://api.dicebear.com/7.x/adventurer/png?seed=${AVATAR_SEEDS[avatarIndex]}`} 
                             alt="Avatar" 
                             width={128}
                             height={128}
@@ -463,7 +469,7 @@ export default function LobbyPage() {
                             className="w-full h-full"
                           >
                             <NextImage 
-                              src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${g.avatar || g.name}`} 
+                              src={`https://api.dicebear.com/7.x/adventurer/png?seed=${g.avatar || g.name}`} 
                               alt={g.name}
                               width={40}
                               height={40}
@@ -622,7 +628,7 @@ export default function LobbyPage() {
         {AVATAR_SEEDS.map((seed) => (
           <img 
             key={seed} 
-            src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${seed}`} 
+            src={`https://api.dicebear.com/7.x/adventurer/png?seed=${seed}`} 
             alt="" 
           />
         ))}

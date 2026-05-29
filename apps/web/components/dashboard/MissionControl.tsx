@@ -100,7 +100,7 @@ export default function MissionControl() {
                         }}
                       >
                         <NextImage 
-                          src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${g.avatar || g.name}`} 
+                          src={`https://api.dicebear.com/7.x/adventurer/png?seed=${g.avatar || g.name}`} 
                           alt={g.name}
                           width={48}
                           height={48}

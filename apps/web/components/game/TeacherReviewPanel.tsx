@@ -23,7 +23,8 @@ export default function TeacherReviewPanel({ pendingReviews, onGrade }: TeacherR
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
+          style={{ willChange: "opacity" }}
+          className="absolute inset-0 bg-slate-950/75"
         />
 
         <motion.div
@@ -31,6 +32,7 @@ export default function TeacherReviewPanel({ pendingReviews, onGrade }: TeacherR
           initial={{ scale: 0.9, opacity: 0, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.9, opacity: 0, y: 20 }}
+          style={{ willChange: "transform, opacity" }}
           className="relative w-full max-w-lg bg-white rounded-[2rem] md:rounded-[2.5rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] overflow-hidden border border-slate-100 flex flex-col max-h-[90vh]"
         >
           {/* Header Accent */}

@@ -104,11 +104,12 @@ export function useGameEngine(role: string): GameEngineState {
   // ── Derived flag ───────────────────────────────────────────────────────────
 
   const isUnderReview =
-    (role === "guru"
+    !!currentCard &&
+    ((role === "guru"
       ? pendingReviews.length > 0
       : pendingReviews.some(
           (r) => r.groupId === activeGroup?.id || r.groupId === myGroup?.id
-        )) || isSubmitting;
+        )) || isSubmitting);
 
   // ── State Machine ──────────────────────────────────────────────────────────
 

@@ -367,7 +367,7 @@ function BoardPage() {
                         <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-white shadow-md flex items-center justify-center"
                              style={{ backgroundColor: g.color || "#3b82f6" }}>
                           <NextImage
-                            src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${g.avatar || g.name}`}
+                            src={`https://api.dicebear.com/7.x/adventurer/png?seed=${g.avatar || g.name}`}
                             alt={g.name} width={40} height={40}
                             className={`w-full h-full object-cover ${g.isOffline ? "opacity-50 grayscale" : ""}`}
                             unoptimized
@@ -446,7 +446,7 @@ function BoardPage() {
                       <div className="w-6.5 h-6.5 md:w-10 md:h-10 rounded-full overflow-hidden border border-white shadow flex items-center justify-center flex-shrink-0"
                            style={{ backgroundColor: g.color || "#3b82f6" }}>
                         <NextImage
-                          src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${g.avatar || g.name}`}
+                          src={`https://api.dicebear.com/7.x/adventurer/png?seed=${g.avatar || g.name}`}
                           alt={g.name} width={26} height={26}
                           className={`w-full h-full object-cover ${g.isOffline ? "opacity-50 grayscale" : ""}`}
                           unoptimized

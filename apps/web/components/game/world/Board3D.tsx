@@ -135,14 +135,12 @@ function Tile3D({ tile, texture }: { tile: TileConfig; texture?: THREE.CanvasTex
     <group position={[x, TILE_Y, z]} scale={[scale, scale, scale]}>
       <mesh castShadow receiveShadow>
         <cylinderGeometry args={[0.46, 0.50, 0.08, 24]} />
-        <meshPhysicalMaterial
+        <meshStandardMaterial
           color={color}
           emissive={emissive}
           emissiveIntensity={tile.type === "STAR" ? 0.35 : 0.05}
-          roughness={0.35}
+          roughness={0.5}
           metalness={0.15}
-          clearcoat={0.8}
-          clearcoatRoughness={0.15}
         />
       </mesh>
 
@@ -517,6 +515,7 @@ function Scene({ groups }: { groups: Group[] }) {
           scale={20}
           blur={1.5}
           far={1.2}
+          resolution={256}
           color="#000000"
         />
 
