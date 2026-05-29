@@ -64,46 +64,49 @@ pnpm install
 
 ### 3. Konfigurasi Environment Variables
 
-Karena proyek ini menggunakan struktur monorepo, Anda perlu menyiapkan beberapa file `.env` di lokasi yang berbeda. Silakan buat file-file berikut:
+Seluruh konfigurasi environment variables disederhanakan dan dipusatkan dalam **satu file `.env` di root directory**. 
 
-#### A. Root Directory (`/.env`)
-Digunakan untuk konfigurasi global dan perintah Prisma dari root.
-```env
-DATABASE_URL="postgresql://postgres.[PROYEK]:[PASSWORD]@..."
-DIRECT_URL="postgresql://postgres.[PROYEK]:[PASSWORD]@..."
-NEXT_PUBLIC_SUPABASE_URL="https://[PROYEK].supabase.co"
-NEXT_PUBLIC_SUPABASE_ANON_KEY="eyJhbGci..."
+Silakan salin `.env.example` di root menjadi `.env`:
+
+```bash
+cp .env.example .env
 ```
 
-#### B. Frontend (`/apps/web/.env.local`)
-Digunakan oleh Next.js untuk autentikasi, koneksi REST API, dan WebSocket.
+Lalu sesuaikan nilai-nilai berikut di dalam file `/.env` tersebut:
+
 ```env
-NEXT_PUBLIC_SUPABASE_URL="https://[PROYEK].supabase.co"
-NEXT_PUBLIC_SUPABASE_ANON_KEY="eyJhbGci..."
+# ─── DATABASE CONFIGURATION (SUPABASE / POSTGRES) ─────────────────────────────
+# Connection pooler URL (e.g. Supabase port 6543)
+DATABASE_URL="postgresql://postgres.[PROJECT_REF]:[PASSWORD]@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
+
+# Direct connection to the database, used for migrations (e.g. Supabase port 5432)
+DIRECT_URL="postgresql://postgres.[PROJECT_REF]:[PASSWORD]@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres"
+
+# ─── SUPABASE CLIENT CONFIGURATION (AUTH) ─────────────────────────────────────
+NEXT_PUBLIC_SUPABASE_URL="https://[PROJECT_REF].supabase.co"
+NEXT_PUBLIC_SUPABASE_ANON_KEY="your-supabase-anon-public-key"
+
+# ─── API BACKEND SERVER CONFIGURATION ─────────────────────────────────────────
+# Fastify server port (Default: 4000)
+PORT=4000
+
+# HS256 JWT Secret used for Fastify server session authentication
+JWT_SECRET="your-generate-32-character-jwt-secret"
+
+# CORS configuration (leave empty to default to localhost:3000 in dev)
+CORS_ORIGIN=""
+
+# ─── FRONTEND NEXT.JS CLIENT DEPLOYMENT CONFIGURATION ──────────────────────────
+# Point these to your VPS URL (e.g., https://api.eduboard.online) for production,
+# or http://localhost:4000 for local development.
 NEXT_PUBLIC_API_URL="http://localhost:4000"
 NEXT_PUBLIC_WS_URL="http://localhost:4000"
 ```
 
-
-#### C. Backend (`/apps/api/.env`)
-Digunakan oleh Fastify untuk koneksi database, keamanan JWT, dan konfigurasi CORS.
-```env
-DATABASE_URL="postgresql://postgres.[PROYEK]:[PASSWORD]@..."
-DIRECT_URL="postgresql://postgres.[PROYEK]:[PASSWORD]@..."
-NEXT_PUBLIC_SUPABASE_URL="https://[PROYEK].supabase.co"
-NEXT_PUBLIC_SUPABASE_ANON_KEY="eyJhbGci..."
-JWT_SECRET="string-acak-panjang-minimal-32-karakter"
-PORT=4000
-# Produksi: isi URL frontend. Kosongkan untuk dev (default localhost:3000)
-CORS_ORIGIN=
-```
-
-#### D. Database Package (`/packages/db/.env`)
-Wajib ada jika Anda ingin menjalankan perintah Prisma langsung di dalam folder `packages/db`.
-```env
-DATABASE_URL="postgresql://postgres.[PROYEK]:[PASSWORD]@..."
-DIRECT_URL="postgresql://postgres.[PROYEK]:[PASSWORD]@..."
-```
+> [!NOTE]
+> - **Frontend (`apps/web`)** akan otomatis memuat file `.env` dari root ini melalui `next.config.ts`.
+> - **Backend (`apps/api`)** akan memuat file `.env` dari root sebagai fallback lokal.
+> - **Database (`packages/db`)** otomatis memuat file `.env` dari root karena Prisma CLI mencari ke folder induk (parent folder) secara rekursif jika file `.env` lokal tidak ditemukan.
 
 ### 4. Konfigurasi Supabase & Google Auth
 

@@ -15,7 +15,8 @@
     "@types/node": "^25.6.0",
     "prisma": "^5.12.1",
     "tsx": "^4.7.2",
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.5",
+    "dotenv": "^17.4.2"
   },
   "prisma": {
     "seed": "pnpm exec tsx prisma/seed.ts"

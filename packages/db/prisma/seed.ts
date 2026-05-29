@@ -2,12 +2,17 @@ import { PrismaClient } from '@prisma/client';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
-
-const prisma = new PrismaClient();
+import * as dotenv from 'dotenv';
 
 // Helper to handle __dirname in ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Load environment variables from the workspace root (.env)
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
+
+const prisma = new PrismaClient();
+
 
 async function main() {
   console.log('--- RESETTING & SEEDING PRESETS START ---');
