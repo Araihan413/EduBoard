@@ -1,5 +1,7 @@
 "use client";
 
+import { useState, useEffect } from "react";
+
 import { 
   Gamepad2, 
   BookOpen, 
@@ -9,7 +11,7 @@ import {
   Sparkles,
   Timer
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 
 export default function GuidePage() {
@@ -75,20 +77,7 @@ export default function GuidePage() {
             className="bg-slate-50 aspect-video rounded-[2.5rem] border-4 border-white shadow-2xl flex items-center justify-center relative overflow-hidden"
           >
              <div className="absolute inset-0 bg-grid-premium opacity-50" />
-             <div className="w-24 h-24 bg-white rounded-[1.8rem] shadow-2xl flex items-center justify-center animate-bounce border border-slate-100 z-10 p-5">
-                {/* Dice Face with 5 Dots */}
-                <div className="grid grid-cols-3 grid-rows-3 w-full h-full gap-2">
-                   <div className="w-full h-full bg-[#2c49c5] rounded-full" />
-                   <div />
-                   <div className="w-full h-full bg-[#2c49c5] rounded-full" />
-                   <div />
-                   <div className="w-full h-full bg-[#2c49c5] rounded-full" />
-                   <div />
-                   <div className="w-full h-full bg-[#2c49c5] rounded-full" />
-                   <div />
-                   <div className="w-full h-full bg-[#2c49c5] rounded-full" />
-                </div>
-             </div>
+             <InteractiveDice />
           </motion.div>
         </section>
 
@@ -177,6 +166,80 @@ function GuideCard({ icon, title, desc, color }: { icon: React.ReactNode, title:
       </div>
       <h4 className="text-xl font-black mb-4 tracking-tight text-slate-900">{title}</h4>
       <p className="text-slate-500 text-sm leading-relaxed font-semibold">{desc}</p>
+    </motion.div>
+  );
+}
+
+// ─── Interactive Bouncing Dice Components ─────────────────────────────────────
+
+function InteractiveDice() {
+  const [diceValue, setDiceValue] = useState(5);
+
+  // Synchronize dice face changes exactly at the landing phase of the 1.2s bounce cycle
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDiceValue((prev) => {
+        let next;
+        do {
+          next = Math.floor(Math.random() * 6) + 1;
+        } while (next === prev);
+        return next;
+      });
+    }, 1200); // 1.2s matching transition duration
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <motion.div
+      animate={{
+        y: [0, -35, 0],
+      }}
+      whileTap={{ scale: 0.95 }}
+      transition={{
+        duration: 1.2,
+        repeat: Infinity,
+        ease: ["easeOut", "easeIn"],
+      }}
+      className="w-24 h-24 bg-white rounded-[1.8rem] shadow-2xl flex items-center justify-center border border-slate-100 z-10 p-5 cursor-pointer select-none"
+    >
+      <AnimatePresence mode="wait">
+        <DiceFace key={diceValue} value={diceValue} />
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
+function DiceFace({ value }: { value: number }) {
+  // Map dot positions inside a 3x3 grid
+  const dotPositions: Record<number, number[]> = {
+    1: [4],
+    2: [0, 8],
+    3: [0, 4, 8],
+    4: [0, 2, 6, 8],
+    5: [0, 2, 4, 6, 8],
+    6: [0, 2, 3, 5, 6, 8],
+  };
+
+  const activeDots = dotPositions[value] || [4];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.15, ease: "easeInOut" }}
+      className="grid grid-cols-3 grid-rows-3 w-full h-full gap-2 p-0.5"
+    >
+      {Array.from({ length: 9 }).map((_, index) => {
+        const isActive = activeDots.includes(index);
+        return (
+          <div key={index} className="flex items-center justify-center w-full h-full">
+            {isActive && (
+              <div className="w-3.5 h-3.5 bg-[#2c49c5] rounded-full" />
+            )}
+          </div>
+        );
+      })}
     </motion.div>
   );
 }
