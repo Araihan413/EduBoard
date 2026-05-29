@@ -43,6 +43,18 @@ export default function DashboardNavbar({
     fetchUser();
   }, []);
 
+  // Prevent background scrolling when mobile menu is open
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isMobileMenuOpen]);
+
   const navItems = [
     { id: 'SESI', label: 'Sesi Aktif', icon: LayoutDashboard },
     { id: 'SOAL', label: 'Bank Soal', icon: Database },
@@ -208,7 +220,7 @@ export default function DashboardNavbar({
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="absolute top-24 left-0 right-0 bg-white border-b border-slate-100 shadow-2xl p-6 lg:hidden max-h-[calc(100vh-6rem)] overflow-y-auto scrollbar-hide"
+              className="absolute top-24 left-0 right-0 bg-white border-b border-slate-100 shadow-2xl px-6 pt-6 pb-20 lg:hidden max-h-[calc(100vh-6rem)] overflow-y-auto scrollbar-hide"
             >
               <div className="flex flex-col gap-2">
                 {userName && (
