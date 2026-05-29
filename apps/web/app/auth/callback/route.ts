@@ -8,7 +8,7 @@ export async function GET(request: Request) {
 
   // Reconstruct the public origin from HTTP headers (forwarded by Nginx)
   const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || 'eduboard.online'
-  const proto = request.headers.get('x-forwarded-proto') || 'https'
+  const proto = request.headers.get('x-forwarded-proto') || (host.includes('localhost') || host.includes('127.0.0.1') ? 'http' : 'https')
   const origin = `${proto}://${host}`
 
   if (code) {
