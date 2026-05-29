@@ -44,14 +44,14 @@ export default function AboutPage() {
               <p className="text-slate-500 text-lg leading-relaxed font-medium">
                  Kami percaya bahwa pembelajaran yang efektif berawal dari rasa ingin tahu dan kesenangan. EduBoard PAI dikembangkan untuk menjembatani antara kurikulum sekolah yang terstruktur dengan antarmuka permainan yang interaktif.
               </p>
-              <div className="grid grid-cols-2 gap-6">
-                 <div className="p-6 rounded-2xl bg-white border border-slate-100 shadow-sm">
-                    <div className="text-[#2c49c5] font-black text-3xl mb-2">Digital</div>
-                    <p className="text-xs text-slate-400 font-bold uppercase tracking-widest leading-tight">Media belajar PAI berbasis teknologi</p>
+              <div className="grid grid-cols-2 gap-4 sm:gap-6">
+                 <div className="p-4 sm:p-6 rounded-2xl bg-white border border-slate-100 shadow-sm min-w-0 break-words">
+                    <div className="text-[#2c49c5] font-black text-xl sm:text-2xl md:text-3xl mb-2 break-words">Digital</div>
+                    <p className="text-[10px] sm:text-xs text-slate-400 font-bold uppercase tracking-wide sm:tracking-widest leading-normal sm:leading-tight break-words">Media belajar PAI berbasis teknologi</p>
                  </div>
-                 <div className="p-6 rounded-2xl bg-white border border-slate-100 shadow-sm">
-                    <div className="text-[#ffda59] font-black text-3xl mb-2">Realtime</div>
-                    <p className="text-xs text-slate-400 font-bold uppercase tracking-widest leading-tight">Interaksi guru & siswa langsung</p>
+                 <div className="p-4 sm:p-6 rounded-2xl bg-white border border-slate-100 shadow-sm min-w-0 break-words">
+                    <div className="text-[#ffda59] font-black text-xl sm:text-2xl md:text-3xl mb-2 break-words">Realtime</div>
+                    <p className="text-[10px] sm:text-xs text-slate-400 font-bold uppercase tracking-wide sm:tracking-widest leading-normal sm:leading-tight break-words">Interaksi guru & siswa langsung</p>
                  </div>
               </div>
            </div>
@@ -128,7 +128,7 @@ export default function AboutPage() {
 
 function ValueCard({ icon, title, desc }: { icon: React.ReactNode, title: string, desc: string }) {
   return (
-    <div className="p-8 bg-white border border-slate-50 rounded-3xl shadow-sm hover:shadow-xl transition-all group">
+    <div className="p-8 bg-white border border-slate-50 rounded-3xl shadow-sm hover:shadow-xl transition-all group flex flex-col items-center justify-center">
        <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-[#2c49c5] group-hover:text-white transition-all">
           {icon}
        </div>
