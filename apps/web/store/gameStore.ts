@@ -311,8 +311,11 @@ export const useGameStore = create<GameState & GameActions>()(
           // PILAR B: Sequence-Numbered Filter
           if (newState.stateSeq !== undefined && currentState.stateSeq !== undefined) {
             if (newState.stateSeq < currentState.stateSeq) {
-              console.log(`[DEBUG] [STORE] Discarding stale state. Incoming seq: ${newState.stateSeq}, Current: ${currentState.stateSeq}`);
-              return;
+              // ALWAYS accept FINISHED game status, do not discard it!
+              if (newState.gameStatus !== 'FINISHED') {
+                console.log(`[DEBUG] [STORE] Discarding stale state. Incoming seq: ${newState.stateSeq}, Current: ${currentState.stateSeq}`);
+                return;
+              }
             }
           }
 
@@ -385,7 +388,8 @@ export const useGameStore = create<GameState & GameActions>()(
               myGroupName: finalGroupName, 
               roomCode: finalRoomCode,
               myAvatar: finalMyAvatar,
-              myColor: finalMyColor
+              myColor: finalMyColor,
+              ...(newState.gameStatus === 'FINISHED' ? { currentCard: null, pendingReviews: [] } : {})
             };
           });
         });
@@ -393,10 +397,18 @@ export const useGameStore = create<GameState & GameActions>()(
         socket.on("game:timer_sync", (data: { timer: number, globalTimer: number, countdown: number | null }) => {
             const state = get();
             if (!state.roomCode || state.gameStatus === 'IDLE') return;
-            set({ timer: data.timer, globalTimer: data.globalTimer, countdown: data.countdown });
-           if (data.timer <= 0 && get().isTimerRunning) {
-              get().decrementTimer();
-           }
+            
+            const isFinishing = data.globalTimer <= 0 && state.gameStatus === 'PLAYING';
+            set({ 
+              timer: data.timer, 
+              globalTimer: data.globalTimer, 
+              countdown: data.countdown,
+              ...(isFinishing ? { gameStatus: 'FINISHED', isGlobalTimerRunning: false, isTimerRunning: false, currentCard: null, pendingReviews: [] } : {})
+            });
+            
+            if (data.timer <= 0 && get().isTimerRunning) {
+               get().decrementTimer();
+            }
         });
 
         socket.on("room:full", (data: { message: string }) => {
@@ -1294,6 +1306,12 @@ export const useGameStore = create<GameState & GameActions>()(
 
         reviewSubmission: (reviewId, score) => {
           const state = get();
+          
+          // Guard: Prevent grading if game finished
+          if (state.gameStatus === 'FINISHED') {
+            console.warn(`[gradeSubjektif] Game has finished. Grading is disabled.`);
+            return;
+          }
           
           // Guard: Prevent double grading
           if (state.isGrading) return;
