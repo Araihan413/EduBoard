@@ -24,6 +24,7 @@ interface ActiveRoom {
   countdown: number | null;
   questions?: any[];
   intervalId?: NodeJS.Timeout;
+  stateSeq?: number;
 }
 
 const activeRooms = new Map<string, ActiveRoom>();
