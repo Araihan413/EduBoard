@@ -380,7 +380,11 @@ export const useGameStore = create<GameState & GameActions>()(
             const finalMyColor = myGroup ? (myGroup.color || state.myColor) : state.myColor;
 
             // Reset client-side gameplay/turn states to clean defaults when game starts or resets to LOBBY
-            const isGameStarting = (newState.gameStatus === 'PLAYING' && state.gameStatus !== 'PLAYING') || (newState.gameStatus === 'PLAYING' && newState.currentTurn === 1);
+            // Only reset once: when transitioning from non-PLAYING → PLAYING (LOBBY→game start).
+            // Do NOT add `newState.currentTurn === 1` here — it fires on EVERY broadcast during
+            // turn 1, resetting isRolling/currentCard/isSpinningStar mid-animation.
+            // The joinRoom() call already clears these states when a player (re)joins.
+            const isGameStarting = newState.gameStatus === 'PLAYING' && state.gameStatus !== 'PLAYING';
             const isResetting = newState.gameStatus === 'LOBBY' && state.gameStatus !== 'LOBBY';
             const localReset = (isGameStarting || isResetting) ? {
               hasRolled: false,
