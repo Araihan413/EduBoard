@@ -186,7 +186,6 @@ export function handleSocketEvents(io: Server, socket: Socket) {
     }
 
     socket.join(data.roomCode);
-    console.log(`[DEBUG] [SERVER] Socket ${socket.id} joined room ${data.roomCode}. Identity:`, { groupName: data.groupName, role: data.role });
     
     // Register socket mapping
     socketToUser.set(socket.id, { 
@@ -277,7 +276,6 @@ export function handleSocketEvents(io: Server, socket: Socket) {
 
     if (data.role !== 'guru' && data.groupName) {
       const normalizedName = data.groupName.trim().toLowerCase();
-      console.log(`[DEBUG] [SERVER] Checking for existing group: "${normalizedName}" among:`, room.groups.map(g => g.name.toLowerCase()));
       const existingGroup = room.groups.find((g: any) => g.name.trim().toLowerCase() === normalizedName);
       
       if (existingGroup) {
@@ -293,7 +291,6 @@ export function handleSocketEvents(io: Server, socket: Socket) {
 
         if (oldSocketEntry) {
           const [oldSocketId] = oldSocketEntry;
-          console.log(`[DEBUG] [SERVER] Superseding old socket session ${oldSocketId} for group: "${existingGroup.name}"`);
           
           // Dapatkan instance socket lama dan kirimkan event supersede
           const oldSocket = io.sockets.sockets.get(oldSocketId);
