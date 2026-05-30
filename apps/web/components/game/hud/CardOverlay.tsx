@@ -317,10 +317,10 @@ function CardFrontFace({
 // ─── CardOverlay ─────────────────────────────────────────────────────────────
 
 const POSITION_VARIANTS = {
-  hidden:   { x: 0, y: 400, scale: 0.1, opacity: 0 },
-  drawing:  { x: 0, y: 0,   scale: 1,   opacity: 1 },
-  revealed: { x: 0, y: 0,   scale: 1,   opacity: 1 },
-  returning:{ x: 0, y: 400, scale: 0.1, opacity: 0 },
+  hidden:   { y: 60, opacity: 0 },
+  drawing:  { y: 0,  opacity: 1 },
+  revealed: { y: 0,  opacity: 1 },
+  returning:{ y: 60, opacity: 0 },
 };
 
 export default function CardOverlay(props: CardOverlayProps) {
@@ -341,9 +341,9 @@ export default function CardOverlay(props: CardOverlayProps) {
     phase === "returning"            ? "returning" :
     phase === "drawing" || phase === "revealed" ? "drawing" : "hidden";
   const posTransition =
-    phase === "drawing"   ? { duration: 0.5, ease: [0.22, 1, 0.36, 1]  as [number,number,number,number] } :
-    phase === "returning" ? { duration: 0.5, ease: [0.4, 0, 0.6, 1]    as [number,number,number,number], delay: 0.32 } :
-    { duration: 0.3 };
+    phase === "drawing"   ? { duration: 0.4, ease: [0.22, 1, 0.36, 1] as [number,number,number,number] } :
+    phase === "returning" ? { duration: 0.35, ease: [0.4, 0, 0.6, 1] as [number,number,number,number], delay: 0.25 } :
+    { duration: 0.25 };
 
   return (
     <AnimatePresence>
@@ -378,7 +378,7 @@ export default function CardOverlay(props: CardOverlayProps) {
               className="w-full h-full relative"
               style={{ transformStyle: "preserve-3d", willChange: "transform" }}
               animate={{ rotateY: flipped ? 180 : 0 }}
-              transition={{ type: "spring", stiffness: 220, damping: 26 }}
+              transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] as [number,number,number,number] }}
             >
               {/* Back face */}
               <div className="absolute inset-0" style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}>

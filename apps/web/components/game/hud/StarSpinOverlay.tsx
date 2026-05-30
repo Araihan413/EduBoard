@@ -74,10 +74,10 @@ export default function StarSpinOverlay() {
 
           {/* Floating Premium Container */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 30 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 30 }}
-            transition={{ type: "spring", damping: 25, stiffness: 220 }}
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 24 }}
+            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
             className="relative bg-gradient-to-b from-stone-900/95 to-stone-950/98 border border-white/10 rounded-[2.5rem] p-6 lg:p-8 my-auto shadow-[0_20px_50px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.05)] max-w-sm w-full text-center flex flex-col items-center z-10 select-none overflow-hidden"
           >
             {/* Ambient inner glows */}

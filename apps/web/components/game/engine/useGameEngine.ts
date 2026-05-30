@@ -60,6 +60,7 @@ export function useGameEngine(role: string): GameEngineState {
     currentCard,
     isMoving,
     timer,
+    isTimerRunning,
     pendingReviews,
     lastResult,
     activeGroupIndex,
@@ -166,7 +167,13 @@ export function useGameEngine(role: string): GameEngineState {
   useEffect(() => {
     if (role !== "siswa") return;
     if (activeGroup?.name !== myGroupName) return;
-    if (timer !== 0 || !currentCard) return;
+    // Guard: only fire when timer is genuinely 0 AND the server has confirmed
+    // the timer is stopped (isTimerRunning === false). This prevents a race
+    // condition on mobile where the client still has timer=0 from the previous
+    // turn's end-state while the new currentCard + timer:30 packet is still
+    // in-flight. drawCard() always sends { isTimerRunning: true, timer: N }
+    // atomically, so isTimerRunning will be true whenever a card is freshly drawn.
+    if (timer !== 0 || isTimerRunning || !currentCard) return;
     if (lastTimeoutCardRef.current === (currentCard.id ?? null)) return;
 
     lastTimeoutCardRef.current = currentCard.id ?? null;
@@ -182,7 +189,8 @@ export function useGameEngine(role: string): GameEngineState {
       submitAnswerSubjektif(activeGroup.id, tantanganText.trim() || fallback);
       setTimeout(() => setTantanganText(""), 0);
     }
-  }, [timer, role, activeGroup, myGroupName, currentCard, tantanganText, submitAnswerObjektif, submitAnswerSubjektif]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timer, isTimerRunning, role, activeGroup, myGroupName, currentCard, tantanganText, submitAnswerObjektif, submitAnswerSubjektif]);
 
   // ── Reset isSubmitting when review is resolved ─────────────────────────────
 
