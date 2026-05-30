@@ -61,6 +61,7 @@ export interface PendingReview {
   answer: string;
   points: number;
   dbAnswerId?: string;
+  answerKey?: string | null;
 }
 
 export interface SessionHistory {

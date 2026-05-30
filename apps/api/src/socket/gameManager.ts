@@ -240,7 +240,8 @@ export function handleSocketEvents(io: Server, socket: Socket) {
               groupName: a.group.name,
               question: a.question.text,
               answer: a.answerText || "",
-              points: a.question.points
+              points: a.question.points,
+              answerKey: a.question.answerKey || null
             })) : [],
             logs: ["Sesi dipulihkan dari database."],
             countdown: null
@@ -748,7 +749,8 @@ export function handleSocketEvents(io: Server, socket: Socket) {
             groupName: dbAnswer.group.name,
             question: dbAnswer.question.text,
             answer: dbAnswer.answerText || "",
-            points: data.points || dbAnswer.question.points || 10
+            points: data.points || dbAnswer.question.points || 10,
+            answerKey: dbAnswer.question.answerKey || null
           };
 
           room.pendingReviews = [review, ...room.pendingReviews];
@@ -774,7 +776,8 @@ export function handleSocketEvents(io: Server, socket: Socket) {
         groupName: group?.name || "Siswa",
         question: "(Gagal memuat pertanyaan)",
         answer: data.answerText,
-        points: data.points || 10
+        points: data.points || 10,
+        answerKey: null
       };
       room.pendingReviews = [fallbackReview, ...room.pendingReviews];
       room.logs = ["Sistem: Jawaban diterima (mode offline), menunggu penilaian guru.", ...room.logs];
