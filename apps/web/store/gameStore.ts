@@ -385,11 +385,17 @@ export const useGameStore = create<GameState & GameActions>()(
             const finalMyAvatar = (myGroup && !isRecentlyProfileUpdated) ? (myGroup.avatar || state.myAvatar) : state.myAvatar;
             const finalMyColor = (myGroup && !isRecentlyProfileUpdated) ? (myGroup.color || state.myColor) : state.myColor;
 
+            let finalIsMoving = newState.isMoving !== undefined ? newState.isMoving : state.isMoving;
+            if ((state.isMoving || isRecentlyMovedLocally) && finalIsMoving === false) {
+              finalIsMoving = state.isMoving;
+            }
+
             return {
               ...state,
               ...newState,
               currentCard: finalCurrentCard,
               isChoosingPath: finalIsChoosingPath,
+              isMoving: finalIsMoving,
               isSuperseded: false,
               ...(finalGroups ? { groups: finalGroups } : {}),
               questions: finalQuestions,

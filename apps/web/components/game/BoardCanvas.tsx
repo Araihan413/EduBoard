@@ -165,7 +165,10 @@ function PlayerPion({ group, gIdx, tiles, tileSize, gap, startPos }: {
   gap: number,
   startPos: { x: number, y: number }
 }) {
-  const [restPos, setRestPos] = useState(group.position);
+  const [currentPos, setCurrentPos] = useState(group.position);
+  const [targetQueue, setTargetQueue] = useState<number[]>([]);
+  const [activeTarget, setActiveTarget] = useState<number | null>(null);
+  const [prevGroupPosition, setPrevGroupPosition] = useState(group.position);
   const boardSize = 30;
 
   const getCoords = (pos: number) => {
@@ -174,13 +177,38 @@ function PlayerPion({ group, gIdx, tiles, tileSize, gap, startPos }: {
     return tile ? { x: tile.x, y: tile.y } : startPos;
   };
 
+  // Adjust state during render when group.position changes globally
+  if (group.position !== prevGroupPosition) {
+    setPrevGroupPosition(group.position);
+    if (group.position === 0) {
+      setCurrentPos(0);
+      setTargetQueue([]);
+      setActiveTarget(null);
+    } else {
+      if (activeTarget === null) {
+        setActiveTarget(group.position);
+      } else {
+        if (!targetQueue.includes(group.position) && activeTarget !== group.position) {
+          setTargetQueue([...targetQueue, group.position]);
+        }
+      }
+    }
+  }
+
+  // Adjust state during render to process the next target in queue sequentially
+  if (activeTarget === null && targetQueue.length > 0) {
+    const nextTarget = targetQueue[0];
+    setTargetQueue(targetQueue.slice(1));
+    setActiveTarget(nextTarget);
+  }
+
   // derived state: hitung path secara langsung saat render
-  const isMoving = group.position !== restPos;
+  const isMoving = activeTarget !== null;
   const currentPath: { x: number, y: number }[] = [];
 
-  if (isMoving) {
-    const prev = restPos;
-    const next = group.position;
+  if (isMoving && activeTarget !== null) {
+    const prev = currentPos;
+    const next = activeTarget;
     const diff = next - prev;
 
     if (prev === 0) {
@@ -200,10 +228,13 @@ function PlayerPion({ group, gIdx, tiles, tileSize, gap, startPos }: {
 
   // When path animation completes, commit the new rest position
   const handleAnimationComplete = () => {
-    setRestPos(group.position);
+    if (activeTarget !== null) {
+      setCurrentPos(activeTarget);
+      setActiveTarget(null);
+    }
   };
 
-  const restCoords = getCoords(restPos);
+  const restCoords = getCoords(currentPos);
   const xCoords = currentPath.length > 1 ? currentPath.map(t => t.x * (tileSize + gap)) : [restCoords.x * (tileSize + gap)];
   const yCoords = currentPath.length > 1 ? currentPath.map(t => t.y * (tileSize + gap)) : [restCoords.y * (tileSize + gap)];
   const scaleValues = currentPath.length > 1 ? currentPath.map((_, i) => i === 0 || i === currentPath.length - 1 ? 1 : 1.4) : [1];
