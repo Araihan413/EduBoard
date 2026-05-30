@@ -379,6 +379,26 @@ export const useGameStore = create<GameState & GameActions>()(
             const finalMyAvatar = myGroup ? (myGroup.avatar || state.myAvatar) : state.myAvatar;
             const finalMyColor = myGroup ? (myGroup.color || state.myColor) : state.myColor;
 
+            // Reset client-side gameplay/turn states to clean defaults when game starts or resets to LOBBY
+            const isGameStarting = newState.gameStatus === 'PLAYING' && state.gameStatus !== 'PLAYING';
+            const isResetting = newState.gameStatus === 'LOBBY' && state.gameStatus !== 'LOBBY';
+            const localReset = (isGameStarting || isResetting) ? {
+              hasRolled: false,
+              isRolling: false,
+              isMoving: false,
+              currentCard: null,
+              isUnderReview: false,
+              timer: 0,
+              isTimerRunning: false,
+              visualPath: [],
+              isChoosingPath: false,
+              availablePaths: [],
+              stepsRemaining: 0,
+              isSpinningStar: false,
+              starSpinResult: null,
+              isSpinAnimating: false
+            } : {};
+
             return {
               ...state,
               ...newState,
@@ -390,6 +410,7 @@ export const useGameStore = create<GameState & GameActions>()(
               roomCode: finalRoomCode,
               myAvatar: finalMyAvatar,
               myColor: finalMyColor,
+              ...localReset,
               ...(newState.gameStatus === 'FINISHED' ? { currentCard: null, pendingReviews: [] } : {})
             };
           });
@@ -1409,6 +1430,9 @@ export const useGameStore = create<GameState & GameActions>()(
             isRolling: false,
             hasRolled: false,
             isGrading: false,
+            isChoosingPath: false,
+            availablePaths: [],
+            stepsRemaining: 0,
             isSpinningStar: false,
             starSpinResult: null,
             isSpinAnimating: false,

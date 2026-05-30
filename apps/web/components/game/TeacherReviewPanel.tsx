@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, XCircle, AlertCircle, Bookmark, Star, Sparkles } from "lucide-react";
-import { type PendingReview } from "../../store/gameStore";
+import { useGameStore, type PendingReview } from "../../store/gameStore";
 
 interface TeacherReviewPanelProps {
   pendingReviews: PendingReview[];
@@ -10,7 +10,8 @@ interface TeacherReviewPanelProps {
 }
 
 export default function TeacherReviewPanel({ pendingReviews, onGrade }: TeacherReviewPanelProps) {
-  if (pendingReviews.length === 0) return null;
+  const gameStatus = useGameStore(state => state.gameStatus);
+  if (pendingReviews.length === 0 || gameStatus === "FINISHED") return null;
 
   // We only show the most recent one for focus
   const currentReview = pendingReviews[0];

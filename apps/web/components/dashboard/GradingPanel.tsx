@@ -20,7 +20,8 @@ export default function GradingPanel() {
     }
   }, [currentReview?.id]);
 
-  if (pendingReviews.length === 0) return null;
+  const gameStatus = useGameStore(state => state.gameStatus);
+  if (pendingReviews.length === 0 || gameStatus === "FINISHED") return null;
 
   const handleGrade = (score: number) => {
     if (isSubmitting || isGrading) return;
@@ -80,6 +81,14 @@ export default function GradingPanel() {
                   <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest block mb-2">Jawaban Siswa:</span>
                   <p className="text-slate-900 text-lg md:text-2xl font-black italic leading-tight tracking-tight">&quot;{currentReview.answer}&quot;</p>
                </div>
+
+               {/* Kunci / Referensi Jawaban (Jika Ada) */}
+               {currentReview.answerKey && currentReview.answerKey.trim() !== "" && currentReview.answerKey.trim() !== "Teacher Grade" && (
+                 <div className="p-4 md:p-6 bg-emerald-50/50 border border-emerald-100 rounded-2xl md:rounded-[2rem]">
+                    <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest block mb-2">Referensi Jawaban (Kunci):</span>
+                    <p className="text-emerald-950 text-sm md:text-base font-bold leading-relaxed">{currentReview.answerKey}</p>
+                 </div>
+               )}
             </div>
 
             {/* Grading Actions */}
