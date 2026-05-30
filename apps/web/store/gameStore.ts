@@ -665,7 +665,8 @@ export const useGameStore = create<GameState & GameActions>()(
               isSpinningStar: false,
               starSpinResult: null,
               isSpinAnimating: false,
-              visualPath: []
+              visualPath: [],
+              stateSeq: 0
             });
             
             if (typeof window !== 'undefined') {
@@ -741,7 +742,8 @@ export const useGameStore = create<GameState & GameActions>()(
               isSpinningStar: false,
               starSpinResult: null,
               isSpinAnimating: false,
-              visualPath: []
+              visualPath: [],
+              stateSeq: 0
             });
 
             if (socket) {
@@ -855,7 +857,8 @@ export const useGameStore = create<GameState & GameActions>()(
             isTimerRunning: false,
             isGlobalTimerRunning: false,
             pendingReviews: [],
-            isGrading: false
+            isGrading: false,
+            stateSeq: 0
           });
           
           // Allow re-joining later if they manually enter a code
@@ -895,7 +898,8 @@ export const useGameStore = create<GameState & GameActions>()(
             isGlobalTimerRunning: false,
             pendingReviews: [],
             isGrading: false,
-            isSuperseded: false
+            isSuperseded: false,
+            stateSeq: 0
           });
         },
         setActiveTab: (tab) => set({ activeTab: tab }),

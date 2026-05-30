@@ -244,7 +244,8 @@ export function handleSocketEvents(io: Server, socket: Socket) {
               answerKey: a.question.answerKey || null
             })) : [],
             logs: ["Sesi dipulihkan dari database."],
-            countdown: null
+            countdown: null,
+            stateSeq: 0
           });
         } else {
           activeRooms.set(data.roomCode, {
@@ -261,7 +262,8 @@ export function handleSocketEvents(io: Server, socket: Socket) {
             currentCard: null,
             pendingReviews: [],
             logs: ["Room dibuat."],
-            countdown: null
+            countdown: null,
+            stateSeq: 0
           });
         }
       } catch (err) {
