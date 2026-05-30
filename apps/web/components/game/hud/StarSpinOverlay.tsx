@@ -69,7 +69,7 @@ export default function StarSpinOverlay() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-stone-950/60 backdrop-blur-md"
+            className="absolute inset-0 bg-stone-950/90"
           />
 
           {/* Floating Premium Container */}
@@ -81,7 +81,7 @@ export default function StarSpinOverlay() {
             className="relative bg-gradient-to-b from-stone-900/95 to-stone-950/98 border border-white/10 rounded-[2.5rem] p-6 lg:p-8 my-auto shadow-[0_20px_50px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.05)] max-w-sm w-full text-center flex flex-col items-center z-10 select-none overflow-hidden"
           >
             {/* Ambient inner glows */}
-            <div className="absolute top-0 left-1/4 right-1/4 h-24 bg-yellow-500/10 blur-3xl pointer-events-none rounded-full" />
+            <div className="absolute top-0 left-1/4 right-1/4 h-24 bg-yellow-50/10 blur-3xl pointer-events-none rounded-full" />
             <div className="absolute -bottom-10 left-1/4 right-1/4 h-24 bg-[#2c49c5]/10 blur-3xl pointer-events-none rounded-full" />
 
             {/* Title Block */}
@@ -120,7 +120,7 @@ export default function StarSpinOverlay() {
                 } : { duration: 0 }}
                 style={{ originX: 0.5, originY: 0.5, willChange: "transform" }}
               >
-                <svg viewBox="0 0 200 200" className="w-full h-full pointer-events-none filter drop-shadow-[0_10px_25px_rgba(0,0,0,0.6)]">
+                <svg viewBox="0 0 200 200" className="w-full h-full pointer-events-none">
                   {/* Outer circle border */}
                   <circle cx="100" cy="100" r="94" fill="#1c1917" stroke="#3730a3" strokeWidth="1.5" />
                   

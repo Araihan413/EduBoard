@@ -163,6 +163,20 @@ export function useGameEngine(role: string): GameEngineState {
   // ── Auto-submit on timeout (student only) ──────────────────────────────────
 
   const lastTimeoutCardRef = useRef<string | null>(null);
+  const cardDrawTimeRef = useRef<number>(0);
+  const lastCardIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (currentCard) {
+      if (currentCard.id !== lastCardIdRef.current) {
+        cardDrawTimeRef.current = Date.now();
+        lastCardIdRef.current = currentCard.id ?? null;
+      }
+    } else {
+      cardDrawTimeRef.current = 0;
+      lastCardIdRef.current = null;
+    }
+  }, [currentCard]);
 
   useEffect(() => {
     if (role !== "siswa") return;
@@ -176,18 +190,44 @@ export function useGameEngine(role: string): GameEngineState {
     if (timer !== 0 || isTimerRunning || !currentCard) return;
     if (lastTimeoutCardRef.current === (currentCard.id ?? null)) return;
 
-    lastTimeoutCardRef.current = currentCard.id ?? null;
+    // Minimal delay of 2 seconds after the card is drawn/opened before auto-submit can fire.
+    const elapsed = Date.now() - cardDrawTimeRef.current;
+    if (elapsed < 2000) {
+      const remainingDelay = 2000 - elapsed;
+      const timeoutId = setTimeout(() => {
+        // Double check all conditions inside the timeout using the latest store state
+        const currentStoreState = useGameStore.getState();
+        if (
+          currentStoreState.timer === 0 &&
+          !currentStoreState.isTimerRunning &&
+          currentStoreState.currentCard?.id === currentCard.id &&
+          lastTimeoutCardRef.current !== currentCard.id
+        ) {
+          lastTimeoutCardRef.current = currentCard.id ?? null;
+          triggerAutoSubmit();
+        }
+      }, remainingDelay);
 
-    if (currentCard.type === "DASAR") {
-      submitAnswerObjektif(activeGroup.id, "TIMEOUT");
-    } else {
-      setTimeout(() => setIsSubmitting(true), 0);
-      const fallback =
-        currentCard.type === "PEMAHAMAN"
-          ? "Waktu habis, jawaban tulisan belum selesai."
-          : "Waktu habis, siswa belum selesai menjawab lisan.";
-      submitAnswerSubjektif(activeGroup.id, tantanganText.trim() || fallback);
-      setTimeout(() => setTantanganText(""), 0);
+      return () => clearTimeout(timeoutId);
+    }
+
+    // Otherwise, submit immediately
+    lastTimeoutCardRef.current = currentCard.id ?? null;
+    triggerAutoSubmit();
+
+    function triggerAutoSubmit() {
+      if (!currentCard || !activeGroup) return;
+      if (currentCard.type === "DASAR") {
+        submitAnswerObjektif(activeGroup.id, "TIMEOUT");
+      } else {
+        setIsSubmitting(true);
+        const fallback =
+          currentCard.type === "PEMAHAMAN"
+            ? "Waktu habis, jawaban tulisan belum selesai."
+            : "Waktu habis, siswa belum selesai menjawab lisan.";
+        submitAnswerSubjektif(activeGroup.id, tantanganText.trim() || fallback);
+        setTantanganText("");
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timer, isTimerRunning, role, activeGroup, myGroupName, currentCard, tantanganText, submitAnswerObjektif, submitAnswerSubjektif]);
