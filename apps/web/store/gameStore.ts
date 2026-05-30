@@ -361,7 +361,9 @@ export const useGameStore = create<GameState & GameActions>()(
             // This prevents stale server state packets from overwriting/closing our newly opened card.
             let finalCurrentCard = newState.currentCard !== undefined ? newState.currentCard : state.currentCard;
             const isRecentlyDrawnLocally = (Date.now() - state.lastCardDrawTime) < 2500;
-            if (isRecentlyDrawnLocally && finalCurrentCard === null && state.currentCard !== null) {
+            if (newState.gameStatus === 'FINISHED' || state.gameStatus === 'FINISHED') {
+              finalCurrentCard = null;
+            } else if (isRecentlyDrawnLocally && finalCurrentCard === null && state.currentCard !== null) {
               finalCurrentCard = state.currentCard;
             }
 

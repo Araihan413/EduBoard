@@ -564,6 +564,8 @@ export function handleSocketEvents(io: Server, socket: Socket) {
     room.gameStatus = 'FINISHED';
     room.isGlobalTimerRunning = false;
     room.isTimerRunning = false;
+    room.currentCard = null;       // force close any active card overlay
+    room.pendingReviews = [];      // discard any pending reviews so teacher panel closes
     if (room.intervalId) clearInterval(room.intervalId);
 
     // Filter out surrendered players for winner calculation
@@ -614,7 +616,7 @@ export function handleSocketEvents(io: Server, socket: Socket) {
 
   socket.on("student:submit_objektif", async (data: { roomCode: string, groupId: string, questionId: string, answer: string, isCorrect: boolean, score: number, turnNumber?: number }) => {
     const room = activeRooms.get(data.roomCode);
-    if (!room) return;
+    if (!room || room.gameStatus === 'FINISHED') return;
 
     const group = room.groups.find(g => g.id === data.groupId);
     if (group) {
@@ -680,7 +682,7 @@ export function handleSocketEvents(io: Server, socket: Socket) {
 
   socket.on("student:submit_answer", async (data: { roomCode: string, groupId: string, questionId: string, answerText: string, points?: number, turnNumber?: number }) => {
     const room = activeRooms.get(data.roomCode);
-    if (!room) return;
+    if (!room || room.gameStatus === 'FINISHED') return;
 
     // 1. SYNC GUARD: Prevent double submission for the same group in this turn
     // We use a temporary dynamic property on the room object for immediate locking
@@ -786,7 +788,7 @@ export function handleSocketEvents(io: Server, socket: Socket) {
 
   socket.on("teacher:grade_answer", async (data: { roomCode: string, dbAnswerId: string, groupId: string, score: number, isCorrect: boolean }) => {
     const room = activeRooms.get(data.roomCode);
-    if (!room) return;
+    if (!room || room.gameStatus === 'FINISHED') return;
 
     // Always update in-memory state first (so game never hangs)
     const group = room.groups.find(g => g.id === data.groupId);
