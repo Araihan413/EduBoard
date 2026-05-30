@@ -166,6 +166,7 @@ function PlayerPion({ group, gIdx, tiles, tileSize, gap, startPos }: {
   startPos: { x: number, y: number }
 }) {
   const [currentPos, setCurrentPos] = useState(group.position);
+  const [prevGroupPosition, setPrevGroupPosition] = useState(group.position);
   const visualPath = useGameStore(state => state.visualPath);
   const onPionAnimationFinished = useGameStore(state => state.onPionAnimationFinished);
 
@@ -175,12 +176,13 @@ function PlayerPion({ group, gIdx, tiles, tileSize, gap, startPos }: {
     return tile ? { x: tile.x, y: tile.y } : startPos;
   };
 
-  // Sync position locally if group position snaps (e.g. game resets)
-  useEffect(() => {
-    if (group.position === 0) {
-      setCurrentPos(0);
-    }
-  }, [group.position]);
+  // Sync position locally during render if group position snaps (e.g. game resets to 0 / START)
+  if (group.position === 0 && prevGroupPosition !== 0) {
+    setPrevGroupPosition(0);
+    setCurrentPos(0);
+  } else if (group.position !== prevGroupPosition) {
+    setPrevGroupPosition(group.position);
+  }
 
   // Derived state: calculate physical path coordinates based on the store's visualPath
   const currentPath: { x: number, y: number }[] = [];
