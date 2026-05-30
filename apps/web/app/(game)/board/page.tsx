@@ -166,7 +166,7 @@ function BoardPage() {
           tantanganText, setTantanganText, isSubmitting, setIsSubmitting } = engine;
 
   const canRoll = role === "siswa"
-    && activeGroup?.name === myGroupName
+    && activeGroup?.name?.trim().toLowerCase() === myGroupName?.trim().toLowerCase()
     && !hasRolled && !isRolling && !isMoving && !currentCard && !isUnderReview;
 
   // Dice roll reminder timer (triggers after 3 seconds of inactive turn)
