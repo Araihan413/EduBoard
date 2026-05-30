@@ -137,6 +137,8 @@ interface GameState {
   isSuperseded: boolean;
   animatingPionId: string | null;
   lastCardDismissTime: number;
+  lastSpinCloseTime: number;
+  lastResultCloseTime: number;
 }
 
 interface GameActions {
@@ -384,7 +386,7 @@ export const useGameStore = create<GameState & GameActions>()(
             // But the EARLIER syncSet({ isChoosingPath: true }) echo from the server may arrive
             // AFTER the user has already chosen — flipping isChoosingPath back to true and
             // causing PathSelector to re-appear. We block this by checking lastBranchChoiceTime.
-            const isRecentlyChoseBranch = (Date.now() - state.lastBranchChoiceTime) < 2500;
+            const isRecentlyChoseBranch = (Date.now() - state.lastBranchChoiceTime) < 5000;
             const finalIsChoosingPath = (
               newState.isChoosingPath !== undefined
                 ? (isRecentlyChoseBranch && newState.isChoosingPath === true && state.isChoosingPath === false)
@@ -392,6 +394,22 @@ export const useGameStore = create<GameState & GameActions>()(
                     : newState.isChoosingPath
                 : state.isChoosingPath
             );
+
+            // PROTECT isSpinningStar FROM STALE SERVER ECHO:
+            // Reject stale server echo trying to re-open spin overlay after we closed it locally
+            let finalIsSpinningStar = newState.isSpinningStar !== undefined ? newState.isSpinningStar : state.isSpinningStar;
+            const isRecentlyClosedSpin = (Date.now() - state.lastSpinCloseTime) < 5000;
+            if (isRecentlyClosedSpin && finalIsSpinningStar === true) {
+              finalIsSpinningStar = false;
+            }
+
+            // PROTECT lastResult FROM STALE SERVER ECHO:
+            // Reject stale server echo trying to show old result after we cleared it locally
+            let finalLastResult = newState.lastResult !== undefined ? newState.lastResult : state.lastResult;
+            const isRecentlyClosedResult = (Date.now() - state.lastResultCloseTime) < 5000;
+            if (isRecentlyClosedResult && finalLastResult !== null) {
+              finalLastResult = null;
+            }
 
             const isRecentlyProfileUpdated = (Date.now() - state.lastProfileUpdateTime) < 2500;
             const finalMyAvatar = (myGroup && !isRecentlyProfileUpdated) ? (myGroup.avatar || state.myAvatar) : state.myAvatar;
@@ -407,6 +425,8 @@ export const useGameStore = create<GameState & GameActions>()(
               ...newState,
               currentCard: finalCurrentCard,
               isChoosingPath: finalIsChoosingPath,
+              isSpinningStar: finalIsSpinningStar,
+              lastResult: finalLastResult,
               isMoving: finalIsMoving,
               isSuperseded: false,
               ...(finalGroups ? { groups: finalGroups } : {}),
@@ -510,6 +530,8 @@ export const useGameStore = create<GameState & GameActions>()(
         isSuperseded: false,
         animatingPionId: null,
         lastCardDismissTime: 0,
+        lastSpinCloseTime: 0,
+        lastResultCloseTime: 0,
 
         toggleMute: () => set((state) => ({ isMuted: !state.isMuted })),
         setAnimatingPionId: (id) => set({ animatingPionId: id }),
@@ -576,6 +598,7 @@ export const useGameStore = create<GameState & GameActions>()(
                 syncSet((s) => ({
                   groups: s.groups.map(g => g.id === activeGroupCurrent.id ? { ...g, score: newScore } : g),
                   isSpinningStar: false,
+                  lastSpinCloseTime: Date.now(),
                   lastResult: {
                     type: points > 0 ? "SUCCESS" : "FAILURE",
                     title: points > 0 ? "BONUS POIN!" : "POIN DIKURANGI!",
@@ -594,6 +617,7 @@ export const useGameStore = create<GameState & GameActions>()(
               } else if (result === "SKIP") {
                 syncSet((s) => ({
                   isSpinningStar: false,
+                  lastSpinCloseTime: Date.now(),
                   lastResult: {
                     type: "INFO",
                     title: "GILIRAN DILEWATI",
@@ -608,7 +632,7 @@ export const useGameStore = create<GameState & GameActions>()(
 
               } else {
                 // It's a question card type: DASAR, TANTANGAN, or PEMAHAMAN!
-                syncSet({ isSpinningStar: false });
+                syncSet({ isSpinningStar: false, lastSpinCloseTime: Date.now() });
                 setTimeout(() => {
                   get().drawCard(result as QuestionType);
                 }, 300);
@@ -1387,6 +1411,7 @@ export const useGameStore = create<GameState & GameActions>()(
             currentCard: null,
             lastCardDismissTime: Date.now(),
             lastResult: null, // Clear the toast!
+            lastResultCloseTime: Date.now(),
             timer: 0,
             isTimerRunning: false,
             isMoving: false,
