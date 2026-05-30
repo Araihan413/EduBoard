@@ -46,7 +46,7 @@ function getAccent(cardType: string, isUnderReview: boolean) {
 
 // ─── CardBackFace ─────────────────────────────────────────────────────────────
 
-function CardBackFace({ type, className }: { type: string; className?: string }) {
+function CardBackFace({ type, className, isMobile }: { type: string; className?: string; isMobile?: boolean }) {
   const accent =
     type === "DASAR"     ? { bg: "bg-[#2c49c5]", glow: "shadow-blue-500/20"   } :
     type === "TANTANGAN" ? { bg: "bg-red-500",    glow: "shadow-red-500/20"    } :
@@ -56,7 +56,7 @@ function CardBackFace({ type, className }: { type: string; className?: string })
     <div className={`absolute inset-0 bg-[#0f172a] border-[6px] border-white/10 flex flex-col items-center justify-center overflow-hidden shadow-2xl ${className ?? "rounded-[2.5rem]"}`}>
       <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: "radial-gradient(circle at 2px 2px, white 1px, transparent 0)", backgroundSize: "24px 24px" }} />
       <div className={`absolute w-64 h-64 rounded-full blur-[80px] opacity-20 ${accent.bg}`} />
-      <div className="relative z-10 w-20 h-20 rounded-3xl bg-white/5 flex items-center justify-center border border-white/10 backdrop-blur-sm shadow-inner">
+      <div className={`relative z-10 w-20 h-20 rounded-3xl bg-white/5 flex items-center justify-center border border-white/10 shadow-inner ${isMobile ? "" : "backdrop-blur-sm"}`}>
         <div className={`w-12 h-12 rounded-2xl ${accent.bg} flex items-center justify-center shadow-lg ${accent.glow}`}>
           <Award className="w-7 h-7 text-white" />
         </div>
@@ -76,8 +76,8 @@ function CardFrontFace({
   isTimerRunning, timer, role, activeGroup, myGroupName,
   tantanganText, setTantanganText, submitAnswerObjektif,
   submitAnswerSubjektif, gradeSubjektif, setIsSubmitting,
-  isSubmitting, pendingReviews,
-}: CardOverlayProps & { cardType: string }) {
+  isSubmitting, pendingReviews, isMobile,
+}: CardOverlayProps & { cardType: string; isMobile: boolean }) {
   const { isGrading } = useGameStore();
   const accent = getAccent(cardType, isUnderReview);
   const review = pendingReviews.find((r) => r.groupId === activeGroup?.id) ?? pendingReviews[0];
@@ -286,8 +286,8 @@ function CardFrontFace({
               </div>
             ) : (
               <motion.div
-                animate={{ scale: [1, 1.02, 1] }}
-                transition={{ duration: 2, repeat: Infinity }}
+                animate={isMobile ? {} : { scale: [1, 1.02, 1] }}
+                transition={isMobile ? {} : { duration: 2, repeat: Infinity }}
                 className="bg-indigo-50 border border-indigo-100 p-4 md:p-6 rounded-2xl text-center shadow-md shadow-indigo-500/5"
               >
                 <div className="flex flex-col items-center gap-2 md:gap-3">
@@ -326,6 +326,16 @@ const POSITION_VARIANTS = {
 export default function CardOverlay(props: CardOverlayProps) {
   const { phase, isUnderReview, displayCard } = props;
   const [isFlipped, setIsFlipped] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   useEffect(() => {
     const shouldFlip = phase === "revealed" || isUnderReview;
@@ -368,7 +378,7 @@ export default function CardOverlay(props: CardOverlayProps) {
           {/* Card Container */}
           <motion.div
             className="relative z-10"
-            style={{ perspective: 1200, width: "min(320px, 88vw)", height: "min(470px, 78vh)" }}
+            style={{ perspective: isMobile ? undefined : 1200, width: "min(320px, 88vw)", height: "min(470px, 78vh)" }}
             variants={POSITION_VARIANTS}
             initial="hidden"
             animate={posTarget}
@@ -376,20 +386,37 @@ export default function CardOverlay(props: CardOverlayProps) {
           >
             <motion.div
               className="w-full h-full relative"
-              style={{ transformStyle: "preserve-3d", willChange: "transform" }}
-              animate={{ rotateY: flipped ? 180 : 0 }}
-              transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] as [number,number,number,number] }}
+              style={isMobile ? { willChange: "transform, opacity" } : { transformStyle: "preserve-3d", willChange: "transform" }}
+              animate={isMobile ? { scale: flipped ? [0.96, 1.02, 1] : 1 } : { rotateY: flipped ? 180 : 0 }}
+              transition={isMobile ? { duration: 0.25, ease: "easeOut" } : { duration: 0.4, ease: [0.4, 0, 0.2, 1] as [number,number,number,number] }}
             >
-              {/* Back face */}
-              <div className="absolute inset-0" style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}>
-                <CardBackFace type={cardType} className="rounded-[20px]" />
-                <div className="absolute inset-0 pointer-events-none rounded-[20px]" style={{ boxShadow: "0 30px 80px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.05)" }} />
-              </div>
+              {isMobile ? (
+                /* On Mobile: Conditional rendering to completely avoid 3D preserve-3d performance cost */
+                <div className="absolute inset-0">
+                  {flipped ? (
+                    <CardFrontFace {...props} cardType={cardType} isMobile={isMobile} />
+                  ) : (
+                    <>
+                      <CardBackFace type={cardType} className="rounded-[20px]" isMobile={isMobile} />
+                      <div className="absolute inset-0 pointer-events-none rounded-[20px]" style={{ boxShadow: "0 30px 80px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.05)" }} />
+                    </>
+                  )}
+                </div>
+              ) : (
+                /* On Desktop: Keep premium 3D flip card animation */
+                <>
+                  {/* Back face */}
+                  <div className="absolute inset-0" style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}>
+                    <CardBackFace type={cardType} className="rounded-[20px]" isMobile={isMobile} />
+                    <div className="absolute inset-0 pointer-events-none rounded-[20px]" style={{ boxShadow: "0 30px 80px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.05)" }} />
+                  </div>
 
-              {/* Front face */}
-              <div className="absolute inset-0" style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden", transform: "rotateY(180deg)" }}>
-                <CardFrontFace {...props} cardType={cardType} />
-              </div>
+                  {/* Front face */}
+                  <div className="absolute inset-0" style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden", transform: "rotateY(180deg)" }}>
+                    <CardFrontFace {...props} cardType={cardType} isMobile={isMobile} />
+                  </div>
+                </>
+              )}
             </motion.div>
           </motion.div>
         </motion.div>

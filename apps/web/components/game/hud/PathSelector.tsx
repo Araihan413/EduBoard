@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { GitFork, ArrowRight, Shuffle } from "lucide-react";
 import { getTileById } from "../config/gameConfig";
@@ -14,6 +15,16 @@ interface PathSelectorProps {
 
 export default function PathSelector({ isMyTurn, activeGroupName }: PathSelectorProps) {
   const { isChoosingPath, availablePaths, selectBranch } = useGameStore();
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   // NOTE: AnimatePresence MUST wrap the conditional — do NOT do early return before
   // AnimatePresence, otherwise the exit animation never plays and the component
@@ -33,14 +44,14 @@ export default function PathSelector({ isMyTurn, activeGroupName }: PathSelector
 
           {/* Card */}
           <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{    opacity: 0, y: 24 }}
-            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            initial={isMobile ? undefined : { opacity: 0, y: 24 }}
+            animate={isMobile ? undefined : { opacity: 1, y: 0 }}
+            exit={isMobile ? undefined : { opacity: 0, y: 24 }}
+            transition={isMobile ? { duration: 0.2 } : { duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
             className="relative z-10 bg-white rounded-[2.5rem] p-8 shadow-[0_40px_100px_rgba(0,0,0,0.25)] border border-slate-100 max-w-sm w-full text-center pointer-events-auto"
           >
             {/* Glow */}
-            <div className="absolute inset-0 rounded-[2.5rem] bg-yellow-400/10 pointer-events-none" />
+            {!isMobile && <div className="absolute inset-0 rounded-[2.5rem] bg-yellow-400/10 pointer-events-none" />}
 
             {/* Icon */}
             <div className="w-20 h-20 mx-auto bg-yellow-50 rounded-3xl flex items-center justify-center mb-6 border-2 border-yellow-100 shadow-inner">
@@ -102,7 +113,7 @@ export default function PathSelector({ isMyTurn, activeGroupName }: PathSelector
               </div>
             ) : (
               <div className="flex flex-col items-center gap-4 py-4">
-                <Shuffle className="w-8 h-8 text-slate-300 animate-spin-slow" />
+                <Shuffle className={`w-8 h-8 text-slate-300 ${isMobile ? "animate-pulse" : "animate-spin-slow"}`} />
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
                   Menunggu pilihan tim {activeGroupName}...
                 </p>

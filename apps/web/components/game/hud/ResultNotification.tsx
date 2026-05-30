@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { CheckCircle2, XCircle, Award, X } from "lucide-react";
 import { useGameStore, type AnswerResult } from "../../../store/gameStore";
@@ -11,6 +12,16 @@ interface ResultNotificationProps {
 
 export default function ResultNotification({ result, onClose }: ResultNotificationProps) {
   const { clearLastResult, myGroupName } = useGameStore();
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   const isSuccess = result.type === "SUCCESS";
   const isFailure = result.type === "FAILURE";
@@ -29,10 +40,10 @@ export default function ResultNotification({ result, onClose }: ResultNotificati
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 32 }}
-      animate={{ opacity: 1, y: 0  }}
-      exit={  { opacity: 0, y: 32  }}
-      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+      initial={isMobile ? undefined : { opacity: 0, y: 32 }}
+      animate={isMobile ? undefined : { opacity: 1, y: 0 }}
+      exit={isMobile ? undefined : { opacity: 0, y: 32 }}
+      transition={isMobile ? { duration: 0.2 } : { duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
       style={{ willChange: "transform, opacity" }}
       className="fixed inset-0 z-[200] flex items-center justify-center p-6 pointer-events-none"
     >
@@ -47,7 +58,7 @@ export default function ResultNotification({ result, onClose }: ResultNotificati
         )}
 
         {/* Glow */}
-        <div className={`absolute inset-0 opacity-10 blur-3xl pointer-events-none ${c.glow}`} />
+        {!isMobile && <div className={`absolute inset-0 opacity-10 blur-3xl pointer-events-none ${c.glow}`} />}
 
         {/* Icon */}
         <div className={`w-16 h-16 md:w-24 md:h-24 rounded-2xl md:rounded-3xl flex items-center justify-center mb-4 md:mb-8 border-4 border-white shadow-2xl ${c.bg}`}>

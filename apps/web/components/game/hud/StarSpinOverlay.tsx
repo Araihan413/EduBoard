@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Star, Award, Zap, AlertTriangle, AlertCircle, ArrowUp } from "lucide-react";
 import { useGameStore } from "../../../store/gameStore";
@@ -15,6 +16,17 @@ export default function StarSpinOverlay() {
     myGroupName,
     isGuru
   } = useGameStore();
+
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   const activeGroup = groups[activeGroupIndex];
   const isMyTurn = !isGuru && activeGroup?.name?.trim().toLowerCase() === myGroupName?.trim().toLowerCase();
@@ -74,15 +86,19 @@ export default function StarSpinOverlay() {
 
           {/* Floating Premium Container */}
           <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 24 }}
-            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            initial={isMobile ? undefined : { opacity: 0, y: 24 }}
+            animate={isMobile ? undefined : { opacity: 1, y: 0 }}
+            exit={isMobile ? undefined : { opacity: 0, y: 24 }}
+            transition={isMobile ? { duration: 0.25 } : { duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
             className="relative bg-gradient-to-b from-stone-900/95 to-stone-950/98 border border-white/10 rounded-[2.5rem] p-6 lg:p-8 my-auto shadow-[0_20px_50px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.05)] max-w-sm w-full text-center flex flex-col items-center z-10 select-none overflow-hidden"
           >
             {/* Ambient inner glows */}
-            <div className="absolute top-0 left-1/4 right-1/4 h-24 bg-yellow-50/10 blur-3xl pointer-events-none rounded-full" />
-            <div className="absolute -bottom-10 left-1/4 right-1/4 h-24 bg-[#2c49c5]/10 blur-3xl pointer-events-none rounded-full" />
+            {!isMobile && (
+              <>
+                <div className="absolute top-0 left-1/4 right-1/4 h-24 bg-yellow-50/10 blur-3xl pointer-events-none rounded-full" />
+                <div className="absolute -bottom-10 left-1/4 right-1/4 h-24 bg-[#2c49c5]/10 blur-3xl pointer-events-none rounded-full" />
+              </>
+            )}
 
             {/* Title Block */}
             <div className="flex items-center gap-2 mb-2">
@@ -107,7 +123,7 @@ export default function StarSpinOverlay() {
                 ======================================================================= */}
             <div className="relative w-60 h-60 lg:w-64 lg:h-64 mb-6 flex items-center justify-center pointer-events-auto">
               {/* Premium Outer Glow Ring */}
-              <div className="absolute inset-[-12px] rounded-full bg-yellow-500/5 border border-yellow-500/10 blur-lg pointer-events-none" />
+              {!isMobile && <div className="absolute inset-[-12px] rounded-full bg-yellow-500/5 border border-yellow-500/10 blur-lg pointer-events-none" />}
               <div className="absolute inset-[-4px] rounded-full border-2 border-white/5 shadow-2xl pointer-events-none" />
 
               {/* The Spinning Core */}
@@ -118,7 +134,7 @@ export default function StarSpinOverlay() {
                   duration: 2.5,
                   ease: [0.15, 0.85, 0.35, 1.0] // beautiful easeOut curve
                 } : { duration: 0 }}
-                style={{ originX: 0.5, originY: 0.5, willChange: "transform" }}
+                style={{ originX: 0.5, originY: 0.5, willChange: "transform", transform: "translate3d(0,0,0)" }}
               >
                 <svg viewBox="0 0 200 200" className="w-full h-full pointer-events-none">
                   {/* Outer circle border */}
@@ -134,7 +150,7 @@ export default function StarSpinOverlay() {
                     const textRadius = 54;
                     const textX = 100 + textRadius * Math.cos(textAngle * rad);
                     const textY = 100 + textRadius * Math.sin(textAngle * rad);
-
+ 
                     return (
                       <g key={i}>
                         {/* Slice Segment */}
@@ -163,17 +179,17 @@ export default function StarSpinOverlay() {
                       </g>
                     );
                   })}
-
+ 
                   {/* Inner ring overlay */}
                   <circle cx="100" cy="100" r="28" fill="#1c1917" stroke="#ffffff/10" strokeWidth="1.5" />
                 </svg>
               </motion.div>
-
+ 
               {/* Static Top Selector Pin (The Needle) */}
               <div className="absolute top-[-10px] left-1/2 -translate-x-1/2 z-20 flex flex-col items-center filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.4)] animate-bounce-slow pointer-events-none">
                 <ArrowUp className="w-8 h-8 text-yellow-400 rotate-180 fill-yellow-400 stroke-[2.5]" />
               </div>
-
+ 
               {/* Central Premium Button / Pivot */}
               <button
                 onClick={handleSpinClick}
@@ -193,7 +209,7 @@ export default function StarSpinOverlay() {
                 <Zap className={`w-3 h-3 pointer-events-none ${isSpinAnimating ? "animate-pulse" : ""}`} />
               </button>
             </div>
-
+ 
             {/* =======================================================================
                 RESULT PANEL / SUB-HUD
                 ======================================================================= */}
@@ -201,10 +217,10 @@ export default function StarSpinOverlay() {
               <AnimatePresence mode="wait">
                 {starSpinResult && !isSpinAnimating && (
                   <motion.div
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -15 }}
-                    className="bg-white/5 border border-white/10 rounded-2xl px-6 py-2.5 flex items-center gap-3 backdrop-blur-md shadow-inner"
+                    initial={isMobile ? undefined : { opacity: 0, y: 15 }}
+                    animate={isMobile ? undefined : { opacity: 1, y: 0 }}
+                    exit={isMobile ? undefined : { opacity: 0, y: -15 }}
+                    className={`bg-white/5 border border-white/10 rounded-2xl px-6 py-2.5 flex items-center gap-3 shadow-inner ${isMobile ? "" : "backdrop-blur-md"}`}
                   >
                     {starSpinResult === "+5" && <Award className="w-5 h-5 text-emerald-400 animate-bounce" />}
                     {starSpinResult === "-5" && <AlertTriangle className="w-5 h-5 text-rose-400 animate-bounce" />}
