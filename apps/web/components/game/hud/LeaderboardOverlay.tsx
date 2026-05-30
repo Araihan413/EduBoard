@@ -40,7 +40,7 @@ export default function LeaderboardOverlay({ groups, role, isMidGame = false, on
     if (isMidGame || !winner) return;
     const duration    = 5000;
     const animationEnd = Date.now() + duration;
-    const defaults    = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 500 };
+    const defaults    = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 10000 };
     const rand        = (min: number, max: number) => Math.random() * (max - min) + min;
 
     const interval = setInterval(() => {
@@ -59,7 +59,7 @@ export default function LeaderboardOverlay({ groups, role, isMidGame = false, on
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       style={{ willChange: "opacity" }}
-      className={`fixed inset-0 z-250 ${isMobile ? "bg-black/90" : "bg-black/75"} flex items-center justify-center p-6`}
+      className={`fixed inset-0 z-[9999] ${isMobile ? "bg-black/90" : "bg-black/75"} flex items-center justify-center p-6`}
     >
       <motion.div
         initial={{ scale: isMobile ? 0.98 : 0.9, y: isMobile ? 0 : 20, opacity: 0 }}
