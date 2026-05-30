@@ -1167,9 +1167,9 @@ export const useGameStore = create<GameState & GameActions>()(
           if (!activeG || activeG.id !== groupId) return;
 
           // Spectators only update their visual moving states locally, they do not trigger logical landing.
+          // Guru is always a driver to act as the ultimate coordinator, ensuring the game never gets stuck.
           const isMyTurn = !state.isGuru && activeG.name?.trim().toLowerCase() === state.myGroupName?.trim().toLowerCase();
-          const isGuruDriver = state.isGuru && (activeG.isOffline || state.groups.every(g => g.isOffline || g.name === ''));
-          const isDriver = isMyTurn || isGuruDriver;
+          const isDriver = isMyTurn || state.isGuru;
 
           if (!isDriver) {
             set({ isMoving: false, visualPath: [] });

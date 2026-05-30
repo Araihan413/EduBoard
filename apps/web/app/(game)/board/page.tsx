@@ -664,7 +664,7 @@ function BoardPage() {
       {/* Path Selector — muncul saat di persimpangan STAR (Force-closed when game finishes) */}
       {gameStatus !== "FINISHED" && (
         <PathSelector
-          isMyTurn={role === "siswa" && activeGroup?.name?.trim().toLowerCase() === myGroupName?.trim().toLowerCase()}
+          isMyTurn={role === "guru" || (role === "siswa" && activeGroup?.name?.trim().toLowerCase() === myGroupName?.trim().toLowerCase())}
           activeGroupName={activeGroup?.name ?? "..."}
         />
       )}
