@@ -86,10 +86,10 @@ export default function StarSpinOverlay() {
 
           {/* Floating Premium Container */}
           <motion.div
-            initial={isMobile ? undefined : { opacity: 0, y: 24 }}
-            animate={isMobile ? undefined : { opacity: 1, y: 0 }}
-            exit={isMobile ? undefined : { opacity: 0, y: 24 }}
-            transition={isMobile ? { duration: 0.25 } : { duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            initial={{ opacity: 0, y: isMobile ? 0 : 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: isMobile ? 0 : 20 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
             className="relative bg-gradient-to-b from-stone-900/95 to-stone-950/98 border border-white/10 rounded-[2.5rem] p-6 lg:p-8 my-auto shadow-[0_20px_50px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.05)] max-w-sm w-full text-center flex flex-col items-center z-10 select-none overflow-hidden"
           >
             {/* Ambient inner glows */}
@@ -217,9 +217,10 @@ export default function StarSpinOverlay() {
               <AnimatePresence mode="wait">
                 {starSpinResult && !isSpinAnimating && (
                   <motion.div
-                    initial={isMobile ? undefined : { opacity: 0, y: 15 }}
-                    animate={isMobile ? undefined : { opacity: 1, y: 0 }}
-                    exit={isMobile ? undefined : { opacity: 0, y: -15 }}
+                    initial={{ opacity: 0, y: isMobile ? 0 : 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: isMobile ? 0 : -12 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
                     className={`bg-white/5 border border-white/10 rounded-2xl px-6 py-2.5 flex items-center gap-3 shadow-inner ${isMobile ? "" : "backdrop-blur-md"}`}
                   >
                     {starSpinResult === "+5" && <Award className="w-5 h-5 text-emerald-400 animate-bounce" />}

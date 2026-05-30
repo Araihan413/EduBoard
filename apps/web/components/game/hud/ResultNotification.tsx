@@ -40,10 +40,10 @@ export default function ResultNotification({ result, onClose }: ResultNotificati
 
   return (
     <motion.div
-      initial={isMobile ? undefined : { opacity: 0, y: 32 }}
-      animate={isMobile ? undefined : { opacity: 1, y: 0 }}
-      exit={isMobile ? undefined : { opacity: 0, y: 32 }}
-      transition={isMobile ? { duration: 0.2 } : { duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+      initial={{ opacity: 0, y: isMobile ? 0 : 24 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: isMobile ? 0 : 24 }}
+      transition={{ duration: 0.25, ease: "easeOut" }}
       style={{ willChange: "transform, opacity" }}
       className="fixed inset-0 z-[200] flex items-center justify-center p-6 pointer-events-none"
     >

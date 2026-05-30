@@ -56,14 +56,14 @@ export default function LeaderboardOverlay({ groups, role, isMidGame = false, on
 
   return (
     <motion.div
-      initial={isMobile ? undefined : { opacity: 0 }}
-      animate={isMobile ? undefined : { opacity: 1 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
       style={{ willChange: "opacity" }}
       className={`fixed inset-0 z-250 ${isMobile ? "bg-black/90" : "bg-black/75"} flex items-center justify-center p-6`}
     >
       <motion.div
-        initial={isMobile ? undefined : { scale: 0.9, y: 20, opacity: 0 }}
-        animate={isMobile ? undefined : { scale: 1, y: 0, opacity: 1 }}
+        initial={{ scale: isMobile ? 0.98 : 0.9, y: isMobile ? 0 : 20, opacity: 0 }}
+        animate={{ scale: 1, y: 0, opacity: 1 }}
         style={{ willChange: "transform, opacity" }}
         className="max-w-xl w-[92%] sm:w-full h-[80vh] max-h-[580px] sm:max-h-[720px] md:max-h-[800px] bg-slate-950 border border-white/10 rounded-[2rem] sm:rounded-[3.5rem] p-5 sm:p-10 md:p-14 shadow-[0_50px_100px_rgba(0,0,0,0.8)] flex flex-col items-center relative overflow-hidden"
       >
@@ -91,8 +91,8 @@ export default function LeaderboardOverlay({ groups, role, isMidGame = false, on
           </div>
         ) : winner ? (
           <motion.div
-            initial={isMobile ? undefined : { y: 30, opacity: 0, scale: 0.9 }}
-            animate={isMobile ? undefined : { y: 0, opacity: 1, scale: 1 }}
+            initial={{ y: isMobile ? 0 : 24, opacity: 0, scale: isMobile ? 0.98 : 0.9 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
             transition={isMobile ? { duration: 0.25 } : { type: "spring", delay: 0.5 }}
             className="text-center mb-3 sm:mb-8 relative pt-1 sm:pt-2"
           >
@@ -132,9 +132,9 @@ export default function LeaderboardOverlay({ groups, role, isMidGame = false, on
             return (
               <motion.div
                 key={group.id}
-                initial={isMobile ? undefined : { x: -20, opacity: 0 }}
-                animate={isMobile ? undefined : { x: 0, opacity: 1 }}
-                transition={isMobile ? undefined : { delay: (isMidGame ? 0.2 : 0.8) + index * 0.1 }}
+                initial={{ x: isMobile ? 0 : -16, opacity: 0 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: isMobile ? 0 : (isMidGame ? 0.2 : 0.8) + index * 0.1 }}
                 className={`bg-white/5 border p-2 sm:p-3.5 rounded-xl sm:rounded-2xl flex items-center justify-between hover:bg-white/10 transition-colors group ${
                   isRankOne 
                     ? "border-yellow-400/30 bg-yellow-400/5 shadow-[0_0_20px_rgba(250,204,21,0.03)]" 
@@ -205,9 +205,9 @@ export default function LeaderboardOverlay({ groups, role, isMidGame = false, on
 
         {isMidGame && onClose ? (
           <motion.button
-            initial={isMobile ? undefined : { opacity: 0 }}
-            animate={isMobile ? undefined : { opacity: 1 }}
-            transition={isMobile ? undefined : { delay: 0.5 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={isMobile ? { duration: 0.15 } : { delay: 0.5 }}
             onClick={onClose}
             className="mt-4 sm:mt-10 px-6 py-2 sm:px-8 sm:py-3 bg-white text-slate-900 rounded-lg sm:rounded-xl font-black tracking-widest uppercase text-[10px] sm:text-xs hover:scale-105 active:scale-95 transition-all shadow-2xl hover:shadow-[0_20px_50px_rgba(255,255,255,0.15)] cursor-pointer"
           >
@@ -215,9 +215,9 @@ export default function LeaderboardOverlay({ groups, role, isMidGame = false, on
           </motion.button>
         ) : (
           <motion.button
-            initial={isMobile ? undefined : { opacity: 0 }}
-            animate={isMobile ? undefined : { opacity: 1 }}
-            transition={isMobile ? undefined : { delay: 1.5 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={isMobile ? { duration: 0.15 } : { delay: 1.5 }}
             onClick={() => router.push(role === "guru" ? "/dashboard" : "/lobby")}
             className="mt-4 sm:mt-10 px-6 py-2 sm:px-8 sm:py-3 bg-white text-slate-900 rounded-lg sm:rounded-xl font-black tracking-widest uppercase text-[10px] sm:text-xs hover:scale-105 transition-transform shadow-2xl cursor-pointer"
           >

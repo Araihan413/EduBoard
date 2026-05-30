@@ -44,10 +44,10 @@ export default function PathSelector({ isMyTurn, activeGroupName }: PathSelector
 
           {/* Card */}
           <motion.div
-            initial={isMobile ? undefined : { opacity: 0, y: 24 }}
-            animate={isMobile ? undefined : { opacity: 1, y: 0 }}
-            exit={isMobile ? undefined : { opacity: 0, y: 24 }}
-            transition={isMobile ? { duration: 0.2 } : { duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            initial={{ opacity: 0, y: isMobile ? 0 : 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: isMobile ? 0 : 20 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
             className="relative z-10 bg-white rounded-[2.5rem] p-8 shadow-[0_40px_100px_rgba(0,0,0,0.25)] border border-slate-100 max-w-sm w-full text-center pointer-events-auto"
           >
             {/* Glow */}
