@@ -380,7 +380,7 @@ export const useGameStore = create<GameState & GameActions>()(
             const finalMyColor = myGroup ? (myGroup.color || state.myColor) : state.myColor;
 
             // Reset client-side gameplay/turn states to clean defaults when game starts or resets to LOBBY
-            const isGameStarting = newState.gameStatus === 'PLAYING' && state.gameStatus !== 'PLAYING';
+            const isGameStarting = (newState.gameStatus === 'PLAYING' && state.gameStatus !== 'PLAYING') || (newState.gameStatus === 'PLAYING' && newState.currentTurn === 1);
             const isResetting = newState.gameStatus === 'LOBBY' && state.gameStatus !== 'LOBBY';
             const localReset = (isGameStarting || isResetting) ? {
               hasRolled: false,
@@ -655,7 +655,17 @@ export const useGameStore = create<GameState & GameActions>()(
               isTimerRunning: false,
               isGlobalTimerRunning: false,
               lastResult: null,
-              logs: [`Ruang ${newCode} berhasil dibuat.`]
+              logs: [`Ruang ${newCode} berhasil dibuat.`],
+              hasRolled: false,
+              isRolling: false,
+              isMoving: false,
+              isChoosingPath: false,
+              availablePaths: [],
+              stepsRemaining: 0,
+              isSpinningStar: false,
+              starSpinResult: null,
+              isSpinAnimating: false,
+              visualPath: []
             });
             
             if (typeof window !== 'undefined') {
@@ -721,7 +731,17 @@ export const useGameStore = create<GameState & GameActions>()(
               isGrading: false,
               timer: 0,
               globalTimer: roomData.globalTimer || 0,
-              isTimerRunning: false
+              isTimerRunning: false,
+              hasRolled: false,
+              isRolling: false,
+              isMoving: false,
+              isChoosingPath: false,
+              availablePaths: [],
+              stepsRemaining: 0,
+              isSpinningStar: false,
+              starSpinResult: null,
+              isSpinAnimating: false,
+              visualPath: []
             });
 
             if (socket) {
