@@ -26,11 +26,12 @@ const USE_3D = true;
 
 interface WorldContainerProps {
   groups: Group[];
+  onMapLoaded?: () => void;
 }
 
 // ─── WorldContainer ───────────────────────────────────────────────────────────
 
-export default function WorldContainer({ groups }: WorldContainerProps) {
+export default function WorldContainer({ groups, onMapLoaded }: WorldContainerProps) {
   const Board = USE_3D ? Board3D : Board2D;
 
   return (
@@ -40,7 +41,7 @@ export default function WorldContainer({ groups }: WorldContainerProps) {
       transition={{ duration: 0.6 }}
       className="w-full h-full"
     >
-      <Board groups={groups} />
+      <Board groups={groups} onMapLoaded={onMapLoaded} />
     </motion.div>
   );
 }

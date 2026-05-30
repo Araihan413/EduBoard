@@ -557,10 +557,10 @@ export default function QuestionsManager() {
             <ChevronLeft size={24} />
           </button>
           <div>
-            <h2 className="text-3xl font-black text-slate-900 tracking-tight">{activeQuestionSet.title}</h2>
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-slate-900 tracking-tight break-words">{activeQuestionSet.title}</h2>
             <div className="flex items-center gap-2 mt-1">
                <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded-md">
-                 {questions.length} Soal
+                 {pagination.questions?.total ?? 0} Soal
                </span>
                <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">• {activeQuestionSet.isPreset ? 'Paket Resmi EduBoard' : 'Koleksi Saya'}</p>
             </div>
@@ -662,12 +662,9 @@ export default function QuestionsManager() {
               filteredQuestions.map(q => {
                 const style = getTypeStyle(q.type);
                 return (
-                  <motion.div 
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
+                  <div 
                     key={q.id} 
-                    className={`bg-white border border-slate-100 shadow-sm hover:shadow-md group ${viewMode === 'GRID' ? 'p-6 rounded-3xl' : 'p-4 rounded-2xl flex items-center gap-4'}`}
+                    className={`bg-white border border-slate-100 shadow-sm hover:shadow-md group transition-all duration-200 ${viewMode === 'GRID' ? 'p-6 rounded-3xl' : 'p-4 rounded-2xl flex items-center gap-4'}`}
                   >
                     {viewMode === 'GRID' ? (
                       <div className="w-full">
@@ -766,7 +763,7 @@ export default function QuestionsManager() {
                         )}
                       </>
                     )}
-                  </motion.div>
+                  </div>
                 );
               })
             ) : (

@@ -55,7 +55,7 @@ export default function LeaderboardOverlay({ groups, role, isMidGame = false, on
         initial={{ scale: 0.9, y: 20, opacity: 0 }}
         animate={{ scale: 1, y: 0, opacity: 1 }}
         style={{ willChange: "transform, opacity" }}
-        className="max-w-xl w-[92%] sm:w-full min-h-[50vh] max-h-[90vh] sm:min-h-[75vh] md:min-h-[80vh] bg-slate-950 border border-white/10 rounded-[2rem] sm:rounded-[3.5rem] p-5 sm:p-10 md:p-14 shadow-[0_50px_100px_rgba(0,0,0,0.8)] flex flex-col items-center relative overflow-hidden"
+        className="max-w-xl w-[92%] sm:w-full h-[80vh] max-h-[580px] sm:max-h-[720px] md:max-h-[800px] bg-slate-950 border border-white/10 rounded-[2rem] sm:rounded-[3.5rem] p-5 sm:p-10 md:p-14 shadow-[0_50px_100px_rgba(0,0,0,0.8)] flex flex-col items-center relative overflow-hidden"
       >
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-80 h-80 bg-blue-500/20 blur-[100px] -z-10" />
 
@@ -71,7 +71,7 @@ export default function LeaderboardOverlay({ groups, role, isMidGame = false, on
 
         {/* Winner or Mid-Game Header or No-winner */}
         {isMidGame ? (
-          <div className="text-center mb-4 sm:mb-10 pt-2 sm:pt-4">
+          <div className="text-center mb-4 sm:mb-8 pt-2 sm:pt-4">
             <div className="inline-flex items-center gap-1.5 sm:gap-2 bg-yellow-400/10 border border-yellow-400/20 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full mb-2 sm:mb-4 shadow-inner">
               <Trophy className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-yellow-400 animate-bounce" />
               <span className="text-[8px] sm:text-[10px] font-black tracking-widest text-yellow-400 uppercase leading-none">Peringkat Sesi</span>
@@ -84,18 +84,23 @@ export default function LeaderboardOverlay({ groups, role, isMidGame = false, on
             initial={{ y: 30, opacity: 0, scale: 0.9 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
             transition={{ type: "spring", delay: 0.5 }}
-            className="text-center mb-6 sm:mb-12 relative pt-4 sm:pt-8"
+            className="text-center mb-3 sm:mb-8 relative pt-1 sm:pt-2"
           >
-            <div className="absolute -top-6 sm:-top-4 left-1/2 -translate-x-1/2">
-              <motion.div animate={{ rotate: [0, -10, 10, 0], scale: [1, 1.2, 1] }} transition={{ duration: 2, repeat: Infinity }}>
-                <Trophy className="w-8 h-8 sm:w-10 sm:h-10 text-yellow-400 filter drop-shadow-[0_0_20px_rgba(250,204,21,0.5)]" />
+            {/* Trophy Icon - Placed in normal flow so it never gets clipped by overflow-hidden */}
+            <div className="flex justify-center mb-2 sm:mb-5">
+              <motion.div 
+                animate={{ rotate: [0, -10, 10, 0], scale: [1, 1.12, 1] }} 
+                transition={{ duration: 2, repeat: Infinity }}
+              >
+                <Trophy className="w-10 h-10 sm:w-15 sm:h-15 text-yellow-400 filter drop-shadow-[0_0_16px_rgba(250,204,21,0.6)]" />
               </motion.div>
             </div>
-            <p className="text-yellow-400 font-black tracking-[0.5em] uppercase text-[8px] sm:text-[10px] mb-2 sm:mb-4">SANG JUARA</p>
-            <h1 className="text-lg sm:text-2xl md:text-3xl font-black text-white tracking-tighter mb-2 sm:mb-4">{winner.name}</h1>
-            <div className="inline-flex items-center gap-2 sm:gap-3 bg-white/10 px-4 py-1.5 sm:px-6 sm:py-2 rounded-full border border-white/20 backdrop-blur-md">
-              <span className="text-lg sm:text-xl font-black text-white">{winner.score}</span>
-              <span className="text-[9px] sm:text-[11px] font-bold text-white/50 uppercase tracking-widest">Total Poin</span>
+            
+            <p className="text-yellow-400 font-black tracking-[0.4em] uppercase text-[7px] sm:text-[9px] mb-1 sm:mb-2.5">SANG JUARA</p>
+            <h1 className="text-sm sm:text-2xl md:text-3xl font-black text-white tracking-tight mb-1 sm:mb-3">{winner.name}</h1>
+            <div className="inline-flex items-center gap-1.5 sm:gap-3 bg-white/10 px-3 py-2 sm:px-5 sm:py-1.5 rounded-full border border-white/20 backdrop-blur-md">
+              <span className="text-xs sm:text-lg font-black text-white">{winner.score}</span>
+              <span className="text-[7px] sm:text-[9px] font-bold text-white/50 uppercase tracking-wider">Total Poin</span>
             </div>
           </motion.div>
         ) : (
@@ -108,7 +113,7 @@ export default function LeaderboardOverlay({ groups, role, isMidGame = false, on
         )}
 
         {/* Runner-up list or Full list */}
-        <div className="w-full flex-1 overflow-y-auto pr-1 sm:pr-2 custom-scrollbar space-y-1.5 sm:space-y-3 mb-4 sm:mb-8">
+        <div className="w-full flex-1 overflow-y-auto overscroll-contain pr-1 sm:pr-2 custom-scrollbar space-y-1.5 sm:space-y-3 mb-4 sm:mb-8">
           {(isMidGame ? sortedGroups : runnersUp).map((group, index) => {
             const isSurrendered = group.status === "SURRENDERED";
             const displayRank   = isMidGame ? index + 1 : (winner ? index + 2 : index + 1);

@@ -131,6 +131,8 @@ interface GameState {
   starSpinResult: string | null;
   isSpinAnimating: boolean;
   lastLocalMoveTime: number;
+  lastCardDrawTime: number;
+  lastProfileUpdateTime: number;
   isSuperseded: boolean;
 }
 
@@ -322,9 +324,7 @@ export const useGameStore = create<GameState & GameActions>()(
             const isRecentlyMovedLocally = (Date.now() - state.lastLocalMoveTime) < 2000;
             if (finalGroups && (state.isMoving || isRecentlyMovedLocally)) {
               const activeGroup = state.groups[state.activeGroupIndex];
-              const isMyGroupActive = activeGroup && 
-                activeGroup.name?.trim().toLowerCase() === finalGroupName?.trim().toLowerCase();
-              if (isMyGroupActive) {
+              if (activeGroup) {
                 finalGroups = finalGroups.map(g => 
                   g.id === activeGroup.id 
                     ? { ...g, position: activeGroup.position } 
@@ -355,9 +355,23 @@ export const useGameStore = create<GameState & GameActions>()(
               finalHasRolled = state.hasRolled;
             }
 
+            // PROTECT OPTIMISTIC CURRENT CARD:
+            // If the local player recently drew a card, we ignore any incoming currentCard: null from the server.
+            // This prevents stale server state packets from overwriting/closing our newly opened card.
+            let finalCurrentCard = newState.currentCard !== undefined ? newState.currentCard : state.currentCard;
+            const isRecentlyDrawnLocally = (Date.now() - state.lastCardDrawTime) < 2500;
+            if (isRecentlyDrawnLocally && finalCurrentCard === null && state.currentCard !== null) {
+              finalCurrentCard = state.currentCard;
+            }
+
+            const isRecentlyProfileUpdated = (Date.now() - state.lastProfileUpdateTime) < 2500;
+            const finalMyAvatar = (myGroup && !isRecentlyProfileUpdated) ? (myGroup.avatar || state.myAvatar) : state.myAvatar;
+            const finalMyColor = (myGroup && !isRecentlyProfileUpdated) ? (myGroup.color || state.myColor) : state.myColor;
+
             return {
               ...state,
               ...newState,
+              currentCard: finalCurrentCard,
               isSuperseded: false,
               ...(finalGroups ? { groups: finalGroups } : {}),
               questions: finalQuestions,
@@ -367,10 +381,8 @@ export const useGameStore = create<GameState & GameActions>()(
               diceValue: finalDiceValue,
               isRolling: finalIsRolling,
               hasRolled: finalHasRolled,
-              ...(myGroup ? {
-                myAvatar: myGroup.avatar || state.myAvatar,
-                myColor: myGroup.color || state.myColor
-              } : {})
+              myAvatar: finalMyAvatar,
+              myColor: finalMyColor
             };
           });
         });
@@ -456,14 +468,24 @@ export const useGameStore = create<GameState & GameActions>()(
         starSpinResult: null,
         isSpinAnimating: false,
         lastLocalMoveTime: 0,
+        lastCardDrawTime: 0,
+        lastProfileUpdateTime: 0,
         isSuperseded: false,
 
         toggleMute: () => set((state) => ({ isMuted: !state.isMuted })),
         setCountdown: (val) => syncSet({ countdown: val }),
         updateGroups: (groups) => syncSet({ groups: [...groups].sort((a, b) => a.id.localeCompare(b.id)) }),
-        updateGroup: (groupId, updates) => syncSet((state) => ({
-          groups: state.groups.map(g => g.id === groupId ? { ...g, ...updates } : g)
-        })),
+        updateGroup: (groupId, updates) => syncSet((state) => {
+          const isMyGroup = state.myGroupName && state.groups.find(g => g.id === groupId)?.name === state.myGroupName;
+          return {
+            groups: state.groups.map(g => g.id === groupId ? { ...g, ...updates } : g),
+            ...(isMyGroup ? {
+              lastProfileUpdateTime: Date.now(),
+              ...(updates.avatar ? { myAvatar: updates.avatar } : {}),
+              ...(updates.color ? { myColor: updates.color } : {})
+            } : {})
+          };
+        }),
         leaveRoom: (roomCode, name) => {
           setLeavingFlag(true); 
           if (socket) {
@@ -1003,6 +1025,7 @@ export const useGameStore = create<GameState & GameActions>()(
 
           return {
             currentCard: card,
+            lastCardDrawTime: Date.now(),
             timer: (card.type === 'PEMAHAMAN' ? state.roomConfig.turnDurationPemahaman :
                    card.type === 'TANTANGAN' ? state.roomConfig.turnDurationTantangan :
                    state.roomConfig.turnDurationDasar) || (card.type === 'PEMAHAMAN' ? 90 : card.type === 'TANTANGAN' ? 60 : 30),
@@ -1032,7 +1055,14 @@ export const useGameStore = create<GameState & GameActions>()(
           const state = get();
           const group = state.groups.find(g => g.id === groupId);
           if (!group) return;
-          syncSet({ stepsRemaining: steps, isChoosingPath: false, availablePaths: [] });
+          // Set isMoving and lastLocalMoveTime immediately in the syncSet to prevent stale server overrides at the start
+          syncSet({ 
+            stepsRemaining: steps, 
+            isChoosingPath: false, 
+            availablePaths: [],
+            isMoving: true,
+            lastLocalMoveTime: Date.now()
+          });
           get()._movePionBySteps(groupId, group.position, steps);
         },
 
@@ -1047,19 +1077,27 @@ export const useGameStore = create<GameState & GameActions>()(
           if (!isMyTurn) return;
 
           const remaining = state.stepsRemaining;
-          syncSet({ isChoosingPath: false, availablePaths: [] });
-          // Move pion TO the chosen fork tile (1 step), then continue.
+          
+          // Sync the choice and the new position on the server immediately to prevent snapping back to the fork
           syncSet((s) => ({
-            groups: s.groups.map(g => g.id === group.id ? { ...g, position: nextTileId } : g),
+            isChoosingPath: false,
+            availablePaths: [],
+            groups: s.groups.map(g => g.id === group.id ? { ...g, position: nextTileId } : g)
+          }));
+
+          // Continue intermediate moves locally
+          set({
             isMoving: true,
             lastLocalMoveTime: Date.now()
-          }));
+          });
+
           if (socket) {
             socket.emit('game:branch_selected', { roomCode: state.roomCode, groupId: group.id, tileId: nextTileId });
           }
           setTimeout(() => {
             const newRemaining = remaining - 1;
-            syncSet({ stepsRemaining: newRemaining });
+            // Note: we use local set() here to avoid triggering a sync broadcast during intermediate moves
+            set({ stepsRemaining: newRemaining });
             if (newRemaining <= 0) {
               get()._landOnTile(group.id, nextTileId);
             } else {
@@ -1084,19 +1122,22 @@ export const useGameStore = create<GameState & GameActions>()(
           }
 
           if (nextIds.length > 1) {
-            // FORK: stop here and wait for player to choose
+            // FORK: stop here, sync the intermediate fork position to the server, and wait for player to choose
+            const currentGroups = get().groups;
             syncSet({
               isMoving: false,
               isChoosingPath: true,
               availablePaths: nextIds,
               stepsRemaining: steps,
+              groups: currentGroups.map(g => g.id === groupId ? { ...g, position: fromTileId } : g)
             });
             return;
           }
 
           // Straight path: move one step
           const nextId = nextIds[0];
-          syncSet((s) => ({
+          // Note: we use local set() instead of syncSet() here to avoid broadcasting intermediate moves
+          set((s) => ({
             isMoving: true,
             groups: s.groups.map(g => g.id === groupId ? { ...g, position: nextId } : g),
             lastLocalMoveTime: Date.now()
@@ -1104,7 +1145,8 @@ export const useGameStore = create<GameState & GameActions>()(
 
           setTimeout(() => {
             const remaining = steps - 1;
-            syncSet({ stepsRemaining: remaining });
+            // Note: we use local set() here to avoid triggering a sync broadcast during intermediate moves
+            set({ stepsRemaining: remaining });
             if (remaining <= 0) {
               get()._landOnTile(groupId, nextId);
             } else {
@@ -1115,7 +1157,13 @@ export const useGameStore = create<GameState & GameActions>()(
 
         // Internal: handle landing on a tile after all steps are exhausted.
         _landOnTile: (groupId: string, tileId: number) => {
-          syncSet({ isMoving: false, lastLocalMoveTime: Date.now() });
+          // Sync the final groups position array with the server at landing
+          const finalGroups = get().groups;
+          syncSet({ 
+            isMoving: false, 
+            lastLocalMoveTime: Date.now(),
+            groups: finalGroups
+          });
           const tile = getTileById(tileId);
           const group = get().groups.find(g => g.id === groupId);
           if (!group) return;

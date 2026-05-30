@@ -45,8 +45,30 @@ function formatTime(s: number) {
 export default function BoardPageWrapper() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-white">
-        Memuat Papan...
+      <div className="min-h-screen bg-[#f8fafc] flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
+        {/* Floating Glassmorphic Container */}
+        <div className="relative z-10 w-full max-w-sm bg-white/80 backdrop-blur-xl border border-white/60 rounded-[2.5rem] p-8 md:p-10 shadow-[0_30px_70px_rgba(148,163,184,0.12)] flex flex-col items-center">
+          {/* Glowing Animated Icon Assembly */}
+          <div className="relative w-24 h-24 mb-8 flex items-center justify-center">
+            <div className="absolute inset-0 rounded-full border-2 border-dashed border-[#2c49c5]/30 animate-spin-slow" />
+            <div className="absolute w-16 h-16 rounded-full bg-[#2c49c5]/10 border border-[#2c49c5]/20 animate-ping" />
+            <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-[#2c49c5] to-indigo-600 flex items-center justify-center shadow-[0_0_30px_rgba(44,73,197,0.3)]">
+              <Trophy className="w-5 h-5 text-white animate-pulse" />
+            </div>
+          </div>
+
+          <p className="text-[10px] font-black text-indigo-600 tracking-[0.3em] uppercase mb-2">Sinkronisasi</p>
+          <h2 className="text-xl md:text-2xl font-serif font-black tracking-wide text-slate-800 mb-3 text-center uppercase">MEMULAI ARENA</h2>
+          <p className="text-slate-500 text-xs md:text-sm font-medium leading-relaxed max-w-xs mb-8 text-center">
+            Sedang menyiapkan koneksi dan memuat data game.
+          </p>
+
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 bg-[#2c49c5] rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+            <span className="w-2.5 h-2.5 bg-slate-200 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+            <span className="w-2.5 h-2.5 bg-[#2c49c5]/70 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+          </div>
+        </div>
       </div>
     }>
       <BoardPage />
@@ -69,6 +91,7 @@ function BoardPage() {
     isMoving, leaveRoom, lastResult, clearLastResult,
     fetchQuestions, isGuru, roomConfig,
     isMuted, toggleMute, isChoosingPath, hasRolled,
+    isSpinningStar,
   } = useGameStore();
 
   const engine = useGameEngine(role);
@@ -77,6 +100,7 @@ function BoardPage() {
   const [isMobile, setIsMobile] = useState(false);
   const [diceSize, setDiceSize] = useState(75);
   const [showRollReminder, setShowRollReminder] = useState(false);
+  const [isMapLoaded, setIsMapLoaded] = useState(false);
 
   useEffect(() => {
     const handleResize = () => {
@@ -159,32 +183,65 @@ function BoardPage() {
     };
   }, [canRoll]);
 
-  // ── Loading states ──────────────────────────────────────────────────────────
+  // Lock body scroll when any dialog/overlay is active to prevent scroll-chaining on mobile devices
+  useEffect(() => {
+    const isAnyOverlayOpen = 
+      (cardPhase !== "idle") ||
+      isUnderReview ||
+      showExitConfirm ||
+      showLeaderboardModal ||
+      (gameStatus === "FINISHED") ||
+      !!lastResult ||
+      isChoosingPath ||
+      isSpinningStar;
 
-  if (!activeGroup && gameStatus !== "FINISHED" && gameStatus !== "IDLE") {
-    return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-slate-900 text-center">
-        <Disc3 className="w-16 h-16 text-[#2c49c5] animate-spin mb-6" />
-        <h2 className="text-3xl font-black tracking-tight">Mempersiapkan Papan...</h2>
-        <p className="text-slate-500 mt-3 font-medium max-w-sm">
-          Menunggu Guru mengklik &ldquo;Mulai Permainan&rdquo; di Dashboard.
-        </p>
-        {role === "guru" && (
-          <Link href="/dashboard" className="mt-8 text-[#2c49c5] font-black hover:underline uppercase tracking-widest text-sm">
-            ← Ke Dashboard Guru
-          </Link>
-        )}
-      </div>
-    );
-  }
+    if (isAnyOverlayOpen) {
+      document.body.style.overflow = "hidden";
+      document.body.style.height = "100%";
+      document.documentElement.style.overflow = "hidden";
+      document.documentElement.style.height = "100%";
+    } else {
+      document.body.style.overflow = "";
+      document.body.style.height = "";
+      document.documentElement.style.overflow = "";
+      document.documentElement.style.height = "";
+    }
 
-  if (!roomCode && gameStatus === "IDLE") {
-    return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-slate-900 text-center">
-        <Disc3 className="w-16 h-16 text-slate-300 animate-spin mb-6" />
-        <h2 className="text-xl font-bold text-slate-400">Mengarahkan ke Lobby...</h2>
-      </div>
-    );
+    return () => {
+      document.body.style.overflow = "";
+      document.body.style.height = "";
+      document.documentElement.style.overflow = "";
+      document.documentElement.style.height = "";
+    };
+  }, [
+    cardPhase,
+    isUnderReview,
+    showExitConfirm,
+    showLeaderboardModal,
+    gameStatus,
+    lastResult,
+    isChoosingPath,
+    isSpinningStar
+  ]);
+
+  // ── Loading states (Unified Light-Theme State Machine) ──────────────────────
+
+  const isWaitingForGuru = !activeGroup && gameStatus !== "FINISHED" && gameStatus !== "IDLE";
+  const isRedirectingToLobby = !roomCode && gameStatus === "IDLE";
+  const showLoadingOverlay = isWaitingForGuru || isRedirectingToLobby || !isMapLoaded;
+
+  let loadingCategory = "Sinkronisasi";
+  let loadingTitle = "MEMUAT PAPAN";
+  let loadingDesc = "Sedang memproses peta 3D, mensinkronisasikan dadu, dan menyiapkan ubin permainan.";
+
+  if (isWaitingForGuru) {
+    loadingCategory = "Pemberitahuan Sistem";
+    loadingTitle = "MEMPERSIAPKAN ARENA";
+    loadingDesc = "Menunggu Guru menekan tombol \"Mulai Permainan\" di layar utama lobi.";
+  } else if (isRedirectingToLobby) {
+    loadingCategory = "Navigasi";
+    loadingTitle = "MENGARAHKAN...";
+    loadingDesc = "Sedang bersiap kembali ke Ruang Lobi utama.";
   }
 
 
@@ -205,7 +262,7 @@ function BoardPage() {
       {/* ── STONE TEXTURE BACKGROUND ─────────────────────────────────────── */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
         {/* Base Stone Color & Noise */}
-        <div className="absolute inset-0 bg-stone-400" />
+        <div className="absolute inset-0 bg-[#131110]" />
         <div 
           className="absolute inset-0 opacity-[0.05]" 
           style={{ 
@@ -318,7 +375,7 @@ function BoardPage() {
       {/* ── ARENA (Board) ────────────────────────────────────────────────────── */}
       <main className="flex-1 absolute inset-0 z-0 overflow-hidden w-full h-full" style={{ perspective: "2500px" }}>
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-blue-500/10 rounded-full blur-[140px] pointer-events-none" />
-        <WorldContainer groups={groups} />
+        <WorldContainer groups={groups} onMapLoaded={() => setIsMapLoaded(true)} />
 
         {/* ── PLAYER SIDEBAR (DESKTOP) & HORIZONTAL SCROLL BAR (MOBILE) ────────── */}
         {!isMobile ? (
@@ -631,6 +688,43 @@ function BoardPage() {
 
       {/* Roda Putar STAR (Force-closed when game finishes) */}
       {gameStatus !== "FINISHED" && <StarSpinOverlay />}
+
+      {/* Full-screen Loading Screen Overlay — stays active until 3D map is completely loaded */}
+      <AnimatePresence>
+        {showLoadingOverlay && (
+          <motion.div
+            key="page-map-loader"
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.6, ease: "easeInOut" }}
+            className="fixed inset-0 bg-[#f8fafc] flex flex-col items-center justify-center p-6 text-center z-[1000] overflow-hidden"
+          >
+            {/* Floating Glassmorphic Container */}
+            <div className="relative z-10 w-full max-w-sm bg-white/80 backdrop-blur-xl border border-white/60 rounded-[2.5rem] p-8 md:p-10 shadow-[0_30px_70px_rgba(148,163,184,0.12)] flex flex-col items-center">
+              {/* Glowing Animated Icon Assembly */}
+              <div className="relative w-24 h-24 mb-8 flex items-center justify-center">
+                <div className="absolute inset-0 rounded-full border-2 border-dashed border-[#2c49c5]/30 animate-spin-slow" />
+                <div className="absolute w-16 h-16 rounded-full bg-[#2c49c5]/10 border border-[#2c49c5]/20 animate-ping" />
+                <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-[#2c49c5] to-indigo-600 flex items-center justify-center shadow-[0_0_30px_rgba(44,73,197,0.3)]">
+                  <Trophy className="w-5 h-5 text-white animate-pulse" />
+                </div>
+              </div>
+
+              <p className="text-[10px] font-black text-indigo-600 tracking-[0.3em] uppercase mb-2">{loadingCategory}</p>
+              <h2 className="text-xl md:text-2xl font-serif font-black tracking-wide text-slate-800 mb-3 text-center uppercase">{loadingTitle}</h2>
+              <p className="text-slate-500 text-xs md:text-sm font-medium leading-relaxed max-w-xs mb-8 text-center">
+                {loadingDesc}
+              </p>
+
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 bg-[#2c49c5] rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                <span className="w-2.5 h-2.5 bg-slate-200 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                <span className="w-2.5 h-2.5 bg-[#2c49c5]/70 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

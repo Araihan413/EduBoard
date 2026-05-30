@@ -21,6 +21,7 @@ import {
   MapControls,
 } from "@react-three/drei";
 import * as THREE from "three";
+import { Trophy, Disc3 } from "lucide-react";
 
 import {
   TILE_GRAPH,
@@ -133,7 +134,7 @@ function Tile3D({ tile, texture }: { tile: TileConfig; texture?: THREE.CanvasTex
 
   return (
     <group position={[x, TILE_Y, z]} scale={[scale, scale, scale]}>
-      <mesh castShadow receiveShadow>
+      <mesh receiveShadow>
         <cylinderGeometry args={[0.46, 0.50, 0.08, 24]} />
         <meshStandardMaterial
           color={color}
@@ -461,6 +462,12 @@ function Scene({ groups }: { groups: Group[] }) {
         position={[8, 18, 8]}
         intensity={1.25}
         castShadow
+        shadow-mapSize={[512, 512]}
+        shadow-camera-far={35}
+        shadow-camera-left={-12}
+        shadow-camera-right={12}
+        shadow-camera-top={12}
+        shadow-camera-bottom={-12}
       />
       <directionalLight position={[-8, 6, -6]} intensity={0.35} color="#cbd5e1" />
 
@@ -560,18 +567,28 @@ function Scene({ groups }: { groups: Group[] }) {
 // ─── 📦 BOARD3D UTAMA (EXPORT) ────────────────────────────────────────────────
 interface Board3DProps {
   groups: Group[];
+  onMapLoaded?: () => void;
 }
 
-export default function Board3D({ groups }: Board3DProps) {
+function MapLoadedNotifier({ onLoaded }: { onLoaded?: () => void }) {
+  useEffect(() => {
+    if (onLoaded) {
+      const t = setTimeout(() => onLoaded(), 200); // 200ms delay to ensure first frame completes rendering
+      return () => clearTimeout(t);
+    }
+  }, [onLoaded]);
+  return null;
+}
+
+export default function Board3D({ groups, onMapLoaded }: Board3DProps) {
   return (
     <div className="w-full h-full flex items-center justify-center">
       {/* Kontainer map dinamis: 100% full-screen tanpa border atau rounding agar membaur penuh */}
       <div className="w-full h-full relative overflow-hidden">
         <Suspense fallback={
-          <div className="absolute inset-0 bg-[#658a3a] flex items-center justify-center text-white/50 text-xs">
-            Memuat Map Permainan...
-          </div>
+          <div className="absolute inset-0 bg-[#f8fafc] z-50 pointer-events-none" />
         }>
+          <MapLoadedNotifier onLoaded={onMapLoaded} />
           <Canvas
             shadows={false}
             frameloop="always"
@@ -590,3 +607,4 @@ export default function Board3D({ groups }: Board3DProps) {
     </div>
   );
 }
+

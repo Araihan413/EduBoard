@@ -127,7 +127,7 @@ function CardFrontFace({
 
       {/* Body */}
       <div className="flex-1 flex flex-col relative z-10 min-h-0">
-        <div className="flex-1 overflow-y-auto min-h-0 pr-1 pb-6">
+        <div className="flex-1 overflow-y-auto overscroll-contain min-h-0 pr-1 pb-6">
           {isUnderReview ? (
             <div className="space-y-3 md:space-y-4">
               {pendingReviews.length === 0 && (
@@ -206,7 +206,6 @@ function CardFrontFace({
                         <>
                           {displayCard?.type === "PEMAHAMAN" ? (
                             <textarea
-                              autoFocus
                               className="w-full min-h-[80px] md:min-h-[100px] bg-white border-2 border-zinc-900 rounded-xl px-4 md:px-5 py-3 md:py-4 text-zinc-900 text-sm md:text-base font-bold focus:outline-none focus:ring-4 focus:ring-orange-500/15 resize-none shadow-inner"
                               placeholder="Ketik jawabanmu..."
                               value={tantanganText}
