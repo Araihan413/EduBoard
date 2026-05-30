@@ -133,6 +133,7 @@ interface GameState {
   lastLocalMoveTime: number;
   lastCardDrawTime: number;
   lastProfileUpdateTime: number;
+  lastBranchChoiceTime: number;
   isSuperseded: boolean;
 }
 
@@ -364,6 +365,20 @@ export const useGameStore = create<GameState & GameActions>()(
               finalCurrentCard = state.currentCard;
             }
 
+            // PROTECT isChoosingPath FROM STALE SERVER ECHO:
+            // When selectBranch() is called, the client sends syncSet({ isChoosingPath: false }).
+            // But the EARLIER syncSet({ isChoosingPath: true }) echo from the server may arrive
+            // AFTER the user has already chosen — flipping isChoosingPath back to true and
+            // causing PathSelector to re-appear. We block this by checking lastBranchChoiceTime.
+            const isRecentlyChoseBranch = (Date.now() - state.lastBranchChoiceTime) < 2500;
+            const finalIsChoosingPath = (
+              newState.isChoosingPath !== undefined
+                ? (isRecentlyChoseBranch && newState.isChoosingPath === true && state.isChoosingPath === false)
+                    ? false   // reject stale echo that would re-open PathSelector
+                    : newState.isChoosingPath
+                : state.isChoosingPath
+            );
+
             const isRecentlyProfileUpdated = (Date.now() - state.lastProfileUpdateTime) < 2500;
             const finalMyAvatar = (myGroup && !isRecentlyProfileUpdated) ? (myGroup.avatar || state.myAvatar) : state.myAvatar;
             const finalMyColor = (myGroup && !isRecentlyProfileUpdated) ? (myGroup.color || state.myColor) : state.myColor;
@@ -372,6 +387,7 @@ export const useGameStore = create<GameState & GameActions>()(
               ...state,
               ...newState,
               currentCard: finalCurrentCard,
+              isChoosingPath: finalIsChoosingPath,
               isSuperseded: false,
               ...(finalGroups ? { groups: finalGroups } : {}),
               questions: finalQuestions,
@@ -470,6 +486,7 @@ export const useGameStore = create<GameState & GameActions>()(
         lastLocalMoveTime: 0,
         lastCardDrawTime: 0,
         lastProfileUpdateTime: 0,
+        lastBranchChoiceTime: 0,
         isSuperseded: false,
 
         toggleMute: () => set((state) => ({ isMuted: !state.isMuted })),
@@ -1078,6 +1095,11 @@ export const useGameStore = create<GameState & GameActions>()(
 
           const remaining = state.stepsRemaining;
           
+          // Record branch choice time FIRST so the stale-echo protection in
+          // game:state handler can reject any incoming isChoosingPath:true
+          // that arrives after the user has already chosen.
+          set({ lastBranchChoiceTime: Date.now() });
+
           // Sync the choice and the new position on the server immediately to prevent snapping back to the fork
           syncSet((s) => ({
             isChoosingPath: false,

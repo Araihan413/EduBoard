@@ -29,9 +29,10 @@ export default function ResultNotification({ result, onClose }: ResultNotificati
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.8, y: 50 }}
-      animate={{ opacity: 1, scale: 1,   y: 0  }}
-      exit={  { opacity: 0, scale: 0.8, y: 50  }}
+      initial={{ opacity: 0, y: 32 }}
+      animate={{ opacity: 1, y: 0  }}
+      exit={  { opacity: 0, y: 32  }}
+      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
       style={{ willChange: "transform, opacity" }}
       className="fixed inset-0 z-[200] flex items-center justify-center p-6 pointer-events-none"
     >
