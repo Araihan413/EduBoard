@@ -14,7 +14,8 @@ export default function StarSpinOverlay() {
     groups,
     activeGroupIndex,
     myGroupName,
-    isGuru
+    isGuru,
+    animatingPionId
   } = useGameStore();
 
   const [isMobile, setIsMobile] = useState(false);
@@ -29,6 +30,7 @@ export default function StarSpinOverlay() {
   }, []);
 
   const activeGroup = groups[activeGroupIndex];
+  const isPionMoving = animatingPionId === activeGroup?.id;
   const isMyTurn = !isGuru && activeGroup?.name?.trim().toLowerCase() === myGroupName?.trim().toLowerCase();
 
   const options = [
@@ -74,7 +76,7 @@ export default function StarSpinOverlay() {
 
   return (
     <AnimatePresence>
-      {isSpinningStar && (
+      {isSpinningStar && !isPionMoving && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 overflow-y-auto">
           {/* Backdrop Blur */}
           <motion.div

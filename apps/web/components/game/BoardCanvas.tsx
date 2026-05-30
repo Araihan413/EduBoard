@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { BookOpen, Target, Flame, Moon, Star } from "lucide-react";
-import { Group, getTileTypeAt } from "../../store/gameStore";
+import { Group, getTileTypeAt, useGameStore } from "../../store/gameStore";
 import type { TileType } from "../../types/game";
 
 interface BoardCanvasProps {
@@ -169,7 +169,17 @@ function PlayerPion({ group, gIdx, tiles, tileSize, gap, startPos }: {
   const [targetQueue, setTargetQueue] = useState<number[]>([]);
   const [activeTarget, setActiveTarget] = useState<number | null>(null);
   const [prevGroupPosition, setPrevGroupPosition] = useState(group.position);
+  const setAnimatingPionId = useGameStore(state => state.setAnimatingPionId);
   const boardSize = 30;
+
+  // Sync animating state to store for HUD overlay pacing
+  useEffect(() => {
+    if (activeTarget !== null) {
+      setAnimatingPionId(group.id);
+    } else if (activeTarget === null && targetQueue.length === 0) {
+      setAnimatingPionId(null);
+    }
+  }, [activeTarget, targetQueue.length, group.id, setAnimatingPionId]);
 
   const getCoords = (pos: number) => {
     if (pos === 0) return startPos;

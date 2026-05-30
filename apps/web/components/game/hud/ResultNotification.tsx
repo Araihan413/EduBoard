@@ -11,7 +11,7 @@ interface ResultNotificationProps {
 }
 
 export default function ResultNotification({ result, onClose }: ResultNotificationProps) {
-  const { clearLastResult, myGroupName } = useGameStore();
+  const { clearLastResult, myGroupName, isGuru } = useGameStore();
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -25,7 +25,28 @@ export default function ResultNotification({ result, onClose }: ResultNotificati
 
   const isSuccess = result.type === "SUCCESS";
   const isFailure = result.type === "FAILURE";
-  const canClose  = result.groupName === myGroupName;
+  const canClose  = result.groupName === myGroupName || isGuru;
+
+  // Sync auto-close fail-safe for the active player or guru
+  useEffect(() => {
+    if (canClose) {
+      const t = setTimeout(() => {
+        if (onClose) onClose();
+        else clearLastResult();
+      }, 4000); // 4s fail-safe (giving 1s buffer after store's 3s timer)
+      return () => clearTimeout(t);
+    }
+  }, [canClose, onClose, clearLastResult]);
+
+  // Observer local fail-safe cleanup to prevent screen from being stuck
+  useEffect(() => {
+    if (!canClose) {
+      const t = setTimeout(() => {
+        useGameStore.setState({ lastResult: null });
+      }, 6000); // 6s local cleanup for observers
+      return () => clearTimeout(t);
+    }
+  }, [canClose]);
 
   const color =
     isSuccess ? "emerald" :

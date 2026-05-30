@@ -14,7 +14,9 @@ interface PathSelectorProps {
 }
 
 export default function PathSelector({ isMyTurn, activeGroupName }: PathSelectorProps) {
-  const { isChoosingPath, availablePaths, selectBranch } = useGameStore();
+  const { isChoosingPath, availablePaths, selectBranch, animatingPionId, groups, activeGroupIndex } = useGameStore();
+  const activeGroup = groups[activeGroupIndex];
+  const isPionMoving = animatingPionId === activeGroup?.id;
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -31,7 +33,7 @@ export default function PathSelector({ isMyTurn, activeGroupName }: PathSelector
   // will flash twice when the server echo arrives after the user chose.
   return (
     <AnimatePresence>
-      {isChoosingPath && (
+      {isChoosingPath && !isPionMoving && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-6 pointer-events-none">
           {/* Backdrop */}
           <motion.div

@@ -656,7 +656,9 @@ function BoardPage() {
 
       {/* Result notification (Force-closed when game finishes) */}
       <AnimatePresence>
-        {lastResult && gameStatus !== "FINISHED" && <ResultNotification result={lastResult} onClose={clearLastResult} />}
+        {lastResult && gameStatus !== "FINISHED" && cardPhase === "idle" && (
+          <ResultNotification result={lastResult} onClose={clearLastResult} />
+        )}
       </AnimatePresence>
 
       {/* Path Selector — muncul saat di persimpangan STAR (Force-closed when game finishes) */}

@@ -58,7 +58,6 @@ export interface GameEngineState {
 export function useGameEngine(role: string): GameEngineState {
   const {
     currentCard,
-    isMoving,
     timer,
     isTimerRunning,
     pendingReviews,
@@ -121,7 +120,7 @@ export function useGameEngine(role: string): GameEngineState {
       syncTimerRef.current = setTimeout(() => setStickyCardData(currentCard), 0);
     }
 
-    if (currentCard && !isMoving) {
+    if (currentCard) {
       // Cancel any pending return animation
       if (returnTimerRef.current) { clearTimeout(returnTimerRef.current); returnTimerRef.current = null; }
 
@@ -158,7 +157,7 @@ export function useGameEngine(role: string): GameEngineState {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentCard, isMoving, isUnderReview]);
+  }, [currentCard, isUnderReview]);
 
   // ── Auto-submit on timeout (student only) ──────────────────────────────────
 

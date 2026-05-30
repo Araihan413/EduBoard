@@ -135,6 +135,8 @@ interface GameState {
   lastProfileUpdateTime: number;
   lastBranchChoiceTime: number;
   isSuperseded: boolean;
+  animatingPionId: string | null;
+  lastCardDismissTime: number;
 }
 
 interface GameActions {
@@ -193,6 +195,7 @@ interface GameActions {
   handleAutoRejoin: () => void;
   reactivateSession: () => void;
   exitToLobby: () => void;
+  setAnimatingPionId: (id: string | null) => void;
 }
 
 
@@ -357,13 +360,22 @@ export const useGameStore = create<GameState & GameActions>()(
             }
 
             // PROTECT OPTIMISTIC CURRENT CARD:
-            // If the local player recently drew a card, we ignore any incoming currentCard: null from the server.
-            // This prevents stale server state packets from overwriting/closing our newly opened card.
+            // 1. If we recently drew a card, we reject any server update trying to force-close it (null).
+            //    Unless we have since dismissed it locally (lastCardDismissTime > lastCardDrawTime).
+            // 2. If we recently dismissed/answered a card, we reject any server update trying to re-open it (non-null).
             let finalCurrentCard = newState.currentCard !== undefined ? newState.currentCard : state.currentCard;
+            
             const isRecentlyDrawnLocally = (Date.now() - state.lastCardDrawTime) < 2500;
+            const isRecentlyDismissedLocally = (Date.now() - state.lastCardDismissTime) < 2500;
+            const hasDismissedAfterDraw = state.lastCardDismissTime > state.lastCardDrawTime;
+
             if (newState.gameStatus === 'FINISHED' || state.gameStatus === 'FINISHED') {
               finalCurrentCard = null;
-            } else if (isRecentlyDrawnLocally && finalCurrentCard === null && state.currentCard !== null) {
+            } else if (isRecentlyDismissedLocally && finalCurrentCard !== null) {
+              // Ignore server trying to re-open a card we dismissed
+              finalCurrentCard = null;
+            } else if (isRecentlyDrawnLocally && !hasDismissedAfterDraw && finalCurrentCard === null && state.currentCard !== null) {
+              // Ignore server trying to close a card we recently drew and haven't answered yet
               finalCurrentCard = state.currentCard;
             }
 
@@ -496,8 +508,11 @@ export const useGameStore = create<GameState & GameActions>()(
         lastProfileUpdateTime: 0,
         lastBranchChoiceTime: 0,
         isSuperseded: false,
+        animatingPionId: null,
+        lastCardDismissTime: 0,
 
         toggleMute: () => set((state) => ({ isMuted: !state.isMuted })),
+        setAnimatingPionId: (id) => set({ animatingPionId: id }),
         setCountdown: (val) => syncSet({ countdown: val }),
         updateGroups: (groups) => syncSet({ groups: [...groups].sort((a, b) => a.id.localeCompare(b.id)) }),
         updateGroup: (groupId, updates) => syncSet((state) => {
@@ -1242,7 +1257,7 @@ export const useGameStore = create<GameState & GameActions>()(
           }
 
           // Step 1: Close the card immediately → triggers the 800ms return animation
-          syncSet({ currentCard: null, isTimerRunning: false });
+          syncSet({ currentCard: null, isTimerRunning: false, lastCardDismissTime: Date.now() });
 
           // Step 2: After card has finished closing, show the result toast
           setTimeout(() => {
@@ -1323,7 +1338,7 @@ export const useGameStore = create<GameState & GameActions>()(
 
           // Step 1: Close the card immediately on teacher side → triggers 800ms return animation
           // This also broadcasts currentCard: null to students via syncSet
-          syncSet({ currentCard: null, isTimerRunning: false });
+          syncSet({ currentCard: null, isTimerRunning: false, lastCardDismissTime: Date.now() });
 
           // Step 2: After card has finished closing, show the result toast
           setTimeout(() => {
@@ -1370,6 +1385,7 @@ export const useGameStore = create<GameState & GameActions>()(
             activeGroupIndex: nextIndex,
             currentTurn: s.currentTurn + 1,
             currentCard: null,
+            lastCardDismissTime: Date.now(),
             lastResult: null, // Clear the toast!
             timer: 0,
             isTimerRunning: false,
