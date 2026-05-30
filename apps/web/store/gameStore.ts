@@ -291,7 +291,6 @@ export const useGameStore = create<GameState & GameActions>()(
 
         socket.on("game:state", (newState: Partial<GameState>) => {
           const currentState = get();
-          console.log('[DEBUG] [STORE] Received game:state from server:', newState);
           
           const currentRoomCode = currentState.roomCode;
           const incomingRoomCode = (newState as any).roomCode || newState.roomCode;
@@ -301,11 +300,9 @@ export const useGameStore = create<GameState & GameActions>()(
           // 2. Local roomCode is empty but incoming roomCode exists (just rejoined)
           const isRoomMismatch = incomingRoomCode && currentRoomCode && currentRoomCode !== incomingRoomCode;
           if (isRoomMismatch) {
-            console.warn(`[DEBUG] [STORE] Ignoring state for room ${incomingRoomCode} (Current: ${currentRoomCode})`);
             return;
           }
           if (!incomingRoomCode && !currentRoomCode) {
-            console.warn('[DEBUG] [STORE] Ignoring state: no roomCode on either side.');
             return;
           }
 
@@ -314,7 +311,6 @@ export const useGameStore = create<GameState & GameActions>()(
             if (newState.stateSeq < currentState.stateSeq) {
               // ALWAYS accept FINISHED game status, do not discard it!
               if (newState.gameStatus !== 'FINISHED') {
-                console.log(`[DEBUG] [STORE] Discarding stale state. Incoming seq: ${newState.stateSeq}, Current: ${currentState.stateSeq}`);
                 return;
               }
             }
@@ -700,7 +696,6 @@ export const useGameStore = create<GameState & GameActions>()(
           } catch (err: any) {
             toast.dismiss(toastId);
             toast.error("Gagal membuat ruangan: " + (err.message || "Terjadi kesalahan"));
-            console.error(err);
           }
         },
 
@@ -815,13 +810,12 @@ export const useGameStore = create<GameState & GameActions>()(
                 }
               }
             } catch (err) {
-              console.error("[REJOIN_GURU] Gagal:", err);
+              // rejoin failed silently
             }
           }
         },
 
         resetToIdle: () => {
-          console.log('[DEBUG] [STORE] resetToIdle called. Wiping state and storage.');
           
           // 1. Clear flags and storage
           setLeavingFlag(true); 
@@ -1349,7 +1343,6 @@ export const useGameStore = create<GameState & GameActions>()(
           // Guard: If we already have a pending review for this group in this turn, don't submit again
           const alreadyHasReview = state.pendingReviews.some(r => r.groupId === groupId);
           if (alreadyHasReview) {
-            console.warn(`[submitAnswerSubjektif] Submission ignored: Group ${groupId} already has a pending review.`);
             return;
           }
 
@@ -1374,7 +1367,6 @@ export const useGameStore = create<GameState & GameActions>()(
           
           // Guard: Prevent grading if game finished
           if (state.gameStatus === 'FINISHED') {
-            console.warn(`[gradeSubjektif] Game has finished. Grading is disabled.`);
             return;
           }
           
@@ -1383,8 +1375,6 @@ export const useGameStore = create<GameState & GameActions>()(
 
           const review = state.pendingReviews.find(r => r.id === reviewId);
           if (!review) {
-            // Silently return if review is gone (likely already processed by another tab or sync)
-            console.warn(`[gradeSubjektif] Review ${reviewId} not found. Likely already processed.`);
             return;
           }
 
@@ -1512,31 +1502,21 @@ export const useGameStore = create<GameState & GameActions>()(
         
         handleAutoRejoin: () => {
           if (getLeavingFlag()) {
-            console.log('[DEBUG] [STORE] Skipping auto-rejoin: user is leaving intentionally.');
             return;
           }
           if (isJoining) {
-            console.log('[DEBUG] [STORE] handleAutoRejoin skipped: already joining.');
             return;
           }
 
           const state = get();
-          console.log('[DEBUG] [STORE] handleAutoRejoin called. Current State:', { 
-            roomCode: state.roomCode, 
-            gameStatus: state.gameStatus, 
-            myGroupName: state.myGroupName,
-            isGuru: state.isGuru
-          });
 
           if (state.roomCode && state.gameStatus !== 'IDLE') {
             isJoining = true;
             setTimeout(() => { isJoining = false; }, 2000); // Debounce 2 seconds
 
             if (state.isGuru) {
-              console.log('[DEBUG] [STORE] Auto-rejoining as Guru for room:', state.roomCode);
               state.rejoinAsGuru(state.roomCode);
             } else if (state.myGroupName) {
-              console.log('[DEBUG] [STORE] Auto-rejoining as Student:', state.myGroupName, 'for room:', state.roomCode);
               socket?.emit("room:join", { 
                 roomCode: state.roomCode, 
                 groupName: state.myGroupName,

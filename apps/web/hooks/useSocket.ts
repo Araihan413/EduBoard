@@ -10,7 +10,7 @@ export const useSocket = () => {
     const socketInstance = io(process.env.NEXT_PUBLIC_WS_URL || "http://localhost:4000");
 
     socketInstance.on("connect", () => {
-      console.log("Connected to API Server:", socketInstance.id);
+      // connected
     });
 
     Promise.resolve().then(() => setSocket(socketInstance));

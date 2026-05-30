@@ -17,7 +17,6 @@ export default function SocketInitializer() {
       
       // Only handle if this is the room we are currently in
       if (state.roomCode === data.roomCode) {
-        console.log(`Room ${data.roomCode} cancelled. Role check...`);
         
         // Distinguish Guru vs Student
         // Guru doesn't have a group name, Students do.
@@ -45,7 +44,6 @@ export default function SocketInitializer() {
     if (!s) return;
 
     const handleConnect = () => {
-      console.log("Socket connected, checking for active room session...");
       const state = useGameStore.getState();
       const currentRoomCode = state.roomCode;
       const currentGroupName = state.myGroupName;
