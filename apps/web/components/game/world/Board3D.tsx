@@ -27,7 +27,7 @@ import {
   TILE_GRAPH,
   type TileConfig,
 } from "../config/gameConfig";
-import type { Group } from "../../../store/gameStore";
+import { useGameStore, type Group } from "../../../store/gameStore";
 
 // ─── 🗺️ KONFIGURASI LAYER PETA 2.5D (KALIBRASI) ───────────────────────────────
 const LAYER_CONFIGS = {
@@ -229,6 +229,7 @@ function Pion({
   const lastTargetRef = useRef<number>(group.position);
   const queueRef = useRef<number[]>([]);
   const activeTargetIdRef = useRef<number>(group.position);
+  const isMovingLocal = useRef<boolean>(false);
 
   // Listen for changes to group.position (from WebSocket state updates)
   useEffect(() => {
@@ -239,11 +240,13 @@ function Pion({
       if (path && path.length > 0 && path.length <= 6) {
         queueRef.current = [...queueRef.current, ...path];
         lastTargetRef.current = group.position;
+        isMovingLocal.current = true;
       } else {
         // Teleport/Reset fallback: instantly snap visual pawn to target coordinates
         queueRef.current = [];
         lastTargetRef.current = group.position;
         activeTargetIdRef.current = group.position;
+        isMovingLocal.current = false;
         
         const targetTileObj = TILE_GRAPH.find((t) => t.id === group.position) ?? TILE_GRAPH[0];
         const ox = offsetRef.current.x;
@@ -295,6 +298,14 @@ function Pion({
         // Reset timer
         startTimeRef.current = clockTime;
         elapsed = 0;
+      } else {
+        // Visual movement finished and reached destination tile
+        if (isMovingLocal.current) {
+          isMovingLocal.current = false;
+          setTimeout(() => {
+            useGameStore.getState().onPionAnimationFinished(group.id, group.position);
+          }, 50);
+        }
       }
     }
 

@@ -166,20 +166,8 @@ function PlayerPion({ group, gIdx, tiles, tileSize, gap, startPos }: {
   startPos: { x: number, y: number }
 }) {
   const [currentPos, setCurrentPos] = useState(group.position);
-  const [targetQueue, setTargetQueue] = useState<number[]>([]);
-  const [activeTarget, setActiveTarget] = useState<number | null>(null);
-  const [prevGroupPosition, setPrevGroupPosition] = useState(group.position);
-  const setAnimatingPionId = useGameStore(state => state.setAnimatingPionId);
-  const boardSize = 30;
-
-  // Sync animating state to store for HUD overlay pacing
-  useEffect(() => {
-    if (activeTarget !== null) {
-      setAnimatingPionId(group.id);
-    } else if (activeTarget === null && targetQueue.length === 0) {
-      setAnimatingPionId(null);
-    }
-  }, [activeTarget, targetQueue.length, group.id, setAnimatingPionId]);
+  const visualPath = useGameStore(state => state.visualPath);
+  const onPionAnimationFinished = useGameStore(state => state.onPionAnimationFinished);
 
   const getCoords = (pos: number) => {
     if (pos === 0) return startPos;
@@ -187,60 +175,31 @@ function PlayerPion({ group, gIdx, tiles, tileSize, gap, startPos }: {
     return tile ? { x: tile.x, y: tile.y } : startPos;
   };
 
-  // Adjust state during render when group.position changes globally
-  if (group.position !== prevGroupPosition) {
-    setPrevGroupPosition(group.position);
+  // Sync position locally if group position snaps (e.g. game resets)
+  useEffect(() => {
     if (group.position === 0) {
       setCurrentPos(0);
-      setTargetQueue([]);
-      setActiveTarget(null);
-    } else {
-      if (activeTarget === null) {
-        setActiveTarget(group.position);
-      } else {
-        if (!targetQueue.includes(group.position) && activeTarget !== group.position) {
-          setTargetQueue([...targetQueue, group.position]);
-        }
-      }
     }
-  }
+  }, [group.position]);
 
-  // Adjust state during render to process the next target in queue sequentially
-  if (activeTarget === null && targetQueue.length > 0) {
-    const nextTarget = targetQueue[0];
-    setTargetQueue(targetQueue.slice(1));
-    setActiveTarget(nextTarget);
-  }
-
-  // derived state: hitung path secara langsung saat render
-  const isMoving = activeTarget !== null;
+  // Derived state: calculate physical path coordinates based on the store's visualPath
   const currentPath: { x: number, y: number }[] = [];
-
-  if (isMoving && activeTarget !== null) {
-    const prev = currentPos;
-    const next = activeTarget;
-    const diff = next - prev;
-
-    if (prev === 0) {
-      for (let i = 1; i <= next; i++) currentPath.push(getCoords(i));
-    } else if (diff > 0 && diff <= 6) {
-      for (let i = prev; i <= next; i++) currentPath.push(getCoords(i));
-    } else if (diff < 0 && diff >= -6) {
-      for (let i = prev; i >= next; i--) currentPath.push(getCoords(i));
-    } else if (diff < -6) {
-      for (let i = prev; i <= boardSize; i++) currentPath.push(getCoords(i));
-      for (let i = 1; i <= next; i++) currentPath.push(getCoords(i));
-    } else if (diff > 6) {
-      for (let i = prev; i >= 1; i--) currentPath.push(getCoords(i));
-      for (let i = boardSize; i >= next; i--) currentPath.push(getCoords(i));
-    }
+  
+  if (visualPath && visualPath.length > 0 && currentPos !== visualPath[visualPath.length - 1]) {
+    // Add current starting pos coords first
+    currentPath.push(getCoords(currentPos));
+    // Add subsequent tiles coords
+    visualPath.forEach(pos => {
+      currentPath.push(getCoords(pos));
+    });
   }
 
-  // When path animation completes, commit the new rest position
+  // When visual hopping animation completes, trigger store event
   const handleAnimationComplete = () => {
-    if (activeTarget !== null) {
-      setCurrentPos(activeTarget);
-      setActiveTarget(null);
+    if (visualPath && visualPath.length > 0) {
+      const destination = visualPath[visualPath.length - 1];
+      setCurrentPos(destination);
+      onPionAnimationFinished(group.id, destination);
     }
   };
 

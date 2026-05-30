@@ -345,7 +345,7 @@ export default function CardOverlay(props: CardOverlayProps) {
     return () => clearTimeout(t);
   }, [phase, isUnderReview]);
 
-  const isVisible   = (phase !== "idle" || isUnderReview) && !isPionMoving;
+  const isVisible   = (phase !== "idle" || isUnderReview);
   const flipped     = (phase === "revealed" || isUnderReview) ? isFlipped : false;
   const cardType    = displayCard?.type ?? "DASAR";
   const posTarget   =

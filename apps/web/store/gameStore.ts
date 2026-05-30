@@ -139,6 +139,8 @@ interface GameState {
   lastCardDismissTime: number;
   lastSpinCloseTime: number;
   lastResultCloseTime: number;
+  stateSeq: number;
+  visualPath: number[];
 }
 
 interface GameActions {
@@ -173,8 +175,6 @@ interface GameActions {
   rollDice: () => void;
   moveGroup: (groupId: string, steps: number) => void;
   selectBranch: (nextTileId: number) => void;
-  /** @internal — dipanggil oleh moveGroup dan selectBranch, jangan panggil langsung dari UI */
-  _movePionBySteps: (groupId: string, fromTileId: number, steps: number) => void;
   /** @internal — dipanggil saat pion berhenti di tile akhir */
   _landOnTile: (groupId: string, tileId: number) => void;
   submitAnswerObjektif: (groupId: string, answer: string) => void;
@@ -198,6 +198,7 @@ interface GameActions {
   reactivateSession: () => void;
   exitToLobby: () => void;
   setAnimatingPionId: (id: string | null) => void;
+  onPionAnimationFinished: (groupId: string, tileId: number) => void;
 }
 
 
@@ -224,20 +225,58 @@ let isJoining = false;
 import { getTileTypeAt, getTileById } from '../components/game/config/gameConfig';
 export { getTileTypeAt };
 
+// Helper to calculate the visual sub-path up to the next fork or end destination
+export function calculateSubPath(fromTileId: number, steps: number): { path: number[], stepsRemaining: number } {
+  const path: number[] = [];
+  let currentId = fromTileId;
+  let remaining = steps;
+
+  while (remaining > 0) {
+    const currentTile = getTileById(currentId);
+    const nextIds = currentTile.next;
+
+    if (!nextIds || nextIds.length === 0) {
+      break;
+    }
+
+    if (nextIds.length > 1) {
+      // Current tile is a fork. We must stop here and ask the player to choose.
+      break;
+    }
+
+    // Move 1 step
+    const nextId = nextIds[0];
+    path.push(nextId);
+    currentId = nextId;
+    remaining--;
+
+    // If the newly reached tile is a fork, stop here if we have steps remaining
+    const nextTile = getTileById(currentId);
+    if (nextTile.next && nextTile.next.length > 1 && remaining > 0) {
+      break;
+    }
+  }
+
+  return { path, stepsRemaining: remaining };
+}
+
 export const useGameStore = create<GameState & GameActions>()(
   persist(
     (set, get) => {
       const syncSet = (partialOrFn: Partial<GameState> | ((state: GameState) => Partial<GameState>)) => {
         set((state) => {
           const nextPartial = typeof partialOrFn === 'function' ? partialOrFn(state) : partialOrFn;
+          
+          const newSeq = (state.stateSeq || 0) + 1;
+          const mergedPartial = { ...nextPartial, stateSeq: newSeq };
 
           if (socket && state.roomCode && state.gameStatus !== 'IDLE') {
             socket.emit("game:sync_state", { 
-              roomCode: nextPartial.roomCode || state.roomCode, 
-              state: nextPartial 
+              roomCode: mergedPartial.roomCode || state.roomCode, 
+              state: mergedPartial 
             });
           }
-          return { ...state, ...nextPartial };
+          return { ...state, ...mergedPartial };
         });
       };
 
@@ -267,6 +306,14 @@ export const useGameStore = create<GameState & GameActions>()(
           if (!incomingRoomCode && !currentRoomCode) {
             console.warn('[DEBUG] [STORE] Ignoring state: no roomCode on either side.');
             return;
+          }
+
+          // PILAR B: Sequence-Numbered Filter
+          if (newState.stateSeq !== undefined && currentState.stateSeq !== undefined) {
+            if (newState.stateSeq < currentState.stateSeq) {
+              console.log(`[DEBUG] [STORE] Discarding stale state. Incoming seq: ${newState.stateSeq}, Current: ${currentState.stateSeq}`);
+              return;
+            }
           }
 
           if (newState.lastResult === null && resultTimeoutId) {
@@ -320,123 +367,23 @@ export const useGameStore = create<GameState & GameActions>()(
               ? newState.questions 
               : state.questions;
 
-            // PROTECT LOCAL PION POSITION DURING MOVEMENT (Solusi A):
-            // If we are currently moving our own group, we ignore the incoming group position from the server's state broadcast.
-            // This prevents rubber-banding / stuttering movement due to database/network latency.
             let finalGroups = newState.groups;
             if (finalGroups) {
               finalGroups = [...finalGroups].sort((a, b) => a.id.localeCompare(b.id));
             }
-            const isRecentlyMovedLocally = (Date.now() - state.lastLocalMoveTime) < 2000;
-            if (finalGroups && (state.isMoving || isRecentlyMovedLocally)) {
-              const activeGroup = state.groups[state.activeGroupIndex];
-              if (activeGroup) {
-                finalGroups = finalGroups.map(g => 
-                  g.id === activeGroup.id 
-                    ? { ...g, position: activeGroup.position } 
-                    : g
-                );
-              }
-            }
 
-            // PROTECT DICE STATE DURING ROLL:
-            // If it is our turn, and we are currently rolling or have already rolled,
-            // we protect the local dice states from being overwritten by stale server packets.
-            // Namun, jika giliran/ronde baru dimulai (isNewTurnStarted), kita harus mengizinkan
-            // status hasRolled dan isRolling untuk di-reset ke false agar pemain tersebut 
-            // bisa memutar dadu lagi (termasuk saat uji coba 1 pemain di mana indeks tetap sama tapi ronde bertambah).
-            const activeGroup = state.groups[state.activeGroupIndex];
-            const isNewTurnStarted = 
-              (newState.currentTurn !== undefined && newState.currentTurn !== state.currentTurn) ||
-              (newState.activeGroupIndex !== undefined && newState.activeGroupIndex !== state.activeGroupIndex);
-            const isMyTurn = !isGuru && activeGroup && activeGroup.name === finalGroupName;
-            
-            let finalDiceValue = newState.diceValue !== undefined ? newState.diceValue : state.diceValue;
-            let finalIsRolling = newState.isRolling !== undefined ? newState.isRolling : state.isRolling;
-            let finalHasRolled = newState.hasRolled !== undefined ? newState.hasRolled : state.hasRolled;
-
-            if (isMyTurn && !isNewTurnStarted && (state.isRolling || state.hasRolled)) {
-              finalDiceValue = state.diceValue;
-              finalIsRolling = state.isRolling;
-              finalHasRolled = state.hasRolled;
-            }
-
-            // PROTECT OPTIMISTIC CURRENT CARD:
-            // 1. If we recently drew a card, we reject any server update trying to force-close it (null).
-            //    Unless we have since dismissed it locally (lastCardDismissTime > lastCardDrawTime).
-            // 2. If we recently dismissed/answered a card, we reject any server update trying to re-open it (non-null).
-            let finalCurrentCard = newState.currentCard !== undefined ? newState.currentCard : state.currentCard;
-            
-            const isRecentlyDrawnLocally = (Date.now() - state.lastCardDrawTime) < 2500;
-            const isRecentlyDismissedLocally = (Date.now() - state.lastCardDismissTime) < 2500;
-            const hasDismissedAfterDraw = state.lastCardDismissTime > state.lastCardDrawTime;
-
-            if (newState.gameStatus === 'FINISHED' || state.gameStatus === 'FINISHED') {
-              finalCurrentCard = null;
-            } else if (isRecentlyDismissedLocally && finalCurrentCard !== null) {
-              // Ignore server trying to re-open a card we dismissed
-              finalCurrentCard = null;
-            } else if (isRecentlyDrawnLocally && !hasDismissedAfterDraw && finalCurrentCard === null && state.currentCard !== null) {
-              // Ignore server trying to close a card we recently drew and haven't answered yet
-              finalCurrentCard = state.currentCard;
-            }
-
-            // PROTECT isChoosingPath FROM STALE SERVER ECHO:
-            // When selectBranch() is called, the client sends syncSet({ isChoosingPath: false }).
-            // But the EARLIER syncSet({ isChoosingPath: true }) echo from the server may arrive
-            // AFTER the user has already chosen — flipping isChoosingPath back to true and
-            // causing PathSelector to re-appear. We block this by checking lastBranchChoiceTime.
-            const isRecentlyChoseBranch = (Date.now() - state.lastBranchChoiceTime) < 5000;
-            const finalIsChoosingPath = (
-              newState.isChoosingPath !== undefined
-                ? (isRecentlyChoseBranch && newState.isChoosingPath === true && state.isChoosingPath === false)
-                    ? false   // reject stale echo that would re-open PathSelector
-                    : newState.isChoosingPath
-                : state.isChoosingPath
-            );
-
-            // PROTECT isSpinningStar FROM STALE SERVER ECHO:
-            // Reject stale server echo trying to re-open spin overlay after we closed it locally
-            let finalIsSpinningStar = newState.isSpinningStar !== undefined ? newState.isSpinningStar : state.isSpinningStar;
-            const isRecentlyClosedSpin = (Date.now() - state.lastSpinCloseTime) < 5000;
-            if (isRecentlyClosedSpin && finalIsSpinningStar === true) {
-              finalIsSpinningStar = false;
-            }
-
-            // PROTECT lastResult FROM STALE SERVER ECHO:
-            // Reject stale server echo trying to show old result after we cleared it locally
-            let finalLastResult = newState.lastResult !== undefined ? newState.lastResult : state.lastResult;
-            const isRecentlyClosedResult = (Date.now() - state.lastResultCloseTime) < 5000;
-            if (isRecentlyClosedResult && finalLastResult !== null) {
-              finalLastResult = null;
-            }
-
-            const isRecentlyProfileUpdated = (Date.now() - state.lastProfileUpdateTime) < 2500;
-            const finalMyAvatar = (myGroup && !isRecentlyProfileUpdated) ? (myGroup.avatar || state.myAvatar) : state.myAvatar;
-            const finalMyColor = (myGroup && !isRecentlyProfileUpdated) ? (myGroup.color || state.myColor) : state.myColor;
-
-            let finalIsMoving = newState.isMoving !== undefined ? newState.isMoving : state.isMoving;
-            if ((state.isMoving || isRecentlyMovedLocally) && finalIsMoving === false) {
-              finalIsMoving = state.isMoving;
-            }
+            const finalMyAvatar = myGroup ? (myGroup.avatar || state.myAvatar) : state.myAvatar;
+            const finalMyColor = myGroup ? (myGroup.color || state.myColor) : state.myColor;
 
             return {
               ...state,
               ...newState,
-              currentCard: finalCurrentCard,
-              isChoosingPath: finalIsChoosingPath,
-              isSpinningStar: finalIsSpinningStar,
-              lastResult: finalLastResult,
-              isMoving: finalIsMoving,
               isSuperseded: false,
               ...(finalGroups ? { groups: finalGroups } : {}),
               questions: finalQuestions,
               isGuru,
               myGroupName: finalGroupName, 
               roomCode: finalRoomCode,
-              diceValue: finalDiceValue,
-              isRolling: finalIsRolling,
-              hasRolled: finalHasRolled,
               myAvatar: finalMyAvatar,
               myColor: finalMyColor
             };
@@ -532,6 +479,8 @@ export const useGameStore = create<GameState & GameActions>()(
         lastCardDismissTime: 0,
         lastSpinCloseTime: 0,
         lastResultCloseTime: 0,
+        stateSeq: 0,
+        visualPath: [],
 
         toggleMute: () => set((state) => ({ isMuted: !state.isMuted })),
         setAnimatingPionId: (id) => set({ animatingPionId: id }),
@@ -1115,123 +1064,131 @@ export const useGameStore = create<GameState & GameActions>()(
         },
 
         moveGroup: (groupId, steps) => {
-          // Entry point for dice roll. Starts the step-by-step movement.
           const state = get();
           const group = state.groups.find(g => g.id === groupId);
           if (!group) return;
-          // Set isMoving and lastLocalMoveTime immediately in the syncSet to prevent stale server overrides at the start
-          syncSet({ 
-            stepsRemaining: steps, 
-            isChoosingPath: false, 
-            availablePaths: [],
-            isMoving: true,
-            lastLocalMoveTime: Date.now()
-          });
-          get()._movePionBySteps(groupId, group.position, steps);
-        },
 
-        selectBranch: (nextTileId) => {
-          // Called when the active player chooses a direction at a fork.
-          const state = get();
-          const group = state.groups[state.activeGroupIndex];
-          if (!group) return;
+          // Calculate sub-path from current position
+          const { path, stepsRemaining } = calculateSubPath(group.position, steps);
 
-          // Only the active student whose turn it is can choose the branch
-          const isMyTurn = !state.isGuru && group.name?.trim().toLowerCase() === state.myGroupName?.trim().toLowerCase();
-          if (!isMyTurn) return;
-
-          const remaining = state.stepsRemaining;
-          
-          // Record branch choice time FIRST so the stale-echo protection in
-          // game:state handler can reject any incoming isChoosingPath:true
-          // that arrives after the user has already chosen.
-          set({ lastBranchChoiceTime: Date.now() });
-
-          // Sync the choice and the new position on the server immediately to prevent snapping back to the fork
-          syncSet((s) => ({
-            isChoosingPath: false,
-            availablePaths: [],
-            groups: s.groups.map(g => g.id === group.id ? { ...g, position: nextTileId } : g)
-          }));
-
-          // Continue intermediate moves locally
-          set({
-            isMoving: true,
-            lastLocalMoveTime: Date.now()
-          });
-
-          if (socket) {
-            socket.emit('game:branch_selected', { roomCode: state.roomCode, groupId: group.id, tileId: nextTileId });
-          }
-          setTimeout(() => {
-            const newRemaining = remaining - 1;
-            // Note: we use local set() here to avoid triggering a sync broadcast during intermediate moves
-            set({ stepsRemaining: newRemaining });
-            if (newRemaining <= 0) {
-              get()._landOnTile(group.id, nextTileId);
-            } else {
-              get()._movePionBySteps(group.id, nextTileId, newRemaining);
-            }
-          }, 450);
-        },
-
-        // Internal: step-by-step movement. Not exposed in GameActions.
-        _movePionBySteps: (groupId: string, fromTileId: number, steps: number) => {
-          if (steps <= 0) {
-            get()._landOnTile(groupId, fromTileId);
-            return;
-          }
-          const currentTile = getTileById(fromTileId);
-          const nextIds = currentTile.next;
-
-          if (nextIds.length === 0) {
-            // Dead end (shouldn't happen in a loop board)
-            get()._landOnTile(groupId, fromTileId);
-            return;
-          }
-
-          if (nextIds.length > 1) {
-            // FORK: stop here, sync the intermediate fork position to the server, and wait for player to choose
-            const currentGroups = get().groups;
+          if (path.length === 0) {
             syncSet({
+              stepsRemaining: 0,
               isMoving: false,
-              isChoosingPath: true,
-              availablePaths: nextIds,
-              stepsRemaining: steps,
-              groups: currentGroups.map(g => g.id === groupId ? { ...g, position: fromTileId } : g)
+              visualPath: []
             });
             return;
           }
 
-          // Straight path: move one step
-          const nextId = nextIds[0];
-          // Note: we use local set() instead of syncSet() here to avoid broadcasting intermediate moves
-          set((s) => ({
-            isMoving: true,
-            groups: s.groups.map(g => g.id === groupId ? { ...g, position: nextId } : g),
-            lastLocalMoveTime: Date.now()
-          }));
+          const destinationTileId = path[path.length - 1];
 
-          setTimeout(() => {
-            const remaining = steps - 1;
-            // Note: we use local set() here to avoid triggering a sync broadcast during intermediate moves
-            set({ stepsRemaining: remaining });
-            if (remaining <= 0) {
-              get()._landOnTile(groupId, nextId);
-            } else {
-              get()._movePionBySteps(groupId, nextId, remaining);
-            }
-          }, 420); // ~0.4s per step matches Framer Motion animation duration
+          // Set the group's position directly to the destination tile of the sub-path
+          const updatedGroups = state.groups.map(g => 
+            g.id === groupId ? { ...g, position: destinationTileId } : g
+          );
+
+          syncSet({
+            stepsRemaining,
+            isChoosingPath: false,
+            availablePaths: [],
+            isMoving: true,
+            visualPath: path,
+            groups: updatedGroups,
+            animatingPionId: groupId
+          });
         },
 
-        // Internal: handle landing on a tile after all steps are exhausted.
+        selectBranch: (nextTileId) => {
+          const state = get();
+          const group = state.groups[state.activeGroupIndex];
+          if (!group) return;
+
+          // Only the active student whose turn it is or Guru can choose the branch
+          const isMyTurn = !state.isGuru && group.name?.trim().toLowerCase() === state.myGroupName?.trim().toLowerCase();
+          const isDriver = isMyTurn || state.isGuru;
+          if (!isDriver) return;
+
+          const remaining = state.stepsRemaining;
+          const newRemaining = Math.max(0, remaining - 1);
+
+          // Calculate sub-path starting *from* nextTileId for newRemaining steps
+          const { path, stepsRemaining } = calculateSubPath(nextTileId, newRemaining);
+
+          // Combine the chosen branch tile and the subsequent sub-path
+          const nextVisualPath = [nextTileId, ...path];
+          const destinationTileId = nextVisualPath[nextVisualPath.length - 1];
+
+          const updatedGroups = state.groups.map(g => 
+            g.id === group.id ? { ...g, position: destinationTileId } : g
+          );
+
+          // Sync the choice and the new position to the server immediately
+          syncSet({
+            isChoosingPath: false,
+            availablePaths: [],
+            isMoving: true,
+            stepsRemaining: stepsRemaining,
+            visualPath: nextVisualPath,
+            groups: updatedGroups,
+            animatingPionId: group.id
+          });
+
+          if (socket) {
+            socket.emit('game:branch_selected', { 
+              roomCode: state.roomCode, 
+              groupId: group.id, 
+              tileId: destinationTileId 
+            });
+          }
+        },
+
+        onPionAnimationFinished: (groupId: string, tileId: number) => {
+          const state = get();
+          
+          // Guard: If we are already choosing a path, or a card is active, or we are spinning, return early.
+          // This prevents spectator clients from double-triggering landing logic or racing, 
+          // while ensuring we are not blocked if isMoving is prematurely reset by the network.
+          if (state.isChoosingPath || state.currentCard !== null || state.isSpinningStar) return;
+
+          const activeG = state.groups[state.activeGroupIndex];
+          if (!activeG || activeG.id !== groupId) return;
+
+          // Spectators only update their visual moving states locally, they do not trigger logical landing.
+          const isMyTurn = !state.isGuru && activeG.name?.trim().toLowerCase() === state.myGroupName?.trim().toLowerCase();
+          const isGuruDriver = state.isGuru && (activeG.isOffline || state.groups.every(g => g.isOffline || g.name === ''));
+          const isDriver = isMyTurn || isGuruDriver;
+
+          if (!isDriver) {
+            set({ isMoving: false, visualPath: [] });
+            return;
+          }
+
+          const stepsRemaining = state.stepsRemaining;
+          const currentTile = getTileById(tileId);
+          const nextIds = currentTile.next;
+
+          if (stepsRemaining > 0 && nextIds.length > 1) {
+            // Stopped at a fork and still have steps remaining: transition to choosing path
+            syncSet({
+              isMoving: false,
+              isChoosingPath: true,
+              availablePaths: nextIds,
+              visualPath: [],
+              animatingPionId: null
+            });
+          } else {
+            // Steps exhausted or dead end: trigger landing logic
+            get()._landOnTile(groupId, tileId);
+          }
+        },
+
         _landOnTile: (groupId: string, tileId: number) => {
-          // Sync the final groups position array with the server at landing
           const finalGroups = get().groups;
           syncSet({ 
             isMoving: false, 
-            lastLocalMoveTime: Date.now(),
-            groups: finalGroups
+            visualPath: [],
+            groups: finalGroups,
+            animatingPionId: null
           });
           const tile = getTileById(tileId);
           const group = get().groups.find(g => g.id === groupId);
