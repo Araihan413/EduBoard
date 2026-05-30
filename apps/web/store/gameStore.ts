@@ -1085,11 +1085,26 @@ export const useGameStore = create<GameState & GameActions>()(
           const { path, stepsRemaining } = calculateSubPath(group.position, steps);
 
           if (path.length === 0) {
-            syncSet({
-              stepsRemaining: 0,
-              isMoving: false,
-              visualPath: []
-            });
+            const currentTile = getTileById(group.position);
+            const nextIds = currentTile.next;
+            
+            if (stepsRemaining > 0 && nextIds && nextIds.length > 1) {
+              // Started exactly on a fork: open the path selection immediately!
+              syncSet({
+                stepsRemaining: stepsRemaining,
+                isChoosingPath: true,
+                availablePaths: nextIds,
+                isMoving: false,
+                visualPath: [],
+                animatingPionId: null
+              });
+            } else {
+              syncSet({
+                stepsRemaining: 0,
+                isMoving: false,
+                visualPath: []
+              });
+            }
             return;
           }
 
@@ -1167,9 +1182,9 @@ export const useGameStore = create<GameState & GameActions>()(
           if (!activeG || activeG.id !== groupId) return;
 
           // Spectators only update their visual moving states locally, they do not trigger logical landing.
-          // Guru is always a driver to act as the ultimate coordinator, ensuring the game never gets stuck.
           const isMyTurn = !state.isGuru && activeG.name?.trim().toLowerCase() === state.myGroupName?.trim().toLowerCase();
-          const isDriver = isMyTurn || state.isGuru;
+          const isGuruDriver = state.isGuru && (activeG.isOffline || state.groups.every(g => g.isOffline || g.name === ''));
+          const isDriver = isMyTurn || isGuruDriver;
 
           if (!isDriver) {
             set({ isMoving: false, visualPath: [] });
@@ -1396,7 +1411,8 @@ export const useGameStore = create<GameState & GameActions>()(
             isGrading: false,
             isSpinningStar: false,
             starSpinResult: null,
-            isSpinAnimating: false
+            isSpinAnimating: false,
+            visualPath: [] // Reset visualPath so next player starts with clean visual state
           }));
         },
 
