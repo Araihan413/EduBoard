@@ -52,7 +52,7 @@ export function handleSocketEvents(io: Server, socket: Socket) {
           await prisma.group.update({
             where: { id: group.id },
             data: { status: 'SURRENDERED' as any }
-          }).catch(err => console.warn(`[DEBUG] [SERVER] Could not update group ${group.id} status in DB: ${err.message}`));
+          }).catch(() => { /* DB update failed, in-memory state is authoritative */ });
           room.logs = [`${data.groupName} menyerah dari permainan.`, ...room.logs];
           
           // Check if any non-surrendered players are left
@@ -98,7 +98,6 @@ export function handleSocketEvents(io: Server, socket: Socket) {
       io.to(data.roomCode).emit("game:state", roomData);
       socket.leave(data.roomCode);
       socketToUser.delete(socket.id);
-      console.log(`Group ${data.groupName} left room ${data.roomCode}`);
     }
   });
 
@@ -131,7 +130,6 @@ export function handleSocketEvents(io: Server, socket: Socket) {
     }
     
     socketToUser.delete(socket.id);
-    console.log(`Socket ${socket.id} disconnected (${groupName || role} from ${roomCode}). Remaining: ${otherSockets.length}`);
   });
 
   socket.on("room:cancel", async (roomCode: string) => {
@@ -144,7 +142,6 @@ export function handleSocketEvents(io: Server, socket: Socket) {
         });
         io.to(roomCode).emit("room:cancelled", { roomCode });
         activeRooms.delete(roomCode);
-        console.log(`Room ${roomCode} cancelled by Guru`);
       } catch (err) {
         console.error("Gagal batalkan room:", err);
       }
@@ -691,21 +688,18 @@ export function handleSocketEvents(io: Server, socket: Socket) {
     const submissionKey = `${data.groupId}-${data.turnNumber || room.currentTurn}`;
     
     if ((room as any).submissionLocks.has(submissionKey)) {
-      console.log(`[SUBMIT_ANSWER] [GUARD] Ignored duplicate submission for group ${data.groupId} in room ${data.roomCode}`);
       return;
     }
     
     // Check pendingReviews as a fallback
     const alreadyInReviews = room.pendingReviews.some(r => r.groupId === data.groupId);
     if (alreadyInReviews) {
-       console.log(`[SUBMIT_ANSWER] [GUARD] Submission already exists in pendingReviews for group ${data.groupId}`);
        return;
     }
 
     // Set the lock IMMEDIATELY (synchronously) before any await calls
     (room as any).submissionLocks.add(submissionKey);
 
-    console.log(`[SUBMIT_ANSWER] Processing submission for Room: ${data.roomCode}, Group: ${data.groupId}, Q: ${data.questionId}`);
 
     try {
       let dbRoom = await prisma.room.findUnique({ 
@@ -756,7 +750,6 @@ export function handleSocketEvents(io: Server, socket: Socket) {
           room.pendingReviews = [review, ...room.pendingReviews];
           room.logs = [`Jawaban tantangan masuk dari ${review.groupName}`, ...room.logs];
 
-          console.log(`[SUBMIT_DB] Success. Review created for ${review.groupName}`);
 
           io.to(data.roomCode).emit("game:state", {
             roomCode: data.roomCode,
