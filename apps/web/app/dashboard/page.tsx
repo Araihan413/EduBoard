@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import { useGameStore } from "../../store/gameStore";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -19,7 +19,7 @@ import MobileLogOverlay from "@/components/dashboard/MobileLogOverlay";
 export default function DashboardPage() {
   const { 
     gameStatus, logs, resetToIdle, pendingReviews, roomCode,
-    activeTab, setActiveTab
+    activeTab, setActiveTab, checkActiveSession
   } = useGameStore();
 
   const [showMobileLog, setShowMobileLog] = useState(false);
@@ -29,6 +29,12 @@ export default function DashboardPage() {
     () => true,
     () => false
   );
+
+  useEffect(() => {
+    if (isMounted && gameStatus === 'IDLE' && !roomCode) {
+      checkActiveSession();
+    }
+  }, [isMounted, gameStatus, roomCode, checkActiveSession]);
 
   if (!isMounted) return <div className="min-h-screen bg-[#fafafa]" />;
 

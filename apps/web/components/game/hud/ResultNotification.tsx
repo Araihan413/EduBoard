@@ -32,11 +32,11 @@ export default function ResultNotification({ result, onClose }: ResultNotificati
     if (canClose) {
       const t = setTimeout(() => {
         if (onClose) onClose();
-        else clearLastResult();
+        else clearLastResult(result.turnNumber);
       }, 4000); // 4s fail-safe (giving 1s buffer after store's 3s timer)
       return () => clearTimeout(t);
     }
-  }, [canClose, onClose, clearLastResult]);
+  }, [canClose, onClose, clearLastResult, result.turnNumber]);
 
   // Observer local fail-safe cleanup to prevent screen from being stuck
   useEffect(() => {
@@ -71,7 +71,7 @@ export default function ResultNotification({ result, onClose }: ResultNotificati
       <div className="bg-white/95 border-2 border-slate-100 rounded-3xl md:rounded-[2.5rem] p-6 md:p-10 shadow-[0_40px_100px_rgba(0,0,0,0.15)] flex flex-col items-center max-w-sm w-[90%] md:w-full text-center relative overflow-hidden pointer-events-auto">
         {canClose && (
           <button
-            onClick={() => (onClose ? onClose() : clearLastResult())}
+            onClick={() => (onClose ? onClose() : clearLastResult(result.turnNumber))}
             className="absolute top-4 right-4 md:top-6 md:right-6 p-2 rounded-full hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600"
           >
             <X className="w-5 h-5" />

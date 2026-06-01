@@ -7,10 +7,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import confetti from "canvas-confetti";
 import NextImage from "next/image";
 import Link from "next/link";
+import { toast } from "sonner";
 
 import {
   Timer, LogOut, Clock, LayoutDashboard,
-  Trophy, Volume2, VolumeX, Disc3,
+  Trophy, Volume2, VolumeX, SkipForward,
 } from "lucide-react";
 
 import { useGameStore } from "../../../store/gameStore";
@@ -91,7 +92,7 @@ function BoardPage() {
     isMoving, leaveRoom, lastResult, clearLastResult,
     fetchQuestions, isGuru, roomConfig,
     isMuted, toggleMute, isChoosingPath, hasRolled,
-    isSpinningStar,
+    isSpinningStar, exitToLobby,
   } = useGameStore();
 
   const engine = useGameEngine(role);
@@ -142,19 +143,25 @@ function BoardPage() {
   useEffect(() => {
     if (!roomCode && gameStatus === "IDLE") {
       const t = setTimeout(() => {
-        if (!useGameStore.getState().roomCode) router.push("/lobby");
+        if (!useGameStore.getState().roomCode) {
+          router.push(role === "guru" ? "/dashboard" : "/lobby");
+        }
       }, 500);
       return () => clearTimeout(t);
     }
-  }, [roomCode, gameStatus, router]);
+  }, [roomCode, gameStatus, router, role]);
 
   // Confetti on finish
   useEffect(() => {
     if (gameStatus !== "FINISHED") return;
-    const end = Date.now() + 3000;
+    // Kurangi efek di mobile: lebih sedikit partikel & durasi lebih singkat
+    const isMobileDevice = window.innerWidth < 1024;
+    const duration = isMobileDevice ? 1500 : 3000;
+    const count    = isMobileDevice ? 2 : 5;
+    const end = Date.now() + duration;
     const frame = () => {
-      confetti({ zIndex: 10000, particleCount: 5, angle: 60,  spread: 55, origin: { x: 0 }, colors: ["#3b82f6", "#10b981", "#f59e0b"] });
-      confetti({ zIndex: 10000, particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, colors: ["#3b82f6", "#10b981", "#f59e0b"] });
+      confetti({ zIndex: 10000, particleCount: count, angle: 60,  spread: 55, origin: { x: 0 }, colors: ["#3b82f6", "#10b981", "#f59e0b"] });
+      confetti({ zIndex: 10000, particleCount: count, angle: 120, spread: 55, origin: { x: 1 }, colors: ["#3b82f6", "#10b981", "#f59e0b"] });
       if (Date.now() < end) requestAnimationFrame(frame);
     };
     frame();
@@ -345,17 +352,36 @@ function BoardPage() {
           </div>
 
           {role === "guru" ? (
-            <Link 
-              href="/dashboard" 
-              className="w-8 h-8 sm:w-10 sm:h-10 bg-yellow-400 hover:bg-yellow-300 text-yellow-950 rounded-xl flex items-center justify-center shadow-lg transition-all active:scale-95 group relative"
-            >
-              <LayoutDashboard className="w-4 h-4 sm:w-5 sm:h-5" />
-              {/* Tooltip */}
-              <div className="absolute top-full mt-2 right-0 bg-slate-950/95 backdrop-blur-md text-[8px] sm:text-[9px] font-black text-white px-2.5 py-1.5 rounded-lg border border-slate-800 shadow-xl opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100 transition-all origin-top-right duration-150 pointer-events-none whitespace-nowrap z-50">
-                Kembali ke Dashboard
-                <div className="absolute top-[-3.5px] right-3.5 w-1.5 h-1.5 bg-slate-950 rotate-45 border-l border-t border-slate-800" />
-              </div>
-            </Link>
+            <div className="flex flex-col items-end gap-1.5 sm:gap-2">
+              <Link 
+                href="/dashboard" 
+                className="w-8 h-8 sm:w-10 sm:h-10 bg-yellow-400 hover:bg-yellow-300 text-yellow-950 rounded-xl flex items-center justify-center shadow-lg transition-all active:scale-95 group relative"
+              >
+                <LayoutDashboard className="w-4 h-4 sm:w-5 sm:h-5" />
+                {/* Tooltip */}
+                <div className="absolute top-full mt-2 right-0 bg-slate-950/95 backdrop-blur-md text-[8px] sm:text-[9px] font-black text-white px-2.5 py-1.5 rounded-lg border border-slate-800 shadow-xl opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100 transition-all origin-top-right duration-150 pointer-events-none whitespace-nowrap z-50">
+                  Kembali ke Dashboard
+                  <div className="absolute top-[-3.5px] right-3.5 w-1.5 h-1.5 bg-slate-950 rotate-45 border-l border-t border-slate-800" />
+                </div>
+              </Link>
+
+              {/* Compact Skip Turn for Mobile/Tablet (Placed Under Dashboard Link - Horizontal flex) */}
+              <button
+                onClick={() => {
+                  nextTurn();
+                  toast.success("Giliran berhasil dilompati!");
+                }}
+                className="w-fit px-2.5 sm:px-3.5 h-6 md:h-10 bg-slate-900/90 hover:bg-slate-800 text-white rounded-md flex items-center justify-center gap-1 sm:gap-1.5 border border-slate-800 shadow-lg transition-all active:scale-95 group relative cursor-pointer lg:hidden mt-2"
+              >
+                <SkipForward className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
+                <span className="text-[7px] sm:text-[9px] font-black uppercase tracking-wider text-slate-300 leading-none">SKIP</span>
+                {/* Tooltip */}
+                <div className="absolute top-full mt-2 right-0 bg-slate-950/95 backdrop-blur-md text-[8px] sm:text-[9px] font-black text-white px-2.5 py-1.5 rounded-lg border border-slate-800 shadow-xl opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100 transition-all origin-top-right duration-150 pointer-events-none whitespace-nowrap z-50">
+                  Lompati Giliran
+                  <div className="absolute top-[-3.5px] right-3.5 w-1.5 h-1.5 bg-slate-950 rotate-45 border-l border-t border-slate-800" />
+                </div>
+              </button>
+            </div>
           ) : (
             <button
               onClick={() => setShowExitConfirm(true)}
@@ -404,18 +430,38 @@ function BoardPage() {
                   return (
                     <motion.div
                       key={g.id}
+                      layout
                       initial={{ x: -40, opacity: 0 }}
-                      animate={{ x: 0, opacity: 1 }}
-                      transition={{ delay: rank * 0.05 }}
-                      whileHover={{ x: 3 }}
+                      animate={{
+                        x: 0,
+                        opacity: isSurrendered ? 0.6 : 1,
+                        scale: isMyTurn ? 1.05 : 1,
+                        backgroundColor: isMyTurn 
+                          ? "rgba(255, 255, 255, 1)" 
+                          : isSurrendered 
+                          ? "rgba(226, 232, 240, 0.5)" 
+                          : "rgba(255, 255, 255, 0.4)",
+                        borderColor: isMyTurn 
+                          ? "rgba(59, 130, 246, 1)" 
+                          : isSurrendered 
+                          ? "rgba(203, 213, 225, 0.5)" 
+                          : "rgba(255, 255, 255, 0.3)"
+                      }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 280,
+                        damping: 24,
+                        mass: 0.8
+                      }}
+                      whileHover={{ x: 3, scale: isMyTurn ? 1.07 : 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => setShowLeaderboardModal(true)}
-                      className={`relative flex items-center gap-3 p-2 pr-8 rounded-xl border transition-colors duration-300 cursor-pointer pointer-events-auto shadow-md hover:shadow-lg ${
+                      className={`relative flex items-center gap-3 p-2 pr-8 rounded-xl border cursor-pointer pointer-events-auto shadow-md hover:shadow-lg ${
                         isMyTurn
-                          ? "bg-white border-blue-500 scale-105 z-10 shadow-[0_4px_20px_rgba(59,130,246,0.12)]"
+                          ? "z-10 shadow-[0_4px_20px_rgba(59,130,246,0.12)]"
                           : isSurrendered
-                          ? "bg-slate-200/50 border-slate-300 opacity-60 grayscale"
-                          : "bg-white/40 backdrop-blur-md border-white/30 opacity-80 hover:bg-white/60"
+                          ? "grayscale"
+                          : "backdrop-blur-md"
                       }`}
                     >
                       {isMyTurn && <div className="absolute inset-0 rounded-xl shadow-[0_0_15px_rgba(59,130,246,0.25)] animate-pulse" />}
@@ -485,16 +531,36 @@ function BoardPage() {
                 return (
                   <motion.div
                     key={g.id}
+                    layout
                     initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
+                    animate={{
+                      opacity: isSurrendered ? 0.6 : 0.9,
+                      scale: isMyTurn ? 1.05 : 1,
+                      backgroundColor: isMyTurn
+                        ? "rgba(255, 255, 255, 1)"
+                        : isSurrendered
+                        ? "rgba(226, 232, 240, 0.5)"
+                        : "rgba(28, 25, 23, 0.8)", // bg-stone-900/80 is stone-950/stone-900
+                      borderColor: isMyTurn
+                        ? "rgba(59, 130, 246, 1)"
+                        : isSurrendered
+                        ? "rgba(203, 213, 225, 0.5)"
+                        : "rgba(255, 255, 255, 0.1)"
+                    }}
+                    transition={{
+                      type: "spring",
+                      stiffness: 280,
+                      damping: 24,
+                      mass: 0.8
+                    }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setShowLeaderboardModal(true)}
-                    className={`flex items-center gap-1.5 md:gap-3 p-1 md:p-2 pr-2.5 md:pr-5 md:pl-2.5 rounded-lg md:rounded-xl border flex-shrink-0 min-w-[95px] md:min-w-[160px] max-w-[120px] md:max-w-[190px] transition-colors duration-300 cursor-pointer shadow-sm relative ${
+                    className={`flex items-center gap-1.5 md:gap-3 p-1 md:p-2 pr-2.5 md:pr-5 md:pl-2.5 rounded-lg md:rounded-xl border flex-shrink-0 min-w-[95px] md:min-w-[160px] max-w-[120px] md:max-w-[190px] cursor-pointer shadow-sm relative ${
                       isMyTurn
-                        ? "bg-white border-blue-500 shadow-[0_2px_10px_rgba(59,130,246,0.18)]"
+                        ? "shadow-[0_2px_10px_rgba(59,130,246,0.18)]"
                         : isSurrendered
-                        ? "bg-slate-200/50 border-slate-300 opacity-60 grayscale"
-                        : "bg-stone-900/80 backdrop-blur-md border-white/10 opacity-90"
+                        ? "grayscale"
+                        : "backdrop-blur-md"
                     }`}
                   >
                     {isMyTurn && <div className="absolute inset-0 rounded-lg md:rounded-xl shadow-[0_0_8px_rgba(59,130,246,0.3)] animate-pulse" />}
@@ -565,10 +631,13 @@ function BoardPage() {
         <div className="flex items-center gap-4 pointer-events-auto">
           {role === "guru" && (
             <button
-              onClick={nextTurn}
-              className="px-5 py-2.5 bg-slate-900 text-white font-black text-[9px] tracking-widest uppercase rounded-xl hover:bg-slate-800 transition-all shadow-xl flex items-center gap-2"
+              onClick={() => {
+                nextTurn();
+                toast.success("Giliran berhasil dilompati!");
+              }}
+              className="hidden lg:flex px-5 py-2.5 bg-slate-900 text-white font-black text-[9px] tracking-widest uppercase rounded-xl hover:bg-slate-800 transition-all shadow-xl items-center gap-2 cursor-pointer"
             >
-              Skip Turn <LogOut className="w-3 h-3 rotate-180" />
+              Skip Turn <SkipForward className="w-3 h-3 text-white" />
             </button>
           )}
         </div>
@@ -642,7 +711,11 @@ function BoardPage() {
       {/* Leaderboard / Papan Skor */}
       <AnimatePresence>
         {gameStatus === "FINISHED" && (
-          <LeaderboardOverlay groups={groups} role={role} />
+          <LeaderboardOverlay
+            groups={groups}
+            role={role}
+            onNavigateBack={role === "guru" ? undefined : exitToLobby}
+          />
         )}
         {showLeaderboardModal && (
           <LeaderboardOverlay
@@ -657,7 +730,7 @@ function BoardPage() {
       {/* Result notification (Force-closed when game finishes) */}
       <AnimatePresence>
         {lastResult && gameStatus !== "FINISHED" && cardPhase === "idle" && (
-          <ResultNotification result={lastResult} onClose={clearLastResult} />
+          <ResultNotification result={lastResult} onClose={() => clearLastResult(lastResult.turnNumber)} />
         )}
       </AnimatePresence>
 

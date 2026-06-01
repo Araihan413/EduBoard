@@ -199,39 +199,48 @@ function Pion({
   group,
   offsetX,
   offsetZ,
+  pionScale,
 }: {
   group: Group;
   offsetX: number;
   offsetZ: number;
+  pionScale: number;
 }) {
   const meshRef = useRef<THREE.Group>(null!);
-  
-  // Find current position coordinates on mount
-  const initialTile = useMemo(() => {
-    return TILE_GRAPH.find((t) => t.id === group.position) ?? TILE_GRAPH[0];
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
-  const tx = initialTile.x + offsetX;
-  const tz = initialTile.y + offsetZ;
-
-  const targetRef = useRef({ x: tx, z: tz });
-  const startPos = useRef({ x: tx, z: tz });
-  const startTimeRef = useRef<number>(-1);
-
-  // Keep a stable ref so the useFrame closure can always read latest offsets
+  // Keep stable refs for useFrame closure
   const offsetRef = useRef({ x: offsetX, z: offsetZ });
-  useEffect(() => {
-    offsetRef.current = { x: offsetX, z: offsetZ };
-  }, [offsetX, offsetZ]);
-
-  // Queue references for sequential step-by-step hopping
   const lastTargetRef = useRef<number>(group.position);
   const queueRef = useRef<number[]>([]);
   const activeTargetIdRef = useRef<number>(group.position);
   const isMovingLocal = useRef<boolean>(false);
+  const startTimeRef = useRef<number>(-1);
 
-  // Listen for changes to group.position (from WebSocket state updates)
+  const targetRef = useRef({ x: 0, z: 0 });
+  const startPos = useRef({ x: 0, z: 0 });
+
+  // Initialize position and refs on mount
+  useEffect(() => {
+    const tileObj = TILE_GRAPH.find((t) => t.id === group.position) ?? TILE_GRAPH[0];
+    const tx = tileObj.x + offsetX;
+    const tz = tileObj.y + offsetZ;
+    targetRef.current = { x: tx, z: tz };
+    startPos.current = { x: tx, z: tz };
+    if (meshRef.current) {
+      meshRef.current.position.x = tx;
+      meshRef.current.position.z = tz;
+      meshRef.current.position.y = 0;
+      meshRef.current.scale.set(pionScale, pionScale, pionScale);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Update offset ref
+  useEffect(() => {
+    offsetRef.current = { x: offsetX, z: offsetZ };
+  }, [offsetX, offsetZ]);
+
+  // Listen for changes to group.position (movement or snap) and offsets
   useEffect(() => {
     if (group.position !== lastTargetRef.current) {
       const path = findPath(lastTargetRef.current, group.position);
@@ -249,8 +258,8 @@ function Pion({
         isMovingLocal.current = false;
         
         const targetTileObj = TILE_GRAPH.find((t) => t.id === group.position) ?? TILE_GRAPH[0];
-        const ox = offsetRef.current.x;
-        const oz = offsetRef.current.z;
+        const ox = offsetX;
+        const oz = offsetZ;
         targetRef.current = { x: targetTileObj.x + ox, z: targetTileObj.y + oz };
         startPos.current = { x: targetTileObj.x + ox, z: targetTileObj.y + oz };
         startTimeRef.current = -1;
@@ -263,8 +272,16 @@ function Pion({
           meshRef.current.rotation.z = 0;
         }
       }
+    } else {
+      // Position is unchanged, but offsets might have changed (e.g. another pawn entered/left)
+      // Only adjust target/startPos immediately if we are NOT currently moving.
+      if (!isMovingLocal.current) {
+        const tileObj = TILE_GRAPH.find((t) => t.id === group.position) ?? TILE_GRAPH[0];
+        targetRef.current = { x: tileObj.x + offsetX, z: tileObj.y + offsetZ };
+        startPos.current = { x: tileObj.x + offsetX, z: tileObj.y + offsetZ };
+      }
     }
-  }, [group.position]);
+  }, [group.position, offsetX, offsetZ]);
 
   useFrame((state, delta) => {
     if (!meshRef.current) return;
@@ -342,12 +359,17 @@ function Pion({
       meshRef.current.rotation.x = THREE.MathUtils.lerp(meshRef.current.rotation.x, 0, Math.min(delta * 12, 1));
       meshRef.current.rotation.z = THREE.MathUtils.lerp(meshRef.current.rotation.z, 0, Math.min(delta * 12, 1));
     }
+
+    // Smooth Ludo-style scale grow/shrink interpolation in 3D
+    meshRef.current.scale.x = THREE.MathUtils.lerp(meshRef.current.scale.x, pionScale, Math.min(delta * 6, 1));
+    meshRef.current.scale.y = THREE.MathUtils.lerp(meshRef.current.scale.y, pionScale, Math.min(delta * 6, 1));
+    meshRef.current.scale.z = THREE.MathUtils.lerp(meshRef.current.scale.z, pionScale, Math.min(delta * 6, 1));
   });
 
   const color = group.color ?? "#3b82f6";
 
   return (
-    <group ref={meshRef} position={[tx, 0, tz]}>
+    <group ref={meshRef}>
       <mesh position={[0, TILE_TOP_Y + 0.005, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[0.26, 24]} />
         <meshBasicMaterial color={color} transparent opacity={0.3} />
@@ -373,6 +395,8 @@ function Pion({
 
 // ─── 🎬 SCENE UTAMA (R3F) ─────────────────────────────────────────────────────
 function Scene({ groups }: { groups: Group[] }) {
+  const visualPath = useGameStore(state => state.visualPath);
+  const activeGroupIndex = useGameStore(state => state.activeGroupIndex);
   const { size } = useThree();
 
   const textures = useTexture({
@@ -544,28 +568,47 @@ function Scene({ groups }: { groups: Group[] }) {
         {(() => {
           // Kelompokkan group berdasarkan tile saat ini
           const tileGroups: Record<number, string[]> = {};
+          
+          const activeGroup = groups[activeGroupIndex];
+          const isMoving = visualPath && visualPath.length > 0;
+
           groups.forEach((g) => {
-            if (!tileGroups[g.position]) tileGroups[g.position] = [];
-            tileGroups[g.position].push(g.id);
+            // If this is the active group and it is currently moving,
+            // it has not landed on its target position yet! Keep it in its own slot map
+            // to keep intermediate tiles un-shrunk.
+            const isMovingNow = isMoving && activeGroup && g.id === activeGroup.id;
+            if (isMovingNow) {
+              if (!tileGroups[-1]) tileGroups[-1] = [];
+              tileGroups[-1].push(g.id);
+            } else {
+              if (!tileGroups[g.position]) tileGroups[g.position] = [];
+              tileGroups[g.position].push(g.id);
+            }
           });
 
-          // Buat map: groupId -> slot offset
-          const slotMap: Record<string, { ox: number; oz: number }> = {};
+          // Buat map: groupId -> slot offset & scale (Ludo-style)
+          const slotMap: Record<string, { ox: number; oz: number; scale: number }> = {};
           Object.entries(tileGroups).forEach(([, gIds]) => {
-            const offsets = computeSlotOffsets(gIds.length);
+            const count = gIds.length;
+            const offsets = computeSlotOffsets(count);
             gIds.forEach((id, i) => {
-              slotMap[id] = offsets[i];
+              let scale = 1.35; // Single pion is enlarged to be more visible!
+              if (count === 2) scale = 0.95;
+              else if (count === 3) scale = 0.8;
+              else if (count >= 4) scale = 0.65;
+              slotMap[id] = { ox: offsets[i].ox, oz: offsets[i].oz, scale };
             });
           });
 
           return groups.map((group) => {
-            const slot = slotMap[group.id] ?? { ox: 0, oz: 0 };
+            const slot = slotMap[group.id] ?? { ox: 0, oz: 0, scale: 1.35 };
             return (
               <Pion
                 key={group.id}
                 group={group}
                 offsetX={slot.ox}
                 offsetZ={slot.oz}
+                pionScale={slot.scale}
               />
             );
           });

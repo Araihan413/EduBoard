@@ -11,6 +11,24 @@ export default async function roomRoutes(fastify: FastifyInstance) {
   fastify.register(async (protectedRoutes) => {
     protectedRoutes.addHook("onRequest", verifySupabaseAuth);
 
+    // GET Current Active Room for the Teacher
+    protectedRoutes.get("/active", async (request, reply) => {
+      const user = request.user as { id: string };
+      
+      const room = await prisma.room.findFirst({
+        where: { 
+          guruId: user.id,
+          status: { in: ['LOBBY', 'ACTIVE'] }
+        },
+        include: {
+          groups: { orderBy: { score: 'desc' } },
+          session: true
+        }
+      });
+
+      return room || null;
+    });
+
     // GET All Room History (Sessions) for the Teacher
     protectedRoutes.get("/history", async (request, reply) => {
       const user = request.user as { id: string };

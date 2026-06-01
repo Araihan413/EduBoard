@@ -19,6 +19,7 @@ export default function StarSpinOverlay() {
   } = useGameStore();
 
   const [isMobile, setIsMobile] = useState(false);
+  const [localClicked, setLocalClicked] = useState(false);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -28,6 +29,12 @@ export default function StarSpinOverlay() {
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
+
+  useEffect(() => {
+    if (!isSpinningStar) {
+      setLocalClicked(false);
+    }
+  }, [isSpinningStar]);
 
   const activeGroup = groups[activeGroupIndex];
   const isPionMoving = animatingPionId === activeGroup?.id;
@@ -69,7 +76,8 @@ export default function StarSpinOverlay() {
   const spinRotation = 1800 + targetAngle;
 
   const handleSpinClick = () => {
-    if (isMyTurn && !isSpinAnimating) {
+    if (isMyTurn && !isSpinAnimating && starSpinResult === null && !localClicked) {
+      setLocalClicked(true);
       spinStar();
     }
   };
@@ -195,13 +203,13 @@ export default function StarSpinOverlay() {
               {/* Central Premium Button / Pivot */}
               <button
                 onClick={handleSpinClick}
-                disabled={!isMyTurn || isSpinAnimating}
+                disabled={!isMyTurn || isSpinAnimating || starSpinResult !== null || localClicked}
                 className={`absolute rounded-full z-30 flex flex-col items-center justify-center border-4 shadow-xl transition-all duration-300 outline-none pointer-events-auto ${
-                  isSpinAnimating
-                    ? "bg-stone-800 border-stone-700 text-stone-600 scale-95 cursor-not-allowed"
+                  isSpinAnimating || starSpinResult !== null || localClicked
+                    ? "bg-stone-800 border-stone-700 text-stone-600 scale-95 cursor-not-allowed pointer-events-none"
                     : isMyTurn
                     ? "bg-gradient-to-br from-yellow-400 to-yellow-600 border-white hover:scale-105 active:scale-95 cursor-pointer text-yellow-950 hover:shadow-yellow-500/20"
-                    : "bg-stone-800 border-stone-700 text-stone-400 cursor-not-allowed"
+                    : "bg-stone-800 border-stone-700 text-stone-400 cursor-not-allowed pointer-events-none"
                 }`}
                 style={{ width: '68px', height: '68px' }}
               >

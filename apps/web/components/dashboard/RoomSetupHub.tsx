@@ -23,10 +23,10 @@ export default function RoomSetupHub() {
     });
 
   const [draftConfig, setDraftConfig] = useState({
-    gameDurationMin: 10,
+    gameDurationMin: 30,
     turnDurationDasar: 30,
-    turnDurationTantangan: 45,
-    turnDurationPemahaman: 60,
+    turnDurationTantangan: 60,
+    turnDurationPemahaman: 45,
     maxGroups: 4
   });
 

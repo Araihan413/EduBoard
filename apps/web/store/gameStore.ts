@@ -80,6 +80,7 @@ export interface AnswerResult {
   message: string;
   points: number;
   groupName: string;
+  turnNumber?: number;
 }
 
 interface GameState {
@@ -182,9 +183,9 @@ interface GameActions {
   submitAnswerSubjektif: (groupId: string, answerText: string) => void;
   reviewSubmission: (reviewId: string, score: number) => void;
   gradeSubjektif: (reviewId: string, score: number) => void; // alias for reviewSubmission (used in board/page.tsx)
-  nextTurn: () => void;
+  nextTurn: (fromTurn?: number) => void;
   decrementTimer: () => void;
-  clearLastResult: () => void;
+  clearLastResult: (fromTurn?: number) => void;
   
   updateGroups: (groups: Group[]) => void;
   updateGroup: (groupId: string, updates: Partial<Group>) => void;
@@ -200,6 +201,7 @@ interface GameActions {
   exitToLobby: () => void;
   setAnimatingPionId: (id: string | null) => void;
   onPionAnimationFinished: (groupId: string, tileId: number) => void;
+  checkActiveSession: () => Promise<void>;
 }
 
 
@@ -573,6 +575,8 @@ export const useGameStore = create<GameState & GameActions>()(
               const activeGroupCurrent = innerState.groups[innerState.activeGroupIndex];
               if (!activeGroupCurrent) return;
 
+              const currentTurnAtResult = innerState.currentTurn;
+
               if (result === "+5" || result === "-5") {
                 const points = result === "+5" ? 5 : -5;
                 const newScore = Math.max(0, activeGroupCurrent.score + points);
@@ -589,13 +593,14 @@ export const useGameStore = create<GameState & GameActions>()(
                       ? `Selamat! Tim ${activeGroupCurrent.name} mendapatkan bonus +5 poin dari roda putar STAR.` 
                       : `Aduh! Tim ${activeGroupCurrent.name} kehilangan -5 poin dari roda putar STAR.`,
                     points: points,
-                    groupName: activeGroupCurrent.name
+                    groupName: activeGroupCurrent.name,
+                    turnNumber: currentTurnAtResult
                   },
                   logs: [`Tim ${activeGroupCurrent.name} mendapat hasil roda putar: ${result} (Poin sekarang: ${newScore})`, ...s.logs]
                 }));
                 // Auto advance turn after showing result toast (3000ms)
                 if (resultTimeoutId) clearTimeout(resultTimeoutId);
-                resultTimeoutId = setTimeout(() => get().nextTurn(), 3000);
+                resultTimeoutId = setTimeout(() => get().nextTurn(currentTurnAtResult), 3000);
 
               } else if (result === "SKIP") {
                 syncSet((s) => ({
@@ -606,12 +611,13 @@ export const useGameStore = create<GameState & GameActions>()(
                     title: "GILIRAN DILEWATI",
                     message: `Tim ${activeGroupCurrent.name} mendapat SKIP. Tidak terjadi apa-apa dan giliran dilewati.`,
                     points: 0,
-                    groupName: activeGroupCurrent.name
+                    groupName: activeGroupCurrent.name,
+                    turnNumber: currentTurnAtResult
                   },
                   logs: [`Tim ${activeGroupCurrent.name} mendapat hasil roda putar: SKIP. Giliran dilewati.`, ...s.logs]
                 }));
                 if (resultTimeoutId) clearTimeout(resultTimeoutId);
-                resultTimeoutId = setTimeout(() => get().nextTurn(), 3000);
+                resultTimeoutId = setTimeout(() => get().nextTurn(currentTurnAtResult), 3000);
 
               } else {
                 // It's a question card type: DASAR, TANTANGAN, or PEMAHAMAN!
@@ -812,6 +818,38 @@ export const useGameStore = create<GameState & GameActions>()(
             } catch (err) {
               // rejoin failed silently
             }
+          }
+        },
+
+        checkActiveSession: async () => {
+          try {
+            const activeRoom = await api.get("/api/rooms/active");
+            if (activeRoom) {
+              set({
+                roomCode: activeRoom.code,
+                isGuru: true,
+                gameStatus: activeRoom.status === 'ACTIVE' ? 'PLAYING' : 'LOBBY',
+                roomConfig: {
+                  gameDurationSec: activeRoom.durationMinutes * 60,
+                  turnDurationDasar: activeRoom.turnDurationDasar,
+                  turnDurationTantangan: activeRoom.turnDurationTantangan,
+                  turnDurationPemahaman: activeRoom.turnDurationPemahaman,
+                  maxGroups: activeRoom.maxGroups,
+                  questionSetId: activeRoom.questionSetId || undefined
+                },
+                groups: (activeRoom.groups || []).sort((a: any, b: any) => a.id.localeCompare(b.id)),
+                logs: [`Sesi permainan aktif (${activeRoom.code}) ditemukan dan dipulihkan kembali.`]
+              });
+
+              if (typeof window !== 'undefined') {
+                sessionStorage.setItem(`eduboard_role_${activeRoom.code}`, 'guru');
+              }
+
+              // Rejoin via socket to re-establish dynamic connection
+              await get().rejoinAsGuru(activeRoom.code);
+            }
+          } catch (err) {
+            console.error("Gagal memeriksa sesi aktif:", err);
           }
         },
 
@@ -1314,6 +1352,7 @@ export const useGameStore = create<GameState & GameActions>()(
           // Step 2: After card has finished closing, show the result toast
           setTimeout(() => {
             const group = get().groups.find(g => g.id === groupId);
+            const currentTurnAtTrigger = get().currentTurn;
             syncSet({
               lastResult: { 
                 type: isInfoCard ? (card.type === 'TANTANGAN' ? 'SUCCESS' : 'INFO') : (isCorrect ? 'SUCCESS' : 'FAILURE'),
@@ -1326,12 +1365,13 @@ export const useGameStore = create<GameState & GameActions>()(
                         ? `Waktu habis atau aksi belum selesai.`
                         : `Yah, kurang tepat. Jawabannya adalah: ${card.answerKey}`),
                 points: score,
-                groupName: group?.name || 'Siswa'
+                groupName: group?.name || 'Siswa',
+                turnNumber: currentTurnAtTrigger
               }
             });
             // Step 3: Auto-advance after toast is shown (3s)
             if (resultTimeoutId) clearTimeout(resultTimeoutId);
-            resultTimeoutId = setTimeout(() => get().nextTurn(), 3000);
+            resultTimeoutId = setTimeout(() => get().nextTurn(currentTurnAtTrigger), 3000);
           }, 850); // 800ms card animation + 50ms buffer
         },
 
@@ -1396,6 +1436,7 @@ export const useGameStore = create<GameState & GameActions>()(
 
           // Step 2: After card has finished closing, show the result toast
           setTimeout(() => {
+            const currentTurnAtTrigger = get().currentTurn;
             syncSet({
               lastResult: { 
                 type: score > 0 ? 'SUCCESS' : 'FAILURE',
@@ -1404,12 +1445,13 @@ export const useGameStore = create<GameState & GameActions>()(
                   ? `Guru memberikan penilaian: ${score} poin untuk tim ${review.groupName}.`
                   : `Yah, jawaban tim ${review.groupName} dinilai kurang tepat oleh Guru.`,
                 points: score,
-                groupName: review.groupName
+                groupName: review.groupName,
+                turnNumber: currentTurnAtTrigger
               }
             });
             // Step 3: Auto-advance after toast is shown (3s)
             if (resultTimeoutId) clearTimeout(resultTimeoutId);
-            resultTimeoutId = setTimeout(() => get().nextTurn(), 3000);
+            resultTimeoutId = setTimeout(() => get().nextTurn(currentTurnAtTrigger), 3000);
           }, 850); // 800ms card animation + 50ms buffer
         },
 
@@ -1417,9 +1459,15 @@ export const useGameStore = create<GameState & GameActions>()(
           get().reviewSubmission(reviewId, score);
         },
 
-        nextTurn: () => {
+        nextTurn: (fromTurn?: number) => {
           const state = get();
           if (state.groups.length === 0) return;
+
+          // PILAR A: State-Based Distributed Turn-Number Guard (Bulletproof under any network conditions)
+          if (fromTurn !== undefined && state.currentTurn !== fromTurn) {
+            console.log(`[nextTurn] Replaced outdated turn advance call. Current: ${state.currentTurn}, Expected: ${fromTurn}`);
+            return;
+          }
 
           if (resultTimeoutId) {
             clearTimeout(resultTimeoutId);
@@ -1495,9 +1543,12 @@ export const useGameStore = create<GameState & GameActions>()(
           }
         },
 
-        clearLastResult: () => {
-          // Manually closing the toast should immediately advance the turn
-          get().nextTurn();
+        clearLastResult: (fromTurn?: number) => {
+          if (resultTimeoutId) {
+            clearTimeout(resultTimeoutId);
+            resultTimeoutId = null;
+          }
+          get().nextTurn(fromTurn !== undefined ? fromTurn : get().currentTurn);
         },
         
         handleAutoRejoin: () => {
