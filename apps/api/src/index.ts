@@ -59,6 +59,12 @@ fastify.register(questionRoutes, { prefix: "/api/questions" });
 fastify.register(roomRoutes, { prefix: "/api/rooms" });
 fastify.register(questionSetRoutes, { prefix: "/api/sets" });
 
+// Gracefully disconnect Prisma Client on Fastify shutdown
+fastify.addHook("onClose", async (instance) => {
+  instance.log.info("Menutup koneksi database Prisma...");
+  await prisma.$disconnect();
+});
+
 const start = async () => {
   try {
     await fastify.listen({ port, host: "0.0.0.0" });

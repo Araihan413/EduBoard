@@ -25,10 +25,35 @@ interface ActiveRoom {
   questions?: any[];
   intervalId?: NodeJS.Timeout;
   stateSeq?: number;
+  emptySince?: number;
 }
 
 const activeRooms = new Map<string, ActiveRoom>();
 const socketToUser = new Map<string, { roomCode: string, groupName: string, role: string }>();
+
+// Auto-cleanup stale/abandoned rooms with zero active connections (Grace Period: 10 minutes)
+setInterval(() => {
+  const now = Date.now();
+  const gracePeriod = 10 * 60 * 1000; // 10 menit toleransi
+  
+  for (const [roomCode, room] of activeRooms.entries()) {
+    const activeSockets = Array.from(socketToUser.values()).filter(u => u.roomCode === roomCode);
+    
+    if (activeSockets.length === 0) {
+      if (!room.emptySince) {
+        room.emptySince = now;
+      } else if (now - room.emptySince >= gracePeriod) {
+        console.log(`[CLEANUP] Menghapus room terbengkalai (tidak aktif selama 10 menit): ${roomCode}`);
+        if (room.intervalId) clearInterval(room.intervalId);
+        activeRooms.delete(roomCode);
+      }
+    } else {
+      if (room.emptySince) {
+        delete room.emptySince;
+      }
+    }
+  }
+}, 60 * 1000); // Periksa setiap menit
 
 export function handleSocketEvents(io: Server, socket: Socket) {
   
@@ -130,20 +155,34 @@ export function handleSocketEvents(io: Server, socket: Socket) {
     }
     
     socketToUser.delete(socket.id);
+
+    // Tandai waktu kosong jika tidak ada lagi socket aktif di room ini
+    const liveRoom = activeRooms.get(roomCode);
+    if (liveRoom) {
+      const activeSockets = Array.from(socketToUser.values()).filter(u => u.roomCode === roomCode);
+      if (activeSockets.length === 0) {
+        liveRoom.emptySince = Date.now();
+        console.log(`[DISCONNECT] Room ${roomCode} kosong, masa tenggang dimulai.`);
+      }
+    }
   });
 
   socket.on("room:cancel", async (roomCode: string) => {
     const room = activeRooms.get(roomCode);
     if (room) {
+      if (room.intervalId) {
+        clearInterval(room.intervalId);
+      }
       try {
         await prisma.room.update({
           where: { code: roomCode },
           data: { status: 'CANCELLED' }
         });
         io.to(roomCode).emit("room:cancelled", { roomCode });
-        activeRooms.delete(roomCode);
       } catch (err) {
-        console.error("Gagal batalkan room:", err);
+        console.error("Gagal batalkan room di DB:", err);
+      } finally {
+        activeRooms.delete(roomCode);
       }
     }
   });
@@ -270,6 +309,11 @@ export function handleSocketEvents(io: Server, socket: Socket) {
 
     const room = activeRooms.get(data.roomCode);
     if (!room) return;
+
+    // Bersihkan tanda emptySince jika ada user yang masuk kembali
+    if (room.emptySince) {
+      delete room.emptySince;
+    }
 
     if (data.role !== 'guru' && data.groupName) {
       const normalizedName = data.groupName.trim().toLowerCase();
@@ -506,9 +550,12 @@ export function handleSocketEvents(io: Server, socket: Socket) {
     room.countdown = 3; 
     
     if (room.intervalId) clearInterval(room.intervalId);
-    room.intervalId = setInterval(() => {
+    const timerId = setInterval(() => {
       const liveRoom = activeRooms.get(roomCode);
-      if (!liveRoom) return;
+      if (!liveRoom) {
+        clearInterval(timerId);
+        return;
+      }
       
       let updated = false;
 
@@ -550,6 +597,7 @@ export function handleSocketEvents(io: Server, socket: Socket) {
         finishGame(roomCode);
       }
     }, 1000);
+    room.intervalId = timerId;
 
     const { intervalId: ignored, ...roomData } = room;
     io.to(roomCode).emit("game:state", roomData);
@@ -608,6 +656,12 @@ export function handleSocketEvents(io: Server, socket: Socket) {
 
     const { intervalId, ...roomData } = room;
     io.to(roomCode).emit("game:state", roomData);
+
+    // Hapus room dari memori setelah 5 detik agar RAM di VPS tetap bersih
+    setTimeout(() => {
+      activeRooms.delete(roomCode);
+      console.log(`[CLEANUP] Room ${roomCode} dihapus setelah selesai (game finished).`);
+    }, 5000);
   }
 
 
