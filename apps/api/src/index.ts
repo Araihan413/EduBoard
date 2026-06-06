@@ -41,7 +41,7 @@ const fastify = Fastify({ logger: true });
 
 // Register Plugins
 fastify.register(cors, {
-  origin: true,
+  origin: corsOrigins,
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 });
