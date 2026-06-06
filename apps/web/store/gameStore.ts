@@ -169,8 +169,8 @@ interface GameActions {
   // Actions - Pertanyaan
   addQuestion: (setId: string, q: Omit<QuestionCard, 'id' | 'setId'>) => Promise<void>;
   updateQuestion: (id: string, q: Partial<QuestionCard>) => Promise<void>;
-  deleteQuestion: (id: string) => Promise<void>;
-  fetchQuestions: (setId: string, page?: number, showSkeleton?: boolean, limit?: number) => Promise<void>;
+  deleteQuestion: (id: string, type?: string, search?: string) => Promise<void>;
+  fetchQuestions: (setId: string, page?: number, showSkeleton?: boolean, limit?: number, type?: string, search?: string) => Promise<void>;
 
   // Actions - Mekanik Permainan
   drawCard: (type?: QuestionType) => void;
@@ -1074,17 +1074,17 @@ export const useGameStore = create<GameState & GameActions>()(
             throw err;
           }
         },
-        deleteQuestion: async (id) => {
+        deleteQuestion: async (id, type = "ALL", search = "") => {
           const toastId = toast.loading("Menghapus pertanyaan...");
           try {
             await api.delete(`/api/questions/${id}`);
             const activeSet = get().activeQuestionSet;
             if (activeSet) {
               const currentPage = get().pagination.questions.page;
-              await get().fetchQuestions(activeSet.id, currentPage, false);
+              await get().fetchQuestions(activeSet.id, currentPage, false, 50, type, search);
               
               if (get().questions.length === 0 && currentPage > 1) {
-                await get().fetchQuestions(activeSet.id, currentPage - 1, false);
+                await get().fetchQuestions(activeSet.id, currentPage - 1, false, 50, type, search);
               }
               // Refresh counts in library
               await get().fetchQuestionSets(get().pagination.sets.page, false);
@@ -1097,10 +1097,17 @@ export const useGameStore = create<GameState & GameActions>()(
             throw err;
           }
         },
-        fetchQuestions: async (setId, page = 1, showSkeleton = true, limit = 50) => {
+        fetchQuestions: async (setId, page = 1, showSkeleton = true, limit = 50, type = "ALL", search = "") => {
           try {
             if (showSkeleton) set({ isLoadingQuestions: true });
-            const res = await api.get(`/api/questions?setId=${setId}&page=${page}&limit=${limit}`);
+            let url = `/api/questions?setId=${setId}&page=${page}&limit=${limit}`;
+            if (type && type !== "ALL") {
+              url += `&type=${type}`;
+            }
+            if (search && search.trim() !== "") {
+              url += `&search=${encodeURIComponent(search.trim())}`;
+            }
+            const res = await api.get(url);
             syncSet((state) => ({ 
               questions: res.data || [],
               isLoadingQuestions: false,

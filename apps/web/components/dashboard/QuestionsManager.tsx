@@ -226,12 +226,12 @@ export default function QuestionsManager() {
     fetchQuestionSets(1);
   }, [fetchQuestionSets]);
 
-  // Fetch questions when a set is selected
+  // Fetch questions when a set is selected, or when filters/search changes
   useEffect(() => {
     if (activeQuestionSet) {
-      fetchQuestions(activeQuestionSet.id, 1);
+      fetchQuestions(activeQuestionSet.id, 1, true, 50, activeFilter, debouncedSearchQuery);
     }
-  }, [activeQuestionSet, fetchQuestions]);
+  }, [activeQuestionSet, fetchQuestions, activeFilter, debouncedSearchQuery]);
 
   const handleCreateSet = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -778,7 +778,7 @@ export default function QuestionsManager() {
 
       <PaginationControls 
         meta={pagination.questions} 
-        onPageChange={(page) => fetchQuestions(activeQuestionSet!.id, page)} 
+        onPageChange={(page) => fetchQuestions(activeQuestionSet!.id, page, true, 50, activeFilter, debouncedSearchQuery)} 
       />
 
       {showQuestionModal && (
@@ -800,11 +800,11 @@ export default function QuestionsManager() {
         message="Tindakan ini tidak dapat dibatalkan. Semua pertanyaan di dalam paket ini akan ikut terhapus."
       />
 
-      {/* Delete Confirmation for Questions */}
+       {/* Delete Confirmation for Questions */}
       <ConfirmModal 
         isOpen={!!confirmDeleteQuestion}
         onClose={() => setConfirmDeleteQuestion(null)}
-        onConfirm={() => confirmDeleteQuestion && deleteQuestion(confirmDeleteQuestion)}
+        onConfirm={() => confirmDeleteQuestion && deleteQuestion(confirmDeleteQuestion, activeFilter, debouncedSearchQuery)}
         title="Hapus Pertanyaan?"
         message="Apakah Anda yakin ingin menghapus pertanyaan ini?"
       />

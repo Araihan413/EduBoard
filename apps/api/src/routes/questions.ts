@@ -7,21 +7,40 @@ import { verifySupabaseAuth } from "../supabaseAuth";
 export default async function questionRoutes(fastify: FastifyInstance) {
   // GET Questions for a specific Set (PUBLIC for Students)
   fastify.get("/", async (request, reply) => {
-    const { setId, page = "1", limit = "50" } = request.query as { setId: string, page?: string, limit?: string };
+    const { setId, page = "1", limit = "50", type, search } = request.query as { 
+      setId: string; 
+      page?: string; 
+      limit?: string;
+      type?: string;
+      search?: string;
+    };
     if (!setId) return reply.code(400).send({ error: "setId wajib disertakan" });
 
     const p = parseInt(page);
     const l = parseInt(limit);
     const skip = (p - 1) * l;
 
+    const where: any = { setId };
+
+    if (type && type !== "ALL") {
+      where.type = type as QuestionType;
+    }
+
+    if (search && search.trim() !== "") {
+      where.text = {
+        contains: search.trim(),
+        mode: "insensitive"
+      };
+    }
+
     const [questions, total] = await Promise.all([
       prisma.question.findMany({
-        where: { setId },
+        where,
         orderBy: { createdAt: 'desc' },
         skip,
         take: l
       }),
-      prisma.question.count({ where: { setId } })
+      prisma.question.count({ where })
     ]);
 
     return {
