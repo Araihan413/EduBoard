@@ -168,6 +168,12 @@ export function handleSocketEvents(io: Server, socket: Socket) {
   });
 
   socket.on("room:cancel", async (roomCode: string) => {
+    const sender = socketToUser.get(socket.id);
+    if (!sender || sender.role !== 'guru' || sender.roomCode !== roomCode) {
+      socket.emit("error", { message: "Akses ditolak: Anda tidak memiliki wewenang Guru." });
+      return;
+    }
+
     const room = activeRooms.get(roomCode);
     if (room) {
       if (room.intervalId) {
@@ -451,15 +457,46 @@ export function handleSocketEvents(io: Server, socket: Socket) {
     io.to(data.roomCode).emit("game:state", { ...roomData, roomCode: data.roomCode });
   });
   socket.on("game:sync_state", async (data: { roomCode: string, state: any }) => {
+    const sender = socketToUser.get(socket.id);
+    if (!sender || sender.roomCode !== data.roomCode) return;
+
     const room = activeRooms.get(data.roomCode);
     if (!room) return;
 
     // 1. If the client is signaling the game is FINISHED, use the dedicated finish logic
     if (data.state.gameStatus === 'FINISHED' && room.gameStatus !== 'FINISHED') {
+      if (sender.role !== 'guru') return; // Hanya guru yang boleh menghentikan game
       return await finishGame(data.roomCode);
     }
 
-    // 2. Merge state into memory, but PROTECT server-side managed fields
+    // 2. Jika pengirim adalah siswa, lakukan sanitasi state untuk mencegah cheat skor/status/giliran
+    if (sender.role === 'siswa') {
+      const forbiddenFields = ['activeGroupIndex', 'currentTurn', 'gameStatus', 'winner', 'roomConfig', 'pendingReviews', 'logs'];
+      forbiddenFields.forEach(field => {
+        delete data.state[field];
+      });
+
+      if (data.state.groups) {
+        data.state.groups = data.state.groups.map((g: any) => {
+          const originalGroup = room.groups.find((mg: any) => mg.id === g.id);
+          if (!originalGroup) return null;
+
+          // Siswa hanya boleh mengupdate posisi/avatar/warna kelompok mereka sendiri. Skor & status dikunci.
+          if (originalGroup.name.trim().toLowerCase() === sender.groupName.trim().toLowerCase()) {
+            return {
+              ...g,
+              id: originalGroup.id,
+              name: originalGroup.name,
+              score: originalGroup.score,
+              status: originalGroup.status
+            };
+          }
+          return originalGroup;
+        }).filter(Boolean);
+      }
+    }
+
+    // 3. Merge state into memory, but PROTECT server-side managed fields
     // 'groups' is server-authoritative — only modified via room:join/leave events.
     // Avatar/color sync for groups is handled separately below via DB.
     const protectedFields = ['intervalId', 'pendingReviews', 'logs', 'groups'];
@@ -526,6 +563,12 @@ export function handleSocketEvents(io: Server, socket: Socket) {
 
 
   socket.on("game:start", async (roomCode: string) => {
+    const sender = socketToUser.get(socket.id);
+    if (!sender || sender.role !== 'guru' || sender.roomCode !== roomCode) {
+      socket.emit("error", { message: "Akses ditolak: Anda tidak memiliki wewenang Guru." });
+      return;
+    }
+
     const room = activeRooms.get(roomCode);
     if (!room) return;
 
@@ -670,6 +713,14 @@ export function handleSocketEvents(io: Server, socket: Socket) {
     const room = activeRooms.get(data.roomCode);
     if (!room || room.gameStatus === 'FINISHED') return;
 
+    // Verifikasi identitas pengirim (harus guru atau kelompok siswa yang bersangkutan)
+    const sender = socketToUser.get(socket.id);
+    const targetGroup = room.groups.find(g => g.id === data.groupId);
+    if (!sender || !targetGroup || (sender.role !== 'guru' && sender.groupName.trim().toLowerCase() !== targetGroup.name.trim().toLowerCase())) {
+      socket.emit("error", { message: "Akses ditolak: Verifikasi identitas kelompok gagal." });
+      return;
+    }
+
     const group = room.groups.find(g => g.id === data.groupId);
     if (group) {
       group.score += data.score;
@@ -735,6 +786,14 @@ export function handleSocketEvents(io: Server, socket: Socket) {
   socket.on("student:submit_answer", async (data: { roomCode: string, groupId: string, questionId: string, answerText: string, points?: number, turnNumber?: number }) => {
     const room = activeRooms.get(data.roomCode);
     if (!room || room.gameStatus === 'FINISHED') return;
+
+    // Verifikasi identitas pengirim (harus guru atau kelompok siswa yang bersangkutan)
+    const sender = socketToUser.get(socket.id);
+    const targetGroup = room.groups.find(g => g.id === data.groupId);
+    if (!sender || !targetGroup || (sender.role !== 'guru' && sender.groupName.trim().toLowerCase() !== targetGroup.name.trim().toLowerCase())) {
+      socket.emit("error", { message: "Akses ditolak: Verifikasi identitas kelompok gagal." });
+      return;
+    }
 
     // 1. SYNC GUARD: Prevent double submission for the same group in this turn
     // We use a temporary dynamic property on the room object for immediate locking
@@ -837,6 +896,12 @@ export function handleSocketEvents(io: Server, socket: Socket) {
   });
 
   socket.on("teacher:grade_answer", async (data: { roomCode: string, dbAnswerId: string, groupId: string, score: number, isCorrect: boolean }) => {
+    const sender = socketToUser.get(socket.id);
+    if (!sender || sender.role !== 'guru' || sender.roomCode !== data.roomCode) {
+      socket.emit("error", { message: "Akses ditolak: Anda tidak memiliki wewenang Guru." });
+      return;
+    }
+
     const room = activeRooms.get(data.roomCode);
     if (!room || room.gameStatus === 'FINISHED') return;
 
