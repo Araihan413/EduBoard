@@ -26,9 +26,9 @@ export default function MissionControl() {
   };
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-100 shadow-2xl shadow-slate-200/40 overflow-hidden">
+    <div className="bg-white rounded-[2rem] sm:rounded-3xl border border-slate-100 shadow-2xl shadow-slate-200/40 overflow-hidden">
       {/* Lobby Dynamic Header */}
-      <div className={`p-10 lg:p-12 text-white relative overflow-hidden transition-colors duration-500 ${gameStatus === 'PLAYING' ? 'bg-gradient-to-br from-[#2c49c5] to-[#1a34a8]' : 'bg-gradient-to-br from-emerald-600 to-teal-700'}`}>
+      <div className={`p-6 sm:p-10 lg:p-12 text-white relative overflow-hidden transition-colors duration-500 ${gameStatus === 'PLAYING' ? 'bg-gradient-to-br from-[#2c49c5] to-[#1a34a8]' : 'bg-gradient-to-br from-emerald-600 to-teal-700'}`}>
         {/* Decorative Mesh */}
         <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full -mr-32 -mt-32 blur-[80px]" />
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-black/10 rounded-full -ml-32 -mb-32 blur-[60px]" />
@@ -45,19 +45,19 @@ export default function MissionControl() {
             </p>
           </div>
 
-          <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-6 rounded-2xl md:text-right flex flex-col items-start md:items-end group hover:bg-white/20 transition-all cursor-pointer" onClick={handleCopy}>
-            <span className="text-[10px] font-black text-white/50 uppercase tracking-[0.2em] mb-2">Kode Akses Room</span>
-            <div className="flex items-center gap-4">
-              <span className="text-4xl font-black tracking-[0.2em] font-mono">{roomCode}</span>
-              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                {copied ? <CheckCircle2 size={18} className="text-emerald-300" /> : <Copy size={18} />}
+          <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-4 sm:p-6 rounded-2xl md:text-right flex flex-col items-start md:items-end group hover:bg-white/20 transition-all cursor-pointer w-full md:w-auto" onClick={handleCopy}>
+            <span className="text-[9px] sm:text-[10px] font-black text-white/50 uppercase tracking-[0.2em] mb-1.5 sm:mb-2">Kode Akses Room</span>
+            <div className="flex items-center justify-between md:justify-end gap-2 sm:gap-4 w-full md:w-auto">
+              <span className="text-2xl xs:text-3xl sm:text-4xl font-black tracking-[0.1em] sm:tracking-[0.2em] font-mono leading-none">{roomCode}</span>
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                {copied ? <CheckCircle2 size={16} className="text-emerald-300" /> : <Copy size={16} />}
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="p-8 lg:p-10 space-y-10">
+      <div className="p-5 sm:p-8 lg:p-10 space-y-8 sm:space-y-10">
         {/* Registered Teams */}
         <div>
           <div className="flex items-center justify-between mb-6">
@@ -69,11 +69,11 @@ export default function MissionControl() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {groups.length === 0 ? (
-              <div className="col-span-full py-16 flex flex-col items-center justify-center border-2 border-dashed border-slate-100 rounded-3xl bg-slate-50/50">
-                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm mb-4">
-                  <Loader2 className="w-6 h-6 text-slate-300 animate-spin" />
+              <div className="col-span-full py-10 sm:py-16 px-4 flex flex-col items-center justify-center border-2 border-dashed border-slate-100 rounded-3xl bg-slate-50/50">
+                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm mb-4 flex-shrink-0">
+                  <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 text-slate-300 animate-spin" />
                 </div>
-                <p className="text-slate-400 font-bold italic text-sm">Menunggu tim pertama bergabung...</p>
+                <p className="text-slate-400 font-bold italic text-xs sm:text-sm text-center px-2">Menunggu tim pertama bergabung...</p>
               </div>
             ) : (
               groups.map((g, idx) => {
@@ -144,7 +144,7 @@ export default function MissionControl() {
         </div>
 
         {/* Action Bar */}
-        <div className="pt-8 border-t border-slate-100">
+        <div className="pt-6 sm:pt-8 border-t border-slate-100">
           {gameStatus === 'LOBBY' ? (
             <div className="flex flex-col md:flex-row items-center justify-between gap-6">
               <div className="flex items-center gap-3">
@@ -158,7 +158,7 @@ export default function MissionControl() {
               </div>
               
               <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
-                <div className="relative group">
+                <div className="relative group w-full md:w-auto">
                   <AnimatePresence mode="wait">
                     {!showCancelConfirm ? (
                       <motion.button 
@@ -167,7 +167,7 @@ export default function MissionControl() {
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={() => setShowCancelConfirm(true)}
-                        className="w-full md:w-auto px-6 py-5 bg-slate-100 hover:bg-red-50 hover:text-red-600 text-slate-600 font-black rounded-2xl transition-all flex items-center justify-center gap-3 text-xs uppercase tracking-widest"
+                        className="w-full md:w-auto px-6 py-4 sm:py-5 bg-slate-100 hover:bg-red-50 hover:text-red-600 text-slate-600 font-black rounded-2xl transition-all flex items-center justify-center gap-3 text-xs uppercase tracking-widest"
                       >
                         <Activity size={16} /> Ganti Room
                       </motion.button>
@@ -201,7 +201,7 @@ export default function MissionControl() {
                 <button 
                   onClick={startGame} 
                   disabled={groups.length === 0 || countdown !== null} 
-                  className="w-full md:w-auto px-12 py-5 bg-[#2c49c5] hover:bg-[#1a34a8] text-white font-black rounded-2xl shadow-xl shadow-blue-500/20 disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-4 text-base uppercase tracking-widest group"
+                  className="w-full md:w-auto px-8 sm:px-12 py-4 sm:py-5 bg-[#2c49c5] hover:bg-[#1a34a8] text-white font-black rounded-2xl shadow-xl shadow-blue-500/20 disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-4 text-sm sm:text-base uppercase tracking-widest group"
                 >
                   {countdown !== null ? (
                     <>
@@ -217,10 +217,10 @@ export default function MissionControl() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Link href={`/board?roomCode=${roomCode}&role=guru`} className="py-5 bg-white border border-slate-200 text-slate-900 font-black rounded-2xl hover:border-[#2c49c5] hover:text-[#2c49c5] transition-all flex items-center justify-center gap-3 shadow-sm uppercase tracking-widest text-sm">
+              <Link href={`/board?roomCode=${roomCode}&role=guru`} className="py-4 sm:py-5 bg-white border border-slate-200 text-slate-900 font-black rounded-2xl hover:border-[#2c49c5] hover:text-[#2c49c5] transition-all flex items-center justify-center gap-3 shadow-sm uppercase tracking-widest text-sm">
                 <Activity size={18} /> Buka Papan Pantau
               </Link>
-              <button onClick={endGame} className="py-5 bg-red-50 text-red-600 border border-red-100 font-black rounded-2xl hover:bg-red-600 hover:text-white transition-all flex items-center justify-center gap-3 shadow-sm uppercase tracking-widest text-sm">
+              <button onClick={endGame} className="py-4 sm:py-5 bg-red-50 text-red-600 border border-red-100 font-black rounded-2xl hover:bg-red-600 hover:text-white transition-all flex items-center justify-center gap-3 shadow-sm uppercase tracking-widest text-sm">
                 <LogOut size={18} /> Akhiri Permainan
               </button>
             </div>

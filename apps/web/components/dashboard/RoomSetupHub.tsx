@@ -46,8 +46,8 @@ export default function RoomSetupHub() {
   };
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-100 shadow-2xl shadow-slate-200/40 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="bg-gradient-to-br from-[#2c49c5] via-[#3b59d9] to-[#1a34a8] p-10 lg:p-12 text-white relative overflow-hidden">
+    <div className="bg-white rounded-[2rem] sm:rounded-3xl border border-slate-100 shadow-2xl shadow-slate-200/40 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div className="bg-gradient-to-br from-[#2c49c5] via-[#3b59d9] to-[#1a34a8] p-6 sm:p-10 lg:p-12 text-white relative overflow-hidden">
         {/* Decorative Mesh elements */}
         <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full -mr-32 -mt-32 blur-[80px]" />
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-black/10 rounded-full -ml-32 -mb-32 blur-[60px]" />
@@ -63,7 +63,7 @@ export default function RoomSetupHub() {
         </div>
       </div>
 
-      <div className="p-10 lg:p-12 space-y-12">
+      <div className="p-5 sm:p-10 lg:p-12 space-y-8 sm:space-y-12">
         {/* 0. Question Set Selection */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -142,9 +142,9 @@ export default function RoomSetupHub() {
             <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white to-transparent pointer-events-none" />
           </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 sm:gap-12">
           {/* Group 1: Session Settings */}
-          <div className="space-y-8">
+          <div className="space-y-6 sm:space-y-8">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-blue-50 text-[#2c49c5] rounded-xl flex items-center justify-center border border-blue-100">
                 <Clock size={20} />
@@ -189,7 +189,7 @@ export default function RoomSetupHub() {
           </div>
 
           {/* Group 2: Answer Durations */}
-          <div className="space-y-8">
+          <div className="space-y-6 sm:space-y-8">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-orange-50 text-orange-600 rounded-xl flex items-center justify-center border border-orange-100">
                 <Zap size={20} />
@@ -240,14 +240,14 @@ export default function RoomSetupHub() {
           </div>
         </div>
 
-        <div className="pt-8 border-t border-slate-100 flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="pt-6 sm:pt-8 border-t border-slate-100 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-3 text-slate-400">
             <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
             <p className="text-xs font-bold italic">Sistem siap untuk inisialisasi room baru</p>
           </div>
           <button 
             onClick={handleCreate} 
-            className="w-full md:w-auto px-10 py-5 bg-[#2c49c5] hover:bg-[#1a34a8] text-white font-black rounded-2xl shadow-xl shadow-blue-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3 text-base uppercase tracking-wider"
+            className="w-full md:w-auto px-8 sm:px-10 py-4 sm:py-5 bg-[#2c49c5] hover:bg-[#1a34a8] text-white font-black rounded-2xl shadow-xl shadow-blue-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3 text-sm sm:text-base uppercase tracking-wider"
           >
             <Plus size={20} /> Buat Sesi Permainan
           </button>
