@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { Plus, Pencil, Trash2, Search, BookOpen, Target, Flame, ChevronLeft, FolderOpen, ArrowRight, Download, FileUp, Copy, LayoutGrid, List, ChevronRight, ShieldCheck, User } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, BookOpen, Target, Flame, ChevronLeft, FolderOpen, ArrowRight, Download, FileUp, Copy, LayoutGrid, List, ChevronRight, ShieldCheck, User, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useGameStore, QuestionCard, QuestionType, QuestionSet } from "../../store/gameStore";
 import { QuestionSchema } from "@repo/types";
@@ -34,6 +34,15 @@ export default function QuestionsManager() {
   const [activeFilter, setActiveFilter] = useState<QuestionType | "ALL">("ALL");
   const [viewMode, setViewMode] = useState<'GRID' | 'LIST'>('GRID');
   const [sortBy, setSortBy] = useState<'NEWEST' | 'OLDEST' | 'AZ' | 'ZA'>('NEWEST');
+
+  const isSetsSearching = searchQuery !== debouncedSearchQuery || isLoadingSets;
+  const isQuestionsSearching = searchQuery !== debouncedSearchQuery || isLoadingQuestions;
+
+  const handleSelectSet = (set: QuestionSet | null) => {
+    setActiveQuestionSet(set);
+    setSearchQuery("");
+    setActiveFilter("ALL");
+  };
 
   // Sorting & Filtering for Sets
   const { presetSets, userSets } = useMemo(() => {
@@ -314,13 +323,17 @@ export default function QuestionsManager() {
 
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="bg-white p-2 pl-4 rounded-2xl border border-slate-100 shadow-sm flex items-center flex-1 transition-all focus-within:ring-2 ring-blue-100">
-            <Search className="text-slate-400" size={18} />
+            {isSetsSearching ? (
+              <Loader2 className="text-[#2c49c5] animate-spin flex-shrink-0" size={18} />
+            ) : (
+              <Search className="text-slate-400 flex-shrink-0" size={18} />
+            )}
             <input 
               type="text" 
               placeholder="Cari paket soal..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="flex-1 bg-transparent border-none outline-none p-2 text-slate-700 text-sm"
+              className="flex-1 bg-transparent border-none outline-none p-2 pl-2 text-slate-700 text-sm font-semibold"
             />
           </div>
           <div className="bg-white p-2 rounded-2xl border border-slate-100 shadow-sm flex items-center sm:w-48 transition-all">
@@ -347,14 +360,14 @@ export default function QuestionsManager() {
                   <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Paket Resmi EduBoard</h3>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {isLoadingSets ? (
+                  {isSetsSearching ? (
                     [1, 2, 3].map((i) => <QuestionSetSkeleton key={i} />)
                   ) : (
                     presetSets.map((set) => (
                       <motion.div
                         whileHover={{ y: -5 }}
                         key={set.id}
-                        onClick={() => setActiveQuestionSet(set)}
+                        onClick={() => handleSelectSet(set)}
                         className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 hover:shadow-2xl hover:shadow-amber-500/10 cursor-pointer group relative overflow-hidden"
                       >
                         {/* Ribbon for presets */}
@@ -401,7 +414,7 @@ export default function QuestionsManager() {
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <AnimatePresence mode="popLayout">
-                  {isLoadingSets ? (
+                  {isSetsSearching ? (
                     [1, 2, 3].map((i) => <QuestionSetSkeleton key={i} />)
                   ) : userSets.length > 0 ? (
                     userSets.map((set) => (
@@ -411,7 +424,7 @@ export default function QuestionsManager() {
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.8 }}
                         key={set.id}
-                        onClick={() => setActiveQuestionSet(set)}
+                        onClick={() => handleSelectSet(set)}
                         className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 hover:shadow-2xl hover:shadow-blue-500/10 cursor-pointer group relative overflow-hidden"
                       >
                         <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center mb-4 text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">
@@ -551,7 +564,7 @@ export default function QuestionsManager() {
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
           <button 
-            onClick={() => setActiveQuestionSet(null)}
+            onClick={() => handleSelectSet(null)}
             className="p-3 hover:bg-slate-100 rounded-2xl text-slate-400 hover:text-slate-900 transition-all"
           >
             <ChevronLeft size={24} />
@@ -603,14 +616,18 @@ export default function QuestionsManager() {
         <div className="flex flex-col md:flex-row gap-4 items-stretch">
           <div className="relative flex-1 group">
             <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors">
-              <Search size={16} />
+              {isQuestionsSearching ? (
+                <Loader2 className="animate-spin text-[#2c49c5]" size={16} />
+              ) : (
+                <Search size={16} />
+              )}
             </div>
             <input 
               type="text" 
               placeholder="Cari di paket ini..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white border border-slate-100 px-6 py-3 pl-12 rounded-xl text-slate-700 outline-none shadow-sm focus:ring-2 ring-blue-100 transition-all text-base"
+              className="w-full bg-white border border-slate-100 px-6 py-3 pl-12 rounded-xl text-slate-700 outline-none shadow-sm focus:ring-2 ring-blue-100 transition-all text-base font-semibold"
             />
           </div>
           <div className="flex gap-2 overflow-x-auto p-1 no-scrollbar bg-slate-50 rounded-2xl border border-slate-100 flex-1">
@@ -643,7 +660,7 @@ export default function QuestionsManager() {
 
       {/* Questions List/Grid */}
       <AnimatePresence mode="wait">
-        {isLoadingQuestions ? (
+        {isQuestionsSearching ? (
           <div className={viewMode === 'GRID' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "flex flex-col gap-3"}>
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <QuestionCardSkeleton key={i} viewMode={viewMode} />
