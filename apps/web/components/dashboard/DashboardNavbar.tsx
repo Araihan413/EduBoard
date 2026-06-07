@@ -93,7 +93,7 @@ export default function DashboardNavbar({
               className="flex items-center gap-3 group transition-transform active:scale-95"
             >
               <Image 
-                src="/edupai-quest.png" 
+                src="/eduboard.png" 
                 alt="EduBoard PAI Logo" 
                 width={160}
                 height={40}

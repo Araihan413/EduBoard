@@ -57,7 +57,7 @@ export default function Navbar() {
         {/* Logo */}
         <Link href="/" className="flex items-center gap-3 group relative z-[110]">
           <Image 
-            src="/edupai-quest.png" 
+            src="/eduboard.png" 
             alt="EduBoard PAI Logo" 
             width={160}
             height={40}
