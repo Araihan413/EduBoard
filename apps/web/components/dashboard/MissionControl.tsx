@@ -177,20 +177,20 @@ export default function MissionControl() {
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.95 }}
-                        className="flex items-center gap-2 p-1 bg-red-50 rounded-2xl border border-red-100"
+                        className="flex items-center gap-2 p-1 bg-red-50 rounded-2xl border border-red-100 w-full md:w-auto"
                       >
                         <button 
                           onClick={() => {
                             cancelRoom(roomCode);
                             setShowCancelConfirm(false);
                           }}
-                          className="px-4 py-4 bg-red-600 text-white font-black rounded-xl text-[10px] uppercase tracking-widest hover:bg-red-700 transition-all"
+                          className="flex-1 px-4 py-4 bg-red-600 text-white font-black rounded-xl text-[10px] uppercase tracking-widest hover:bg-red-700 transition-all text-center"
                         >
                           Ya, Ganti
                         </button>
                         <button 
                           onClick={() => setShowCancelConfirm(false)}
-                          className="px-4 py-4 bg-white text-slate-500 font-black rounded-xl text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all"
+                          className="flex-1 px-4 py-4 bg-white text-slate-500 font-black rounded-xl text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all text-center"
                         >
                           Tutup
                         </button>
