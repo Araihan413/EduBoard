@@ -322,9 +322,9 @@ function BoardPage() {
           </div>
 
           {role === "guru" && (
-            <div className="bg-blue-500/10 backdrop-blur-md px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg sm:rounded-xl border border-blue-500/20 inline-flex items-center gap-1.5 sm:gap-2 w-fit">
-              <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-blue-500 rounded-full" />
-              <span className="text-[7px] sm:text-[9px] font-black text-blue-600 uppercase tracking-widest leading-none">Monitoring Mode</span>
+            <div className="bg-white/70 backdrop-blur-xl px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-lg sm:rounded-xl border border-white/50 inline-flex items-center gap-1.5 sm:gap-2 w-fit shadow-md">
+              <div className="w-1.5 h-1.5 bg-[#2c49c5] rounded-full animate-pulse shadow-[0_0_8px_rgba(44,73,197,0.8)]" />
+              <span className="text-[7px] sm:text-[9px] font-black text-[#2c49c5] uppercase tracking-[0.15em] leading-none">Monitoring Mode</span>
             </div>
           )}
         </div>
@@ -630,15 +630,22 @@ function BoardPage() {
         {/* Right: Skip turn (guru) */}
         <div className="flex items-center gap-4 pointer-events-auto">
           {role === "guru" && (
-            <button
-              onClick={() => {
-                nextTurn();
-                toast.success("Giliran berhasil dilompati!");
-              }}
-              className="hidden lg:flex px-5 py-2.5 bg-slate-900 text-white font-black text-[9px] tracking-widest uppercase rounded-xl hover:bg-slate-800 transition-all shadow-xl items-center gap-2 cursor-pointer"
-            >
-              Skip Turn <SkipForward className="w-3 h-3 text-white" />
-            </button>
+            <div className="relative group">
+              <button
+                onClick={() => {
+                  nextTurn();
+                  toast.success("Giliran berhasil dilompati!");
+                }}
+                className="hidden lg:flex px-5 py-2.5 bg-slate-900 text-white font-black text-[9px] tracking-widest uppercase rounded-xl hover:bg-slate-800 transition-all shadow-xl items-center gap-2 cursor-pointer"
+              >
+                Skip Turn <SkipForward className="w-3 h-3 text-white" />
+              </button>
+              {/* Tooltip */}
+              <div className="absolute bottom-full mb-2 right-0 bg-slate-950/95 backdrop-blur-md text-[8px] sm:text-[9px] font-black text-white px-2.5 py-1.5 rounded-lg border border-slate-800 shadow-xl opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100 transition-all origin-bottom-right duration-150 pointer-events-none whitespace-nowrap z-50">
+                Lompati Giliran Kelompok Aktif
+                <div className="absolute top-full right-4 w-1.5 h-1.5 bg-slate-950 rotate-45 border-r border-b border-slate-800" />
+              </div>
+            </div>
           )}
         </div>
       </footer>

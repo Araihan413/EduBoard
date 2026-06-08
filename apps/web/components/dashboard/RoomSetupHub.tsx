@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Clock, Zap, BookOpen, FolderCheck, Search, ShieldCheck, User } from "lucide-react";
+import { Plus, Clock, Zap, BookOpen, FolderCheck, Search, ShieldCheck, User, AlertTriangle } from "lucide-react";
 import { useGameStore } from "../../store/gameStore";
 import { useDebounce } from "../../hooks/useDebounce";
 import { toast } from "sonner";
@@ -30,10 +30,54 @@ export default function RoomSetupHub() {
     maxGroups: 4
   });
 
+  const getSetStatus = (set: any) => {
+    const questions = set.questions || [];
+    const hasDasar = questions.some((q: any) => q.type === 'DASAR');
+    const hasTantangan = questions.some((q: any) => q.type === 'TANTANGAN');
+    const hasPemahaman = questions.some((q: any) => q.type === 'PEMAHAMAN');
+    
+    const missing = [];
+    if (!hasDasar) missing.push("DASAR");
+    if (!hasTantangan) missing.push("TANTANGAN");
+    if (!hasPemahaman) missing.push("PEMAHAMAN");
+    
+    return {
+      isReady: missing.length === 0,
+      missingTypes: missing
+    };
+  };
+
+  const handleSelectSet = (set: any) => {
+    const { isReady, missingTypes } = getSetStatus(set);
+    if (!isReady) {
+      toast.error(
+        <div className="space-y-1.5 text-left w-full flex flex-col items-start">
+          <p className="font-bold text-slate-800 text-xs">Paket belum siap digunakan!</p>
+          <p className="text-[10px] text-slate-500 leading-relaxed">
+            Permainan membutuhkan minimal 1 soal untuk setiap tipe agar tidak macet di tengah jalan.
+          </p>
+          <div className="mt-1 text-[9px] font-bold text-red-600 bg-red-50 px-2.5 py-1.5 rounded-md border border-red-100/50">
+            Tipe yang kurang: {missingTypes.join(", ")}
+          </div>
+        </div>
+      );
+      return;
+    }
+    setSelectedSetId(set.id);
+  };
+
   const handleCreate = () => {
     if (!selectedSetId) {
       toast.error("Harap pilih paket soal terlebih dahulu!");
       return;
+    }
+    const selectedSet = questionSets.find(s => s.id === selectedSetId);
+    if (selectedSet) {
+      const { isReady, missingTypes } = getSetStatus(selectedSet);
+      if (!isReady) {
+        toast.error(`Paket soal belum siap! Tipe soal yang kurang: ${missingTypes.join(", ")}`);
+        return;
+      }
     }
     createRoom({ 
       gameDurationSec: draftConfig.gameDurationMin * 60, 
@@ -99,36 +143,46 @@ export default function RoomSetupHub() {
                   </div>
                 ))
               ) : filteredSets.length > 0 ? (
-                filteredSets.map((set) => (
-                  <button
-                    key={set.id}
-                    onClick={() => setSelectedSetId(set.id)}
-                    className={`p-5 rounded-[1.5rem] border-2 text-left transition-all relative overflow-hidden group ${
-                      selectedSetId === set.id 
-                        ? (set.isPreset ? 'bg-amber-50 border-amber-500 shadow-lg shadow-amber-100' : 'bg-blue-50 border-blue-600 shadow-lg shadow-blue-100')
-                        : 'bg-white border-slate-100 hover:border-slate-200'
-                    }`}
-                  >
-                    {set.isPreset ? (
-                      <div className="absolute top-2 right-2 text-amber-500 flex items-center gap-1 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">
-                        <ShieldCheck size={10} />
-                        <span className="text-[8px] font-black uppercase tracking-tighter">Preset</span>
-                      </div>
-                    ) : selectedSetId === set.id ? (
-                      <div className="absolute top-2 right-2 text-blue-600">
-                        <FolderCheck size={18} />
-                      </div>
-                    ) : (
-                      <div className="absolute top-2 right-2 text-slate-300">
-                        <User size={12} />
-                      </div>
-                    )}
-                    <h5 className={`font-black text-sm mb-1 truncate pr-12 ${selectedSetId === set.id ? (set.isPreset ? 'text-amber-900' : 'text-blue-900') : 'text-slate-700'}`}>{set.title}</h5>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                      {set._count?.questions || 0} Pertanyaan
-                    </p>
-                  </button>
-                ))
+                filteredSets.map((set) => {
+                  const { isReady } = getSetStatus(set);
+                  return (
+                    <button
+                      key={set.id}
+                      onClick={() => handleSelectSet(set)}
+                      className={`p-5 rounded-[1.5rem] border-2 text-left transition-all relative overflow-hidden group ${
+                        selectedSetId === set.id 
+                          ? (set.isPreset ? 'bg-amber-50 border-amber-500 shadow-lg shadow-amber-100' : 'bg-blue-50 border-blue-600 shadow-lg shadow-blue-100')
+                          : !isReady
+                          ? 'bg-slate-50/50 border-slate-100 opacity-70 hover:opacity-100 hover:border-slate-200'
+                          : 'bg-white border-slate-100 hover:border-slate-200'
+                      }`}
+                    >
+                      {set.isPreset ? (
+                        <div className="absolute top-2 right-2 text-amber-500 flex items-center gap-1 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">
+                          <ShieldCheck size={10} />
+                          <span className="text-[8px] font-black uppercase tracking-tighter">Preset</span>
+                        </div>
+                      ) : !isReady ? (
+                        <div className="absolute top-2 right-2 text-red-500 flex items-center gap-1 bg-red-50 px-2 py-0.5 rounded-full border border-red-100/50">
+                          <AlertTriangle size={10} className="animate-pulse" />
+                          <span className="text-[8px] font-black uppercase tracking-tighter">Belum Siap</span>
+                        </div>
+                      ) : selectedSetId === set.id ? (
+                        <div className="absolute top-2 right-2 text-blue-600">
+                          <FolderCheck size={18} />
+                        </div>
+                      ) : (
+                        <div className="absolute top-2 right-2 text-slate-300">
+                          <User size={12} />
+                        </div>
+                      )}
+                      <h5 className={`font-black text-sm mb-1 truncate pr-16 ${selectedSetId === set.id ? (set.isPreset ? 'text-amber-900' : 'text-blue-900') : 'text-slate-700'}`}>{set.title}</h5>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                        {set._count?.questions || 0} Pertanyaan
+                      </p>
+                    </button>
+                  );
+                })
               ) : (
                 <div className="col-span-full p-10 text-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
                   <p className="text-sm font-bold text-slate-400">

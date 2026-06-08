@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { Plus, Pencil, Trash2, Search, BookOpen, Target, Flame, ChevronLeft, FolderOpen, ArrowRight, Download, FileUp, Copy, LayoutGrid, List, ChevronRight, ShieldCheck, User, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, BookOpen, Target, Flame, ChevronLeft, FolderOpen, ArrowRight, Download, FileUp, Copy, LayoutGrid, List, ChevronRight, ShieldCheck, User, Loader2, FileSpreadsheet, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { useGameStore, QuestionCard, QuestionType, QuestionSet } from "../../store/gameStore";
 import { QuestionSchema } from "@repo/types";
+import { api } from "../../lib/api";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 import { useDebounce } from "../../hooks/useDebounce";
@@ -26,6 +27,7 @@ export default function QuestionsManager() {
   const [editingSet, setEditingSet] = useState<QuestionSet | null>(null);
   const [newSetTitle, setNewSetTitle] = useState("");
   const [newSetDescription, setNewSetDescription] = useState("");
+  const [showTemplateDropdown, setShowTemplateDropdown] = useState(false);
   
   // View & Filter states
   const [isMounted, setIsMounted] = useState(false);
@@ -42,6 +44,7 @@ export default function QuestionsManager() {
     setActiveQuestionSet(set);
     setSearchQuery("");
     setActiveFilter("ALL");
+    setShowTemplateDropdown(false);
   };
 
   // Sorting & Filtering for Sets
@@ -126,11 +129,141 @@ export default function QuestionsManager() {
     XLSX.writeFile(wb, "template_soal_eduboard.xlsx");
   };
 
+  const handleDownloadTemplateCSV = () => {
+    const data = [
+      ["type", "text", "points", "answerKey", "options_1", "options_2", "options_3", "options_4"],
+      ["DASAR", "Sebutkan rukun Islam yang pertama", "10", "Syahadat", "Syahadat", "Shalat", "Zakat", "Puasa"],
+      ["TANTANGAN", "Bacakan niat puasa Ramadhan beserta artinya!", "20", "Teacher Grade", "", "", "", ""],
+      ["PEMAHAMAN", "Sebutkan minimal 3 hikmah dari ibadah puasa Ramadhan!", "25", "Teacher Grade", "", "", "", ""]
+    ];
+    
+    const csvRows = data.map(row => 
+      row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(",")
+    );
+    const csvContent = "\uFEFF" + csvRows.join("\r\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "template_soal_eduboard.csv");
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleExportQuestionsExcel = async () => {
+    if (!activeQuestionSet) return;
+    const toastId = toast.loading("Mengekspor seluruh daftar soal ke Excel...");
+    try {
+      const res = await api.get(`/api/questions?setId=${activeQuestionSet.id}&page=1&limit=99999`);
+      const allQuestions: QuestionCard[] = res.data || [];
+      
+      if (allQuestions.length === 0) {
+        toast.dismiss(toastId);
+        toast.error("Paket soal ini tidak memiliki pertanyaan untuk diekspor.");
+        return;
+      }
+
+      const headers = ["type", "text", "points", "answerKey", "options_1", "options_2", "options_3", "options_4"];
+      const rows = allQuestions.map(q => [
+        q.type,
+        q.text,
+        q.points,
+        q.answerKey || "",
+        q.options?.[0] || "",
+        q.options?.[1] || "",
+        q.options?.[2] || "",
+        q.options?.[3] || ""
+      ]);
+
+      const data = [headers, ...rows];
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      
+      // Set column widths for better readability
+      ws['!cols'] = [
+        { wch: 15 }, // type
+        { wch: 50 }, // text
+        { wch: 10 }, // points
+        { wch: 20 }, // answerKey
+        { wch: 15 }, // options_1
+        { wch: 15 }, // options_2
+        { wch: 15 }, // options_3
+        { wch: 15 }, // options_4
+      ];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Daftar Soal");
+      const sanitizedTitle = activeQuestionSet.title.toLowerCase().replace(/[^a-z0-9]/g, "_");
+      XLSX.writeFile(wb, `soal_${sanitizedTitle}.xlsx`);
+      toast.dismiss(toastId);
+      toast.success("Berhasil mengekspor ke Excel!");
+    } catch (err: any) {
+      toast.dismiss(toastId);
+      toast.error("Gagal mengekspor soal: " + err.message);
+    }
+  };
+
+  const handleExportQuestionsCSV = async () => {
+    if (!activeQuestionSet) return;
+    const toastId = toast.loading("Mengekspor seluruh daftar soal ke CSV...");
+    try {
+      const res = await api.get(`/api/questions?setId=${activeQuestionSet.id}&page=1&limit=99999`);
+      const allQuestions: QuestionCard[] = res.data || [];
+      
+      if (allQuestions.length === 0) {
+        toast.dismiss(toastId);
+        toast.error("Paket soal ini tidak memiliki pertanyaan untuk diekspor.");
+        return;
+      }
+
+      const headers = ["type", "text", "points", "answerKey", "options_1", "options_2", "options_3", "options_4"];
+      const rows = allQuestions.map(q => [
+        q.type,
+        q.text,
+        q.points,
+        q.answerKey || "",
+        q.options?.[0] || "",
+        q.options?.[1] || "",
+        q.options?.[2] || "",
+        q.options?.[3] || ""
+      ]);
+      
+      const data = [headers, ...rows];
+      const csvRows = data.map(row => 
+        row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(",")
+      );
+      const csvContent = "\uFEFF" + csvRows.join("\r\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      
+      const sanitizedTitle = activeQuestionSet.title.toLowerCase().replace(/[^a-z0-9]/g, "_");
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `soal_${sanitizedTitle}.csv`);
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.dismiss(toastId);
+      toast.success("Berhasil mengekspor ke CSV!");
+    } catch (err: any) {
+      toast.dismiss(toastId);
+      toast.error("Gagal mengekspor soal: " + err.message);
+    }
+  };
+
   const processImportData = async (rows: any[]) => {
     const validQuestions: any[] = [];
     const errors: string[] = [];
 
     rows.forEach((row, index) => {
+      // Skip completely empty or blank rows (e.g. trailing empty rows in Excel/CSV)
+      if (!row.type?.trim() && !row.text?.trim()) {
+        return;
+      }
+
       try {
         // Transform options from flat columns (options_1, etc) to array
         const options = [
@@ -159,15 +292,15 @@ export default function QuestionsManager() {
 
     if (errors.length > 0) {
       toast.error(
-        <div className="space-y-2">
-          <p className="font-bold">Gagal mengimport beberapa soal:</p>
-          <ul className="text-[10px] list-disc pl-4 max-h-32 overflow-y-auto">
+        <div className="space-y-2 text-left w-full flex flex-col items-start">
+          <p className="font-bold text-slate-800 text-xs">Gagal mengimport beberapa soal:</p>
+          <ul className="text-[10px] list-disc pl-4 max-h-32 overflow-y-auto text-slate-600 space-y-1 w-full text-left">
             {errors.map((err, i) => <li key={i}>{err}</li>)}
           </ul>
           {validQuestions.length > 0 && (
             <button 
               onClick={() => proceedImport(validQuestions)}
-              className="mt-2 text-[10px] bg-blue-600 text-white px-3 py-1 rounded-lg font-black uppercase tracking-widest"
+              className="mt-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest rounded-md transition-all shadow-sm cursor-pointer self-center"
             >
               Lanjutkan Import {validQuestions.length} Soal Valid
             </button>
@@ -313,12 +446,60 @@ export default function QuestionsManager() {
             <h2 className="text-3xl font-black text-slate-900 tracking-tight">Perpustakaan Soal</h2>
             <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-2">Kelola paket soal permainan Anda</p>
           </div>
-          <button 
-            onClick={() => setShowSetModal(true)}
-            className="px-6 py-4 bg-[#2c49c5] hover:bg-[#1a34a8] text-white font-black rounded-2xl flex items-center justify-center shadow-xl shadow-blue-500/20 transition-all gap-3"
-          >
-            <Plus size={20}/> <span>Paket Baru</span>
-          </button>
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <div className="relative flex-1 sm:flex-initial">
+              {/* Tooltip trigger wrapper */}
+              <div className="relative group">
+                <button 
+                  type="button"
+                  onClick={() => setShowTemplateDropdown(!showTemplateDropdown)}
+                  className="w-full sm:w-auto px-4 py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-2xl flex items-center justify-center transition-all cursor-pointer gap-2"
+                >
+                  <Download size={20} /> <span className="inline">Template</span>
+                </button>
+                {/* Tooltip */}
+                <div className="absolute top-full mt-2.5 left-1/2 -translate-x-1/2 bg-slate-950/95 backdrop-blur-md text-[9px] font-black text-white px-2.5 py-1.5 rounded-lg border border-slate-800 shadow-xl opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100 transition-all origin-top duration-150 pointer-events-none whitespace-nowrap z-50">
+                  Unduh template Excel / CSV untuk import soal massal
+                  <div className="absolute top-[-3.5px] left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-slate-950 rotate-45 border-l border-t border-slate-800" />
+                </div>
+              </div>
+              
+              {/* Dropdown Menu */}
+              {showTemplateDropdown && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowTemplateDropdown(false)} />
+                  <div className="absolute left-0 mt-2 w-48 bg-white rounded-2xl border border-slate-100 shadow-2xl p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleDownloadTemplate();
+                        setShowTemplateDropdown(false);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-4 py-3 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl text-left cursor-pointer"
+                    >
+                      <FileSpreadsheet size={16} className="text-emerald-600" /> Format Excel (.xlsx)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleDownloadTemplateCSV();
+                        setShowTemplateDropdown(false);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-4 py-3 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl text-left cursor-pointer"
+                    >
+                      <FileText size={16} className="text-blue-500" /> Format CSV (.csv)
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+            <button 
+              onClick={() => setShowSetModal(true)}
+              className="flex-1 sm:flex-initial px-6 py-4 bg-[#2c49c5] hover:bg-[#1a34a8] text-white font-black rounded-2xl flex items-center justify-center shadow-xl shadow-blue-500/20 transition-all gap-3"
+            >
+              <Plus size={20}/> <span>Paket Baru</span>
+            </button>
+          </div>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-4">
@@ -579,32 +760,83 @@ export default function QuestionsManager() {
             </div>
           </div>
         </div>
-        <div className="flex items-center justify-end gap-3">
+        <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto flex-wrap sm:flex-nowrap">
           {activeQuestionSet.isPreset ? (
             <button 
               onClick={() => handleDuplicate(activeQuestionSet.id)}
-              className="px-6 py-4 bg-amber-500 hover:bg-amber-600 text-white font-black rounded-2xl flex items-center justify-center shadow-xl shadow-amber-500/20 transition-all gap-3"
+              className="px-6 py-4 bg-amber-500 hover:bg-amber-600 text-white font-black rounded-2xl flex items-center justify-center shadow-xl shadow-amber-500/20 transition-all gap-3 w-full sm:w-auto"
             >
               <Copy size={20}/> <span>Salin ke Koleksi</span>
             </button>
           ) : (
             <>
-              <button 
-                onClick={handleDownloadTemplate}
-                className="px-4 py-3 bg-slate-50 hover:bg-slate-200 text-slate-600 rounded-xl transition-all flex items-center gap-2 text-xs font-bold cursor-pointer"
-                title="Unduh Template Excel"
-              >
-                <Download size={20} /> <span className="hidden sm:inline">Template</span>
-              </button>
-              <label className="px-4 py-3 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-xl transition-all flex items-center gap-2 text-xs font-bold cursor-pointer">
-                <FileUp size={20} /> <span className="hidden sm:inline">Import Excel/CSV</span>
-                <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportFile} />
-              </label>
+              {/* Export Selector with Tooltip */}
+              <div className="relative flex-1 sm:flex-initial">
+                {/* Tooltip trigger wrapper */}
+                <div className="relative group">
+                  <button 
+                    onClick={() => setShowTemplateDropdown(!showTemplateDropdown)}
+                    className="w-full px-3 py-2.5 text-[11px] sm:px-4 sm:py-3 sm:text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-all flex items-center justify-center gap-1.5 sm:gap-2 font-bold cursor-pointer"
+                  >
+                    <Download size={16} className="w-4 h-4 sm:w-5 sm:h-5" /> <span className="inline">Export</span>
+                  </button>
+                  {/* Tooltip */}
+                  <div className="absolute top-full mt-2.5 left-1/2 -translate-x-1/2 bg-slate-950/95 backdrop-blur-md text-[9px] font-black text-white px-2.5 py-1.5 rounded-lg border border-slate-800 shadow-xl opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100 transition-all origin-top duration-150 pointer-events-none whitespace-nowrap z-50">
+                    Ekspor daftar soal ke Excel / CSV
+                    <div className="absolute top-[-3.5px] left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-slate-950 rotate-45 border-l border-t border-slate-800" />
+                  </div>
+                </div>
+                
+                {/* Dropdown Menu */}
+                {showTemplateDropdown && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowTemplateDropdown(false)} />
+                    <div className="absolute left-0 sm:left-auto sm:right-0 mt-2 w-48 bg-white rounded-2xl border border-slate-100 shadow-2xl p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleExportQuestionsExcel();
+                          setShowTemplateDropdown(false);
+                        }}
+                        className="w-full flex items-center gap-2.5 px-4 py-3 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl text-left cursor-pointer"
+                      >
+                        <FileSpreadsheet size={16} className="text-emerald-600" /> Format Excel (.xlsx)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleExportQuestionsCSV();
+                          setShowTemplateDropdown(false);
+                        }}
+                        className="w-full flex items-center gap-2.5 px-4 py-3 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl text-left cursor-pointer"
+                      >
+                        <FileText size={16} className="text-blue-500" /> Format CSV (.csv)
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Import Button with Tooltip */}
+              <div className="relative flex-1 sm:flex-initial">
+                <div className="relative group">
+                  <label className="w-full px-3 py-2.5 text-[11px] sm:px-4 sm:py-3 sm:text-xs bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-xl transition-all flex items-center justify-center gap-1.5 sm:gap-2 font-bold cursor-pointer">
+                    <FileUp size={16} className="w-4 h-4 sm:w-5 sm:h-5" /> <span className="inline">Import</span>
+                    <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportFile} />
+                  </label>
+                  {/* Tooltip */}
+                  <div className="absolute top-full mt-2.5 left-1/2 -translate-x-1/2 bg-slate-950/95 backdrop-blur-md text-[9px] font-black text-white px-2.5 py-1.5 rounded-lg border border-slate-800 shadow-xl opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100 transition-all origin-top duration-150 pointer-events-none whitespace-nowrap z-50">
+                    Unggah berkas Excel / CSV untuk memasukkan soal ke paket ini
+                    <div className="absolute top-[-3.5px] left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-slate-950 rotate-45 border-l border-t border-slate-800" />
+                  </div>
+                </div>
+              </div>
+
               <button 
                 onClick={() => { setEditingQuestion(null); setShowQuestionModal(true); }}
-                className="px-6 py-4 bg-[#2c49c5] hover:bg-[#1a34a8] text-white font-black rounded-2xl flex items-center justify-center shadow-xl shadow-blue-500/20 transition-all gap-3"
+                className="px-4 py-2.5 text-[11px] sm:px-6 sm:py-4 sm:text-sm bg-[#2c49c5] hover:bg-[#1a34a8] text-white font-black rounded-2xl flex items-center justify-center shadow-xl shadow-blue-500/20 transition-all gap-1.5 sm:gap-3 flex-1 sm:flex-initial"
               >
-                <Plus size={20}/> <span>Tambah Soal</span>
+                <Plus size={16} className="w-4 h-4 sm:w-5 sm:h-5" /> <span className="whitespace-nowrap">Tambah Soal</span>
               </button>
             </>
           )}

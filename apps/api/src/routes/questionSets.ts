@@ -27,6 +27,9 @@ export async function questionSetRoutes(fastify: FastifyInstance) {
       prisma.questionSet.findMany({
         where,
         include: {
+          questions: {
+            select: { type: true }
+          },
           _count: {
             select: { questions: true }
           }
