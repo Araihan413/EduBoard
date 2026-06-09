@@ -452,6 +452,11 @@ export const useGameStore = create<GameState & GameActions>()(
         socket.on("room:superseded", () => {
           set({ isSuperseded: true });
         });
+ 
+        socket.on("connect_error", (err) => {
+          console.error("Socket connection error:", err);
+          toast.error("Koneksi real-time terputus/gagal. Pastikan jaringan internet Anda stabil atau tidak diblokir.");
+        });
       }
 
       return {

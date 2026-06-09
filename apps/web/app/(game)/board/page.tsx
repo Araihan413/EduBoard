@@ -244,7 +244,7 @@ function BoardPage() {
 
   let loadingCategory = "Sinkronisasi";
   let loadingTitle = "MEMUAT PAPAN";
-  let loadingDesc = "Sedang memproses peta 3D, mensinkronisasikan dadu, dan menyiapkan ubin permainan.";
+  let loadingDesc = "Sedang memproses peta, mensinkronisasikan dadu, dan menyiapkan ubin permainan.";
 
   if (isWaitingForGuru) {
     loadingCategory = "Pemberitahuan Sistem";

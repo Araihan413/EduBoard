@@ -66,7 +66,7 @@ export default function GuidePage() {
               Setiap giliran dimulai dengan melempar dadu virtual. Angka yang muncul (1-6) akan menentukan berapa banyak petak yang harus dilalui oleh kelompokmu. Pastikan posisi timmu selalu terpantau di papan permainan!
             </p>
             <ul className="space-y-4 pt-4">
-              <ListItem text="Dadu diputar secara otomatis dengan animasi 3D premium." />
+              <ListItem text="Dadu diputar secara otomatis dengan animasi 3D." />
               <ListItem text="Posisi tim akan berpindah secara otomatis setelah dadu berhenti." />
             </ul>
           </motion.div>
