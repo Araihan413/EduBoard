@@ -41,33 +41,33 @@ export default function ConfirmationDialog({
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
             style={{ willChange: "transform, opacity" }}
-            className="relative w-full max-w-sm bg-white rounded-[2.5rem] p-8 landscape-mobile:p-4 shadow-[0_40px_100px_rgba(0,0,0,0.3)] border border-slate-100 flex flex-col items-center text-center overflow-hidden pointer-events-auto landscape-mobile:rounded-2xl"
+            className="relative w-full max-w-sm bg-white rounded-[2.5rem] p-8 landscape-mobile:p-3.5 shadow-[0_40px_100px_rgba(0,0,0,0.3)] border border-slate-100 flex flex-col items-center text-center overflow-hidden pointer-events-auto landscape-mobile:max-w-[240px] landscape-mobile:rounded-2xl"
           >
             {/* Decoration */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full -translate-y-1/2 translate-x-1/2 landscape-mobile:hidden" />
+            <div className="absolute top-0 right-0 w-32 h-32 bg-red-50/5 rounded-full -translate-y-1/2 translate-x-1/2 landscape-mobile:hidden" />
  
             {/* Icon */}
-            <div className="w-20 h-20 landscape-mobile:w-10 landscape-mobile:h-10 bg-red-50 rounded-3xl landscape-mobile:rounded-xl flex items-center justify-center mb-6 landscape-mobile:mb-2 border border-red-100 shadow-inner">
-              <AlertCircle className="w-10 h-10 landscape-mobile:w-5 landscape-mobile:h-5 text-red-500" />
+            <div className="w-20 h-20 landscape-mobile:w-8 landscape-mobile:h-8 bg-red-50 rounded-3xl landscape-mobile:rounded-xl flex items-center justify-center mb-6 landscape-mobile:mb-1.5 border border-red-100 shadow-inner">
+              <AlertCircle className="w-10 h-10 landscape-mobile:w-4.5 landscape-mobile:h-4.5 text-red-500" />
             </div>
  
-            <h3 className="text-2xl landscape-mobile:text-base font-black text-slate-900 tracking-tight mb-2 landscape-mobile:mb-1">
+            <h3 className="text-2xl landscape-mobile:text-sm font-black text-slate-900 tracking-tight mb-2 landscape-mobile:mb-0.5">
               {title}
             </h3>
-            <p className="text-slate-500 font-medium leading-relaxed mb-8 landscape-mobile:mb-4 landscape-mobile:text-[11px] landscape-mobile:leading-normal">
+            <p className="text-slate-500 font-medium leading-relaxed mb-8 landscape-mobile:mb-3.5 landscape-mobile:text-[9.5px] landscape-mobile:leading-normal">
               {description}
             </p>
  
-            <div className="flex flex-col landscape-mobile:flex-row w-full gap-3 landscape-mobile:gap-2">
+            <div className="flex flex-col landscape-mobile:flex-row w-full gap-3 landscape-mobile:gap-1.5">
               <button
                 onClick={onConfirm}
-                className="w-full py-4 landscape-mobile:py-1.5 bg-red-500 hover:bg-red-600 text-white font-black rounded-2xl landscape-mobile:rounded-lg landscape-mobile:text-[11px] tracking-wide transition-all shadow-lg shadow-red-500/20 active:scale-95"
+                className="w-full py-4 landscape-mobile:py-1 bg-red-500 hover:bg-red-600 text-white font-black rounded-2xl landscape-mobile:rounded-lg landscape-mobile:text-[10px] tracking-wide transition-all shadow-lg shadow-red-500/20 active:scale-95"
               >
                 {confirmLabel}
               </button>
               <button
                 onClick={onCancel}
-                className="w-full py-4 landscape-mobile:py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold rounded-2xl landscape-mobile:rounded-lg landscape-mobile:text-[11px] transition-all active:scale-95"
+                className="w-full py-4 landscape-mobile:py-1 bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold rounded-2xl landscape-mobile:rounded-lg landscape-mobile:text-[10px] transition-all active:scale-95"
               >
                 {cancelLabel}
               </button>

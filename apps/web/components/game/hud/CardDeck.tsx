@@ -64,12 +64,12 @@ export default function CardDeck({ type, label, isDrawn }: CardDeckProps) {
         )}
       </AnimatePresence>
       {/* Stack layers */}
-      <div className="absolute inset-0 translate-x-[4px] translate-y-[4px] sm:translate-x-[6px] sm:translate-y-[6px] landscape-mobile:translate-x-[2.5px] landscape-mobile:translate-y-[2.5px] bg-slate-300 rounded-lg sm:rounded-xl" />
-      <div className="absolute inset-0 translate-x-[2px] translate-y-[2px] sm:translate-x-[3px] sm:translate-y-[3px] landscape-mobile:translate-x-[1.2px] landscape-mobile:translate-y-[1.2px] bg-slate-200 rounded-lg sm:rounded-xl border border-slate-300" />
+      <div className="absolute inset-0 translate-x-[4px] translate-y-[4px] sm:translate-x-[6px] sm:translate-y-[6px] landscape-mobile:translate-x-[2.5px] landscape-mobile:translate-y-[2.5px] bg-slate-300 rounded-lg sm:rounded-xl landscape-mobile:!rounded-[4px]" />
+      <div className="absolute inset-0 translate-x-[2px] translate-y-[2px] sm:translate-x-[3px] sm:translate-y-[3px] landscape-mobile:translate-x-[1.2px] landscape-mobile:translate-y-[1.2px] bg-slate-200 rounded-lg sm:rounded-xl border border-slate-300 landscape-mobile:!rounded-[4px]" />
 
       {/* Top Card Face */}
       <div
-        className={`absolute inset-0 bg-white rounded-lg sm:rounded-xl flex flex-col items-center justify-center border border-white sm:border-2 shadow-xl overflow-hidden transition-all duration-500 ${
+        className={`absolute inset-0 bg-white rounded-lg sm:rounded-xl landscape-mobile:!rounded-[4px] flex flex-col items-center justify-center border border-white sm:border-2 shadow-xl overflow-hidden transition-all duration-500 ${
           isDrawn ? "opacity-30 scale-95" : "opacity-100"
         }`}
       >

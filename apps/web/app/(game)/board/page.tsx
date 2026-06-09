@@ -48,26 +48,26 @@ export default function BoardPageWrapper() {
     <Suspense fallback={
       <div className="min-h-screen bg-[#f8fafc] flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
         {/* Floating Glassmorphic Container */}
-        <div className="relative z-10 w-full max-w-sm bg-white/80 backdrop-blur-xl border border-white/60 rounded-[2.5rem] p-8 md:p-10 shadow-[0_30px_70px_rgba(148,163,184,0.12)] flex flex-col items-center">
+        <div className="relative z-10 w-full max-w-sm bg-white/80 backdrop-blur-xl border border-white/60 rounded-[2.5rem] p-8 md:p-10 landscape-mobile:py-5 landscape-mobile:px-6 landscape-mobile:rounded-2xl shadow-[0_30px_70px_rgba(148,163,184,0.12)] flex flex-col items-center">
           {/* Glowing Animated Icon Assembly */}
-          <div className="relative w-24 h-24 mb-8 flex items-center justify-center">
+          <div className="relative w-24 h-24 mb-8 landscape-mobile:w-14 landscape-mobile:h-14 landscape-mobile:mb-3 flex items-center justify-center">
             <div className="absolute inset-0 rounded-full border-2 border-dashed border-[#2c49c5]/30 animate-spin-slow" />
-            <div className="absolute w-16 h-16 rounded-full bg-[#2c49c5]/10 border border-[#2c49c5]/20 animate-ping" />
-            <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-[#2c49c5] to-indigo-600 flex items-center justify-center shadow-[0_0_30px_rgba(44,73,197,0.3)]">
-              <Trophy className="w-5 h-5 text-white animate-pulse" />
+            <div className="absolute w-16 h-16 rounded-full bg-[#2c49c5]/10 border border-[#2c49c5]/20 animate-ping landscape-mobile:w-10 landscape-mobile:h-10" />
+            <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-[#2c49c5] to-indigo-600 flex items-center justify-center shadow-[0_0_30px_rgba(44,73,197,0.3)] landscape-mobile:w-8 landscape-mobile:h-8 landscape-mobile:rounded-xl">
+              <Trophy className="w-5 h-5 text-white animate-pulse landscape-mobile:w-4 landscape-mobile:h-4" />
             </div>
           </div>
 
-          <p className="text-[10px] font-black text-indigo-600 tracking-[0.3em] uppercase mb-2">Sinkronisasi</p>
-          <h2 className="text-xl md:text-2xl font-serif font-black tracking-wide text-slate-800 mb-3 text-center uppercase">MEMULAI ARENA</h2>
-          <p className="text-slate-500 text-xs md:text-sm font-medium leading-relaxed max-w-xs mb-8 text-center">
+          <p className="text-[10px] font-black text-indigo-600 tracking-[0.3em] uppercase mb-2 landscape-mobile:mb-1 landscape-mobile:text-[8px]">Sinkronisasi</p>
+          <h2 className="text-xl md:text-2xl font-serif font-black tracking-wide text-slate-800 mb-3 text-center uppercase landscape-mobile:text-sm landscape-mobile:mb-1.5">MEMULAI ARENA</h2>
+          <p className="text-slate-500 text-xs md:text-sm font-medium leading-relaxed max-w-xs mb-8 text-center landscape-mobile:mb-4.5 landscape-mobile:text-[10px] landscape-mobile:leading-snug">
             Sedang menyiapkan koneksi dan memuat data game.
           </p>
 
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 bg-[#2c49c5] rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-            <span className="w-2.5 h-2.5 bg-slate-200 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-            <span className="w-2.5 h-2.5 bg-[#2c49c5]/70 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+          <div className="flex items-center gap-2 landscape-mobile:gap-1.5">
+            <span className="w-2.5 h-2.5 bg-[#2c49c5] rounded-full animate-bounce landscape-mobile:w-2 landscape-mobile:h-2" style={{ animationDelay: "0ms" }} />
+            <span className="w-2.5 h-2.5 bg-slate-200 rounded-full animate-bounce landscape-mobile:w-2 landscape-mobile:h-2" style={{ animationDelay: "150ms" }} />
+            <span className="w-2.5 h-2.5 bg-[#2c49c5]/70 rounded-full animate-bounce landscape-mobile:w-2 landscape-mobile:h-2" style={{ animationDelay: "300ms" }} />
           </div>
         </div>
       </div>
@@ -99,6 +99,7 @@ function BoardPage() {
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [showLeaderboardModal, setShowLeaderboardModal] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isLandscapeMobile, setIsLandscapeMobile] = useState(false);
   const [diceSize, setDiceSize] = useState(75);
   const [showRollReminder, setShowRollReminder] = useState(false);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
@@ -108,7 +109,8 @@ function BoardPage() {
       const width = window.innerWidth;
       const height = window.innerHeight;
       setIsMobile(width < 1024);
-      if (height <= 500 && width > height) {
+      setIsLandscapeMobile(height <= 600 && width > height && width < 1024);
+      if (height <= 600 && width > height && width < 1024) {
         setDiceSize(42); // Landscape mobile
       } else if (width < 768) {
         setDiceSize(52); // Mobile
@@ -407,21 +409,21 @@ function BoardPage() {
         <WorldContainer groups={groups} onMapLoaded={() => setIsMapLoaded(true)} />
 
         {/* ── PLAYER SIDEBAR (DESKTOP) & HORIZONTAL SCROLL BAR (MOBILE) ────────── */}
-        {!isMobile ? (
-          <div className={`fixed ${sidebarTopClass} left-6 flex flex-col gap-1.5 sm:gap-2 z-30 transition-all duration-300 max-h-[76vh] w-fit min-w-[140px] sm:min-w-[185px] opacity-100 scale-100 pointer-events-auto`}>
+        {(!isMobile || isLandscapeMobile) ? (
+          <div className={`fixed ${sidebarTopClass} landscape-mobile:top-[68px] left-6 landscape-mobile:left-3 flex flex-col gap-1.5 sm:gap-2 landscape-mobile:gap-1 z-30 transition-all duration-300 max-h-[76vh] landscape-mobile:max-h-[82vh] w-fit min-w-[140px] sm:min-w-[185px] landscape-mobile:min-w-[120px] landscape-mobile:max-w-[125px] opacity-100 scale-100 pointer-events-auto`}>
             {/* CTA Leaderboard Button */}
             <motion.div 
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               onClick={() => setShowLeaderboardModal(true)}
-              className="flex items-center gap-2 px-3.5 py-2 bg-slate-900/90 hover:bg-slate-800 backdrop-blur-xl border border-slate-800 hover:border-slate-700 rounded-xl cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-xl w-fit pointer-events-auto mb-2 text-white group"
+              className="flex items-center gap-2 landscape-mobile:gap-1 px-3.5 py-2 landscape-mobile:px-2.5 landscape-mobile:py-1.5 bg-slate-900/90 hover:bg-slate-800 backdrop-blur-xl border border-slate-800 hover:border-slate-700 rounded-xl landscape-mobile:rounded-lg cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-xl w-fit pointer-events-auto mb-2 landscape-mobile:mb-2.5 text-white group"
             >
-              <Trophy className="w-3.5 h-3.5 text-yellow-400 group-hover:animate-bounce" />
-              <span className="text-[9px] font-black uppercase tracking-widest leading-none">Papan Skor</span>
+              <Trophy className="w-3.5 h-3.5 landscape-mobile:w-3 landscape-mobile:h-3 text-yellow-400 group-hover:animate-bounce" />
+              <span className="text-[9px] landscape-mobile:text-[8px] font-black uppercase tracking-widest leading-none">Papan Skor</span>
             </motion.div>
 
             {/* Scrollable Player List Wrapper */}
-            <div className="overflow-y-auto overflow-x-visible px-2.5 py-1.5 space-y-2.5 custom-scrollbar max-h-[64vh] w-full">
+            <div className="overflow-y-auto overflow-x-visible px-2.5 py-1.5 landscape-mobile:px-1.5 landscape-mobile:py-1 space-y-2.5 landscape-mobile:space-y-1.5 custom-scrollbar max-h-[64vh] landscape-mobile:max-h-[66vh] w-full">
               {[...groups]
                 .map((g, i) => ({ ...g, originalIndex: i }))
                 .sort((a, b) => b.score - a.score)
@@ -459,7 +461,7 @@ function BoardPage() {
                       whileHover={{ x: 3, scale: isMyTurn ? 1.07 : 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => setShowLeaderboardModal(true)}
-                      className={`relative flex items-center gap-3 p-2 pr-8 rounded-xl border cursor-pointer pointer-events-auto shadow-md hover:shadow-lg ${
+                      className={`relative flex items-center gap-3 landscape-mobile:gap-1.5 p-2 pr-8 landscape-mobile:p-1.5 landscape-mobile:pr-4 rounded-xl landscape-mobile:rounded-lg border cursor-pointer pointer-events-auto shadow-md hover:shadow-lg ${
                         isMyTurn
                           ? "z-10 shadow-[0_4px_20px_rgba(59,130,246,0.12)]"
                           : isSurrendered
@@ -467,10 +469,10 @@ function BoardPage() {
                           : "backdrop-blur-md"
                       }`}
                     >
-                      {isMyTurn && <div className="absolute inset-0 rounded-xl shadow-[0_0_15px_rgba(59,130,246,0.25)] animate-pulse" />}
+                      {isMyTurn && <div className="absolute inset-0 rounded-xl landscape-mobile:rounded-lg shadow-[0_0_15px_rgba(59,130,246,0.25)] animate-pulse" />}
 
                       <div className="relative flex-shrink-0">
-                        <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-white shadow-md flex items-center justify-center"
+                        <div className="w-10 h-10 landscape-mobile:w-7 landscape-mobile:h-7 rounded-full overflow-hidden border-2 border-white shadow-md flex items-center justify-center"
                              style={{ backgroundColor: g.color || "#3b82f6" }}>
                           <NextImage
                             src={`https://api.dicebear.com/7.x/adventurer/png?seed=${g.avatar || g.name}`}
@@ -486,24 +488,24 @@ function BoardPage() {
                           <div className="absolute -bottom-0.5 -right-0.5 px-0.5 bg-red-600 text-[6px] font-black text-white rounded-full border border-white">OUT</div>
                         )}
                         {isLeader && (
-                          <div className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-yellow-400 rounded-full flex items-center justify-center shadow-lg border border-white">
-                            <Trophy className="w-2.5 h-2.5 text-yellow-900" />
+                          <div className="absolute -top-0.5 -right-0.5 w-5 h-5 landscape-mobile:w-4 landscape-mobile:h-4 bg-yellow-400 rounded-full flex items-center justify-center shadow-lg border border-white">
+                            <Trophy className="w-2.5 h-2.5 landscape-mobile:w-2 landscape-mobile:h-2 text-yellow-950" />
                           </div>
                         )}
                       </div>
 
-                      <div className="flex flex-col min-w-[60px]">
-                        <span className={`text-[11px] font-black tracking-tight leading-none mb-0.5 ${isMyTurn ? "text-slate-900" : "text-slate-600"} ${isSurrendered ? "line-through opacity-50" : ""}`}>
+                      <div className="flex flex-col min-w-[60px] landscape-mobile:min-w-[45px]">
+                        <span className={`text-[11px] landscape-mobile:text-[9.5px] font-black tracking-tight leading-none mb-0.5 ${isMyTurn ? "text-slate-900" : "text-slate-600"} ${isSurrendered ? "line-through opacity-50" : ""}`}>
                           {g.name}
                         </span>
                         <div className="flex items-center gap-1">
-                          <span className="text-[10px] font-black text-blue-600 leading-none">{g.score}</span>
+                          <span className="text-[10px] landscape-mobile:text-[8.5px] font-black text-blue-600 leading-none">{g.score}</span>
                           <span className="text-[7px] font-bold text-slate-400 uppercase tracking-tighter leading-none">Pts</span>
                         </div>
                       </div>
 
                       {isMyTurn && (
-                        <motion.div layoutId="active-marker" className="absolute right-2.5 w-1.5 h-4 bg-blue-500 rounded-full" />
+                        <motion.div layoutId="active-marker" className="absolute right-2.5 landscape-mobile:right-1.5 w-1.5 h-4 landscape-mobile:h-3 bg-blue-500 rounded-full" />
                       )}
                     </motion.div>
                   );
@@ -512,15 +514,15 @@ function BoardPage() {
           </div>
         ) : (
           /* Mobile & Tablet Horizontal Scrollable Player list directly below HUD */
-          <div className={`fixed ${standingsTopClass} landscape-mobile:top-[38px] left-3 md:left-6 right-3 md:right-6 z-30 flex items-center gap-2 md:gap-4.5 landscape-mobile:gap-1.5 overflow-x-auto py-2 landscape-mobile:py-1 scrollbar-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pointer-events-auto scroll-smooth`}>
+          <div className={`fixed ${standingsTopClass} left-3 md:left-6 right-3 md:right-6 z-30 flex items-center gap-2 md:gap-4.5 overflow-x-auto py-2 scrollbar-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pointer-events-auto scroll-smooth`}>
             {/* Compact Leaderboard CTA Button */}
             <motion.button
               whileTap={{ scale: 0.9 }}
               onClick={() => setShowLeaderboardModal(true)}
-              className="flex flex-col items-center justify-center w-[46px] md:w-[68px] landscape-mobile:w-[38px] h-[38px] md:h-[50px] landscape-mobile:h-[28px] bg-slate-950/90 backdrop-blur-xl border border-slate-800 rounded-lg md:rounded-xl landscape-mobile:rounded-md flex-shrink-0 cursor-pointer shadow-md text-yellow-400 active:scale-95 transition-all"
+              className="flex flex-col items-center justify-center w-[46px] md:w-[68px] h-[38px] md:h-[50px] bg-slate-950/90 backdrop-blur-xl border border-slate-800 rounded-lg md:rounded-xl flex-shrink-0 cursor-pointer shadow-md text-yellow-400 active:scale-95 transition-all"
             >
-              <Trophy className="w-3.5 md:w-5 h-3.5 md:h-5 landscape-mobile:w-3 landscape-mobile:h-3" />
-              <span className="text-[6.5px] md:text-[8.5px] landscape-mobile:text-[5.5px] font-black uppercase tracking-tighter leading-none mt-0.5 landscape-mobile:mt-0">Skor</span>
+              <Trophy className="w-3.5 md:w-5 h-3.5 md:h-5" />
+              <span className="text-[6.5px] md:text-[8.5px] font-black uppercase tracking-tighter leading-none mt-0.5">Skor</span>
             </motion.button>
 
             {[...groups]
@@ -558,7 +560,7 @@ function BoardPage() {
                     }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setShowLeaderboardModal(true)}
-                    className={`flex items-center gap-1.5 md:gap-3 landscape-mobile:gap-1 p-1 md:p-2 pr-2.5 md:pr-5 md:pl-2.5 landscape-mobile:p-0.5 landscape-mobile:pr-1.5 rounded-lg md:rounded-xl landscape-mobile:rounded-md border flex-shrink-0 min-w-[95px] md:min-w-[160px] landscape-mobile:min-w-[75px] max-w-[120px] md:max-w-[190px] landscape-mobile:max-w-[85px] cursor-pointer shadow-sm relative ${
+                    className={`flex items-center gap-1.5 md:gap-3 p-1 md:p-2 pr-2.5 md:pr-5 md:pl-2.5 rounded-lg md:rounded-xl border flex-shrink-0 min-w-[95px] md:min-w-[160px] max-w-[120px] md:max-w-[190px] cursor-pointer shadow-sm relative ${
                       isMyTurn
                         ? "shadow-[0_2px_10px_rgba(59,130,246,0.18)]"
                         : isSurrendered
@@ -566,10 +568,10 @@ function BoardPage() {
                         : "backdrop-blur-md"
                     }`}
                   >
-                    {isMyTurn && <div className="absolute inset-0 rounded-lg md:rounded-xl landscape-mobile:rounded-md shadow-[0_0_8px_rgba(59,130,246,0.3)] animate-pulse" />}
+                    {isMyTurn && <div className="absolute inset-0 rounded-lg md:rounded-xl shadow-[0_0_8px_rgba(59,130,246,0.3)] animate-pulse" />}
 
                     <div className="relative flex-shrink-0">
-                      <div className="w-6.5 h-6.5 md:w-10 md:h-10 landscape-mobile:w-5.5 landscape-mobile:h-5.5 rounded-full overflow-hidden border border-white shadow flex items-center justify-center flex-shrink-0"
+                      <div className="w-6.5 h-6.5 md:w-10 md:h-10 rounded-full overflow-hidden border border-white shadow flex items-center justify-center flex-shrink-0"
                            style={{ backgroundColor: g.color || "#3b82f6" }}>
                         <NextImage
                           src={`https://api.dicebear.com/7.x/adventurer/png?seed=${g.avatar || g.name}`}
@@ -579,25 +581,25 @@ function BoardPage() {
                         />
                       </div>
                       {g.isOffline && !isSurrendered && (
-                        <div className="absolute -bottom-0.5 -right-0.5 px-0.5 md:px-1 landscape-mobile:px-0.5 bg-slate-900 text-[4px] md:text-[6px] landscape-mobile:text-[3px] font-black text-white rounded-full border border-white">OFF</div>
+                        <div className="absolute -bottom-0.5 -right-0.5 px-0.5 md:px-1 bg-slate-900 text-[4px] md:text-[6px] font-black text-white rounded-full border border-white">OFF</div>
                       )}
                       {isSurrendered && (
-                        <div className="absolute -bottom-0.5 -right-0.5 px-0.5 md:px-1 landscape-mobile:px-0.5 bg-red-600 text-[4px] md:text-[6px] landscape-mobile:text-[3px] font-black text-white rounded-full border border-white">OUT</div>
+                        <div className="absolute -bottom-0.5 -right-0.5 px-0.5 md:px-1 bg-red-600 text-[4px] md:text-[6px] font-black text-white rounded-full border border-white">OUT</div>
                       )}
                       {isLeader && (
-                        <div className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 md:w-5 md:h-5 landscape-mobile:w-3 landscape-mobile:h-3 bg-yellow-400 rounded-full flex items-center justify-center shadow border border-white">
-                          <Trophy className="w-1.5 md:w-3 h-1.5 md:h-3 landscape-mobile:w-1.5 landscape-mobile:h-1.5 text-yellow-900" />
+                        <div className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 md:w-5 md:h-5 bg-yellow-400 rounded-full flex items-center justify-center shadow border border-white">
+                          <Trophy className="w-1.5 md:w-3 h-1.5 md:h-3 text-yellow-900" />
                         </div>
                       )}
                     </div>
 
-                    <div className="flex flex-col min-w-[45px] md:min-w-[75px] landscape-mobile:min-w-[32px] truncate">
-                      <span className={`text-[8.5px] md:text-[12px] landscape-mobile:text-[7.5px] font-black tracking-tight leading-none mb-0.5 truncate ${isMyTurn ? "text-slate-900" : "text-white"} ${isSurrendered ? "line-through opacity-50" : ""}`}>
+                    <div className="flex flex-col min-w-[45px] md:min-w-[75px] truncate">
+                      <span className={`text-[8.5px] md:text-[12px] font-black tracking-tight leading-none mb-0.5 truncate ${isMyTurn ? "text-slate-900" : "text-white"} ${isSurrendered ? "line-through opacity-50" : ""}`}>
                         {g.name}
                       </span>
                       <div className="flex items-center gap-0.5 md:gap-1">
-                        <span className="text-[8px] md:text-[10px] landscape-mobile:text-[7px] font-black text-blue-500 leading-none">{g.score}</span>
-                        <span className="text-[5.5px] md:text-[7px] landscape-mobile:text-[5px] font-bold text-slate-400 uppercase tracking-tighter leading-none">Pts</span>
+                        <span className="text-[8px] md:text-[10px] font-black text-blue-500 leading-none">{g.score}</span>
+                        <span className="text-[5.5px] md:text-[7px] font-bold text-slate-400 uppercase tracking-tighter leading-none">Pts</span>
                       </div>
                     </div>
                   </motion.div>
@@ -685,13 +687,15 @@ function BoardPage() {
             initial={{ y: -50, x: "-50%", opacity: 0 }}
             animate={{ y: 24, x: "-50%", opacity: 1 }}
             exit={{ y: -50, x: "-50%", opacity: 0 }}
-            className="fixed top-0 left-1/2 z-[150] bg-white/90 backdrop-blur-xl px-5 py-2.5 rounded-full shadow-[0_20px_50px_rgba(0,0,0,0.2)] flex items-center gap-3 border border-indigo-200"
+            className="fixed top-0 left-1/2 z-[150] bg-white/90 backdrop-blur-xl px-3.5 py-1.5 sm:px-5 sm:py-2.5 rounded-full shadow-[0_20px_50px_rgba(0,0,0,0.2)] flex items-center gap-2 sm:gap-3 border border-indigo-200"
           >
-            <div className="relative flex items-center justify-center">
+            <div className="relative flex items-center justify-center flex-shrink-0">
               <div className="absolute inset-0 bg-indigo-500/20 rounded-full animate-ping" />
-              <div className="w-2.5 h-2.5 bg-indigo-500 rounded-full relative z-10" />
+              <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 bg-indigo-500 rounded-full relative z-10" />
             </div>
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600">Sesi Penilaian Guru Berlangsung</span>
+            <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-[0.1em] sm:tracking-[0.2em] text-indigo-600 whitespace-nowrap">
+              {isMobile ? "Penilaian Guru" : "Sesi Penilaian Guru Berlangsung"}
+            </span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -785,26 +789,26 @@ function BoardPage() {
             className="fixed inset-0 bg-[#f8fafc] flex flex-col items-center justify-center p-6 text-center z-[1000] overflow-hidden"
           >
             {/* Floating Glassmorphic Container */}
-            <div className="relative z-10 w-full max-w-sm bg-white/80 backdrop-blur-xl border border-white/60 rounded-[2.5rem] p-8 md:p-10 shadow-[0_30px_70px_rgba(148,163,184,0.12)] flex flex-col items-center">
+            <div className="relative z-10 w-full max-w-sm bg-white/80 backdrop-blur-xl border border-white/60 rounded-[2.5rem] p-8 md:p-10 landscape-mobile:py-5 landscape-mobile:px-6 landscape-mobile:rounded-2xl shadow-[0_30px_70px_rgba(148,163,184,0.12)] flex flex-col items-center">
               {/* Glowing Animated Icon Assembly */}
-              <div className="relative w-24 h-24 mb-8 flex items-center justify-center">
+              <div className="relative w-24 h-24 mb-8 landscape-mobile:w-14 landscape-mobile:h-14 landscape-mobile:mb-3 flex items-center justify-center">
                 <div className="absolute inset-0 rounded-full border-2 border-dashed border-[#2c49c5]/30 animate-spin-slow" />
-                <div className="absolute w-16 h-16 rounded-full bg-[#2c49c5]/10 border border-[#2c49c5]/20 animate-ping" />
-                <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-[#2c49c5] to-indigo-600 flex items-center justify-center shadow-[0_0_30px_rgba(44,73,197,0.3)]">
-                  <Trophy className="w-5 h-5 text-white animate-pulse" />
+                <div className="absolute w-16 h-16 rounded-full bg-[#2c49c5]/10 border border-[#2c49c5]/20 animate-ping landscape-mobile:w-10 landscape-mobile:h-10" />
+                <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-[#2c49c5] to-indigo-600 flex items-center justify-center shadow-[0_0_30px_rgba(44,73,197,0.3)] landscape-mobile:w-8 landscape-mobile:h-8 landscape-mobile:rounded-xl">
+                  <Trophy className="w-5 h-5 text-white animate-pulse landscape-mobile:w-4 landscape-mobile:h-4" />
                 </div>
               </div>
 
-              <p className="text-[10px] font-black text-indigo-600 tracking-[0.3em] uppercase mb-2">{loadingCategory}</p>
-              <h2 className="text-xl md:text-2xl font-serif font-black tracking-wide text-slate-800 mb-3 text-center uppercase">{loadingTitle}</h2>
-              <p className="text-slate-500 text-xs md:text-sm font-medium leading-relaxed max-w-xs mb-8 text-center">
+              <p className="text-[10px] font-black text-indigo-600 tracking-[0.3em] uppercase mb-2 landscape-mobile:mb-1 landscape-mobile:text-[8px]">{loadingCategory}</p>
+              <h2 className="text-xl md:text-2xl font-serif font-black tracking-wide text-slate-800 mb-3 text-center uppercase landscape-mobile:text-sm landscape-mobile:mb-1.5">{loadingTitle}</h2>
+              <p className="text-slate-500 text-xs md:text-sm font-medium leading-relaxed max-w-xs mb-8 text-center landscape-mobile:mb-4.5 landscape-mobile:text-[10px] landscape-mobile:leading-snug">
                 {loadingDesc}
               </p>
 
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 bg-[#2c49c5] rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                <span className="w-2.5 h-2.5 bg-slate-200 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                <span className="w-2.5 h-2.5 bg-[#2c49c5]/70 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+              <div className="flex items-center gap-2 landscape-mobile:gap-1.5">
+                <span className="w-2.5 h-2.5 bg-[#2c49c5] rounded-full animate-bounce landscape-mobile:w-2 landscape-mobile:h-2" style={{ animationDelay: "0ms" }} />
+                <span className="w-2.5 h-2.5 bg-slate-200 rounded-full animate-bounce landscape-mobile:w-2 landscape-mobile:h-2" style={{ animationDelay: "150ms" }} />
+                <span className="w-2.5 h-2.5 bg-[#2c49c5]/70 rounded-full animate-bounce landscape-mobile:w-2 landscape-mobile:h-2" style={{ animationDelay: "300ms" }} />
               </div>
             </div>
           </motion.div>

@@ -186,7 +186,7 @@ function CardFrontFace({
               {isMyTurn && activeGroup && (
                 <div className="mt-3 pt-3 border-t border-zinc-100 landscape-mobile:mt-1.5 landscape-mobile:pt-1.5">
                   {displayCard?.type === "DASAR" && displayCard.options ? (
-                    <div className="grid grid-cols-1 landscape-mobile:grid-cols-2 gap-2 landscape-mobile:gap-1.5 mb-2 md:mb-4 landscape-mobile:mb-1">
+                    <div className="grid grid-cols-1 gap-2 landscape-mobile:gap-1 mb-2 md:mb-4 landscape-mobile:mb-1">
                       {displayCard.options.filter((o) => o?.trim()).map((opt, i) => (
                         <button
                           key={i}
@@ -196,7 +196,7 @@ function CardFrontFace({
                             setIsSubmitting(true);
                             submitAnswerObjektif(activeGroup.id, opt);
                           }}
-                          className="w-full text-left px-4 md:px-5 landscape-mobile:px-2.5 py-2.5 md:py-3.5 landscape-mobile:py-1.5 rounded-xl landscape-mobile:rounded-lg border-2 border-zinc-900 bg-white text-xs md:text-base landscape-mobile:text-[10px] font-black text-zinc-900 hover:bg-zinc-50 hover:-translate-y-0.5 shadow-[4px_4px_0_0_rgba(0,0,0,0.85)] landscape-mobile:shadow-[2px_2px_0_0_rgba(0,0,0,0.85)] active:translate-y-0 active:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="w-full text-left px-4 md:px-5 landscape-mobile:px-2.5 py-2.5 md:py-3.5 landscape-mobile:py-1 rounded-xl landscape-mobile:rounded-md border-2 border-zinc-900 bg-white text-xs md:text-base landscape-mobile:text-[9px] font-black text-zinc-900 hover:bg-zinc-50 hover:-translate-y-0.5 shadow-[4px_4px_0_0_rgba(0,0,0,0.85)] landscape-mobile:shadow-[1.5px_1.5px_0_0_rgba(0,0,0,0.85)] active:translate-y-0 active:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {opt}
                         </button>
@@ -350,7 +350,7 @@ export default function CardOverlay(props: CardOverlayProps) {
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 1024);
-      setIsLandscapeMobile(window.innerHeight <= 500 && window.innerWidth > window.innerHeight);
+      setIsLandscapeMobile(window.innerHeight <= 600 && window.innerWidth > window.innerHeight && window.innerWidth < 1024);
     };
     checkMobile();
     window.addEventListener("resize", checkMobile);
@@ -399,8 +399,8 @@ export default function CardOverlay(props: CardOverlayProps) {
             className={`relative z-10 ${phase === "drawing" ? "pointer-events-none" : "pointer-events-auto"}`}
             style={{ 
               perspective: isMobile ? undefined : 1200, 
-              width: isLandscapeMobile ? "min(500px, 92vw)" : "min(320px, 88vw)", 
-              height: isLandscapeMobile ? "min(280px, 90vh)" : "min(470px, 78vh)" 
+              width: isLandscapeMobile ? "220px" : "min(320px, 88vw)", 
+              height: isLandscapeMobile ? "290px" : "min(470px, 78vh)" 
             }}
             variants={POSITION_VARIANTS}
             initial="hidden"

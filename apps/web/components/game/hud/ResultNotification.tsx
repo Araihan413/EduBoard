@@ -68,7 +68,7 @@ export default function ResultNotification({ result, onClose }: ResultNotificati
       style={{ willChange: "transform, opacity" }}
       className="fixed inset-0 z-200 flex items-center justify-center p-6 pointer-events-none"
     >
-      <div className="bg-white/95 border-2 border-slate-100 rounded-3xl md:rounded-[2.5rem] p-6 md:p-10 landscape-mobile:p-4 shadow-[0_40px_100px_rgba(0,0,0,0.15)] flex flex-col items-center max-w-sm w-[90%] md:w-full text-center relative overflow-hidden pointer-events-auto landscape-mobile:max-w-[320px] landscape-mobile:rounded-2xl">
+      <div className="bg-white/95 border-2 border-slate-100 rounded-3xl md:rounded-[2.5rem] p-6 md:p-10 landscape-mobile:p-3.5 shadow-[0_40px_100px_rgba(0,0,0,0.15)] flex flex-col items-center max-w-sm w-[90%] md:w-full text-center relative overflow-hidden pointer-events-auto landscape-mobile:max-w-[230px] landscape-mobile:rounded-2xl">
         {canClose && (
           <button
             onClick={() => (onClose ? onClose() : clearLastResult())}
@@ -82,19 +82,19 @@ export default function ResultNotification({ result, onClose }: ResultNotificati
         {!isMobile && <div className={`absolute inset-0 opacity-10 blur-3xl pointer-events-none ${c.glow}`} />}
  
         {/* Icon */}
-        <div className={`w-16 h-16 md:w-24 md:h-24 landscape-mobile:w-11 landscape-mobile:h-11 rounded-2xl md:rounded-3xl flex items-center justify-center mb-4 md:mb-8 landscape-mobile:mb-2 border-4 border-white shadow-2xl ${c.bg}`}>
-          {isSuccess ? <CheckCircle2 className="w-8 h-8 md:w-12 md:h-12 landscape-mobile:w-5 landscape-mobile:h-5 text-white" /> :
-           isFailure ? <XCircle      className="w-8 h-8 md:w-12 md:h-12 landscape-mobile:w-5 landscape-mobile:h-5 text-white" /> :
-                       <Award        className="w-8 h-8 md:w-12 md:h-12 landscape-mobile:w-5 landscape-mobile:h-5 text-white" />}
+        <div className={`w-16 h-16 md:w-24 md:h-24 landscape-mobile:w-9 landscape-mobile:h-9 rounded-2xl md:rounded-3xl flex items-center justify-center mb-4 md:mb-8 landscape-mobile:mb-1.5 border-4 border-white shadow-2xl ${c.bg}`}>
+          {isSuccess ? <CheckCircle2 className="w-8 h-8 md:w-12 md:h-12 landscape-mobile:w-4.5 landscape-mobile:h-4.5 text-white" /> :
+           isFailure ? <XCircle      className="w-8 h-8 md:w-12 md:h-12 landscape-mobile:w-4.5 landscape-mobile:h-4.5 text-white" /> :
+                       <Award        className="w-8 h-8 md:w-12 md:h-12 landscape-mobile:w-4.5 landscape-mobile:h-4.5 text-white" />}
         </div>
  
         <p className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.4em] text-slate-400 mb-1 md:mb-2 landscape-mobile:mb-0">{result.groupName}</p>
-        <h2 className={`text-2xl md:text-4xl landscape-mobile:text-base font-black tracking-tighter mb-2 md:mb-4 landscape-mobile:mb-1 ${c.text}`}>{result.title}</h2>
-        <p className="text-sm md:text-lg landscape-mobile:text-[11px] landscape-mobile:leading-snug font-bold text-slate-600 leading-relaxed mb-4 md:mb-6 landscape-mobile:mb-2">{result.message}</p>
+        <h2 className={`text-2xl md:text-4xl landscape-mobile:text-sm font-black tracking-tighter mb-2 md:mb-4 landscape-mobile:mb-0.5 ${c.text}`}>{result.title}</h2>
+        <p className="text-sm md:text-lg landscape-mobile:text-[10px] landscape-mobile:leading-snug font-bold text-slate-600 leading-relaxed mb-4 md:mb-6 landscape-mobile:mb-1.5">{result.message}</p>
  
-        <div className="bg-slate-50 px-4 py-2 md:px-6 md:py-3 landscape-mobile:px-3 landscape-mobile:py-1 rounded-xl md:rounded-2xl border border-slate-100">
-          <span className="text-[9px] md:text-xs landscape-mobile:text-[8px] font-black text-slate-400 uppercase tracking-widest mr-2">POIN DIDAPAT:</span>
-          <span className={`text-base md:text-xl landscape-mobile:text-sm font-black ${isSuccess ? c.text : "text-slate-900"}`}>
+        <div className="bg-slate-50 px-4 py-2 md:px-6 md:py-3 landscape-mobile:px-2.5 landscape-mobile:py-0.5 rounded-xl md:rounded-2xl border border-slate-100">
+          <span className="text-[9px] md:text-xs landscape-mobile:text-[7.5px] font-black text-slate-400 uppercase tracking-widest mr-2">POIN DIDAPAT:</span>
+          <span className={`text-base md:text-xl landscape-mobile:text-xs font-black ${isSuccess ? c.text : "text-slate-900"}`}>
             {result.points > 0 ? `+${result.points}` : result.points}
           </span>
         </div>
