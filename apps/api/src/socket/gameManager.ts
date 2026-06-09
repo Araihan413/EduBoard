@@ -156,6 +156,21 @@ interface RoomDeck {
 
 const roomDecks = new Map<string, RoomDeck>();
 
+const ALL_COLORS = [
+  "#3b82f6", // Blue
+  "#ef4444", // Red
+  "#10b981", // Emerald
+  "#f59e0b", // Amber
+  "#8b5cf6", // Purple
+  "#ec4899", // Pink
+  "#f97316", // Orange
+  "#06b6d4", // Cyan
+  "#f43f5e", // Rose
+  "#6366f1", // Indigo
+  "#14b8a6", // Teal
+  "#64748b"  // Slate
+];
+
 function shuffleArray<T>(array: T[]): T[] {
   const shuffled = [...array];
   for (let i = shuffled.length - 1; i > 0; i--) {
@@ -497,17 +512,32 @@ export function handleSocketEvents(io: Server, socket: Socket) {
         
         // JANGAN menimpa avatar dan warna yang sudah terdaftar di server jika sudah ada.
         // Hanya isi jika data tersebut masih kosong (sebagai fallback).
+        const oldAvatar = existingGroup.avatar;
+        const oldColor = existingGroup.color;
+        
         if (!existingGroup.avatar && data.avatar) {
           existingGroup.avatar = data.avatar;
         }
         if (!existingGroup.color && data.color) {
-          existingGroup.color = data.color;
+          const otherTakenColors = room.groups
+            .filter((g: any) => g.id !== existingGroup.id)
+            .map((g: any) => g.color)
+            .filter(Boolean);
+          
+          let assignedColor = data.color;
+          if (otherTakenColors.includes(assignedColor)) {
+            const availableColors = ALL_COLORS.filter(c => !otherTakenColors.includes(c));
+            if (availableColors.length > 0) {
+              assignedColor = availableColors[Math.floor(Math.random() * availableColors.length)];
+            }
+          }
+          existingGroup.color = assignedColor;
         }
         
         room.logs = [`${existingGroup.name} kembali masuk.`, ...room.logs];
         
         // Update DB jika ada data kosong yang baru terisi
-        if (existingGroup.avatar === data.avatar || existingGroup.color === data.color) {
+        if (existingGroup.avatar !== oldAvatar || existingGroup.color !== oldColor) {
           prisma.group.update({
             where: { id: existingGroup.id },
             data: { 
@@ -545,6 +575,19 @@ export function handleSocketEvents(io: Server, socket: Socket) {
           // 1. Immediately add a placeholder to memory to prevent race conditions
           // Use a temporary unique name to block other concurrent requests
           const tempId = `temp-${Date.now()}-${Math.random()}`;
+          
+          const takenColors = room.groups.map((g: any) => g.color).filter(Boolean);
+          let assignedColor = data.color;
+
+          if (!assignedColor || takenColors.includes(assignedColor)) {
+            const availableColors = ALL_COLORS.filter(c => !takenColors.includes(c));
+            if (availableColors.length > 0) {
+              assignedColor = availableColors[Math.floor(Math.random() * availableColors.length)];
+            } else {
+              assignedColor = data.color || ALL_COLORS[0];
+            }
+          }
+
           const newGroupEntry = {
             id: tempId,
             name: data.groupName,
@@ -552,7 +595,7 @@ export function handleSocketEvents(io: Server, socket: Socket) {
             position: 0,
             status: 'WAITING',
             avatar: data.avatar,
-            color: data.color,
+            color: assignedColor,
             isOffline: false
           };
           room.groups.push(newGroupEntry);
@@ -568,7 +611,7 @@ export function handleSocketEvents(io: Server, socket: Socket) {
                 score: 0,
                 position: 0,
                 avatar: data.avatar,
-                color: data.color
+                color: assignedColor
               }
             });
 
@@ -613,14 +656,24 @@ export function handleSocketEvents(io: Server, socket: Socket) {
       });
 
       if (data.state.groups) {
+        const otherTakenColors = room.groups
+          .filter((mg: any) => mg.name.trim().toLowerCase() !== sender.groupName.trim().toLowerCase())
+          .map((mg: any) => mg.color)
+          .filter(Boolean);
+
         data.state.groups = data.state.groups.map((g: any) => {
           const originalGroup = room.groups.find((mg: any) => mg.id === g.id);
           if (!originalGroup) return null;
 
           // Siswa hanya boleh mengupdate posisi/avatar/warna kelompok mereka sendiri. Skor & status dikunci.
           if (originalGroup.name.trim().toLowerCase() === sender.groupName.trim().toLowerCase()) {
+            let finalColor = g.color;
+            if (g.color && otherTakenColors.includes(g.color)) {
+              finalColor = originalGroup.color;
+            }
             return {
               ...g,
+              color: finalColor,
               id: originalGroup.id,
               name: originalGroup.name,
               score: originalGroup.score,

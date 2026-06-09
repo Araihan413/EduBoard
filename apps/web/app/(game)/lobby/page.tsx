@@ -16,7 +16,8 @@ import {
   Gamepad2,
   Check,
   Disc3,
-  LogOut
+  LogOut,
+  XCircle
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGameStore } from "../../../store/gameStore";
@@ -413,15 +414,30 @@ export default function LobbyPage() {
                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tema Warna Tim</span>
                       </div>
                       <div className="flex flex-wrap gap-2.5 justify-center md:justify-start">
-                        {PREMIUM_COLORS.map((c) => (
-                          <button
-                            key={c.name}
-                            onClick={() => updateProfile(avatarIndex, c)}
-                            className={`w-7 h-7 rounded-full ${c.bg} transition-all relative ${selectedColor.hex === c.hex ? 'ring-4 ring-white shadow-md scale-125 z-10' : 'opacity-40 hover:opacity-100 hover:scale-110'}`}
-                          >
-                            {selectedColor.hex === c.hex && <Check size={14} className="text-white absolute inset-0 m-auto" />}
-                          </button>
-                        ))}
+                        {PREMIUM_COLORS.map((c) => {
+                          const isMe = selectedColor.hex === c.hex;
+                          const isTaken = groups
+                            .filter(g => g.name.trim().toLowerCase() !== myGroupName?.trim().toLowerCase())
+                            .some(g => g.color === c.hex);
+
+                          return (
+                            <button
+                              key={c.name}
+                              disabled={isTaken}
+                              onClick={() => !isTaken && updateProfile(avatarIndex, c)}
+                              className={`w-7 h-7 rounded-full ${c.bg} transition-all relative ${
+                                isMe 
+                                  ? 'ring-4 ring-white shadow-md scale-125 z-10 opacity-100' 
+                                  : isTaken
+                                    ? 'opacity-20 cursor-not-allowed scale-95'
+                                    : 'opacity-50 hover:opacity-100 hover:scale-110'
+                              }`}
+                            >
+                              {isMe && <Check size={14} className="text-white absolute inset-0 m-auto" />}
+                              {!isMe && isTaken && <XCircle size={14} className="text-white/80 absolute inset-0 m-auto" />}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   </div>
