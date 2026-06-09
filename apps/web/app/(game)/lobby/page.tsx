@@ -434,7 +434,7 @@ export default function LobbyPage() {
                               }`}
                             >
                               {isMe && <Check size={14} className="text-white absolute inset-0 m-auto" />}
-                              {!isMe && isTaken && <XCircle size={14} className="text-white/80 absolute inset-0 m-auto" />}
+                              {!isMe && isTaken && <XCircle className="w-full h-full text-white absolute inset-0" />}
                             </button>
                           );
                         })}
