@@ -79,57 +79,57 @@ export default function PathSelector({ isMyTurn, activeGroupName }: PathSelector
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: isMobile ? 0 : 20 }}
             transition={{ duration: 0.25, ease: "easeOut" }}
-            className="relative z-10 bg-white rounded-[2.5rem] p-8 shadow-[0_40px_100px_rgba(0,0,0,0.25)] border border-slate-100 max-w-sm w-full text-center pointer-events-auto"
+            className="relative z-10 bg-white rounded-[2.5rem] p-8 landscape-mobile:p-4 shadow-[0_40px_100px_rgba(0,0,0,0.25)] border border-slate-100 max-w-sm landscape-mobile:max-w-[320px] w-full text-center pointer-events-auto landscape-mobile:rounded-2xl"
           >
             {/* Glow */}
             {!isMobile && <div className="absolute inset-0 rounded-[2.5rem] bg-yellow-400/10 pointer-events-none" />}
-
+ 
             {/* Icon */}
-            <div className="w-20 h-20 mx-auto bg-yellow-50 rounded-3xl flex items-center justify-center mb-6 border-2 border-yellow-100 shadow-inner">
-              <GitFork className="w-10 h-10 text-yellow-500" />
+            <div className="w-20 h-20 landscape-mobile:w-10 landscape-mobile:h-10 mx-auto bg-yellow-50 rounded-3xl landscape-mobile:rounded-xl flex items-center justify-center mb-6 landscape-mobile:mb-2 border-2 border-yellow-100 shadow-inner">
+              <GitFork className="w-10 h-10 landscape-mobile:w-5 landscape-mobile:h-5 text-yellow-500" />
             </div>
-
+ 
             {/* Title */}
-            <p className="text-[10px] font-black text-yellow-500 uppercase tracking-[0.4em] mb-1">
+            <p className="text-[10px] landscape-mobile:text-[8px] font-black text-yellow-500 uppercase tracking-[0.4em] mb-1">
               Persimpangan!
             </p>
-            <h3 className="text-2xl font-black text-slate-900 tracking-tight mb-2">
+            <h3 className="text-2xl landscape-mobile:text-base font-black text-slate-900 tracking-tight mb-2 landscape-mobile:mb-0.5">
               Pilih Jalan
             </h3>
-            <p className="text-sm font-medium text-slate-500 mb-8 leading-relaxed">
+            <p className="text-sm landscape-mobile:text-[10.5px] font-medium text-slate-500 mb-8 landscape-mobile:mb-3 leading-relaxed">
               {isMyTurn
                 ? "Pilih arah yang ingin kamu tempuh. Sisa langkah akan dilanjutkan di jalur yang kamu pilih."
                 : `Tim ${activeGroupName} sedang memilih arah...`}
             </p>
-
+ 
             {isMyTurn ? (
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col landscape-mobile:flex-row gap-3 landscape-mobile:gap-2">
                 {availablePaths.map((tileId, index) => {
                   return (
                     <button
                       key={tileId}
                       onClick={() => selectBranch(tileId)}
-                      className={`group w-full flex items-center justify-between px-6 py-4 rounded-2xl border-2 shadow-sm active:scale-95 transition-transform ${
+                      className={`group w-full flex items-center justify-between px-6 py-4 landscape-mobile:px-3 landscape-mobile:py-1.5 rounded-2xl landscape-mobile:rounded-lg border-2 shadow-sm active:scale-95 transition-transform ${
                         index === 0
                           ? "border-blue-200 bg-blue-50 hover:bg-blue-100 hover:border-blue-300"
                           : "border-amber-200 bg-amber-50 hover:bg-amber-100 hover:border-amber-300"
                       }`}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black ${
+                      <div className="flex items-center gap-3 landscape-mobile:gap-1.5">
+                        <div className={`w-8 h-8 landscape-mobile:w-6 landscape-mobile:h-6 rounded-xl landscape-mobile:rounded-md flex items-center justify-center text-xs font-black ${
                           index === 0 ? "bg-blue-500 text-white" : "bg-amber-500 text-white"
                         }`}>
                           {index === 0 ? "A" : "B"}
                         </div>
                         <div className="text-left">
-                          <p className={`text-xs font-black uppercase tracking-wider ${
+                          <p className={`text-xs landscape-mobile:text-[10px] font-black uppercase tracking-wider ${
                             index === 0 ? "text-blue-700" : "text-amber-700"
                           }`}>
                             {index === 0 ? "Jalur Utama" : "Jalur Pintas"}
                           </p>
                         </div>
                       </div>
-                      <ArrowRight className={`w-5 h-5 transition-transform group-hover:translate-x-1 ${
+                      <ArrowRight className={`w-5 h-5 landscape-mobile:w-4 landscape-mobile:h-4 transition-transform group-hover:translate-x-1 ${
                         index === 0 ? "text-blue-400" : "text-amber-400"
                       }`} />
                     </button>
@@ -137,8 +137,8 @@ export default function PathSelector({ isMyTurn, activeGroupName }: PathSelector
                 })}
               </div>
             ) : (
-              <div className="flex flex-col items-center gap-4 py-4">
-                <Shuffle className={`w-8 h-8 text-slate-300 ${isMobile ? "animate-pulse" : "animate-spin-slow"}`} />
+              <div className="flex flex-col items-center gap-4 py-4 landscape-mobile:py-2">
+                <Shuffle className={`w-8 h-8 landscape-mobile:w-5 landscape-mobile:h-5 text-slate-300 ${isMobile ? "animate-pulse" : "animate-spin-slow"}`} />
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
                   Menunggu pilihan tim {activeGroupName}...
                 </p>

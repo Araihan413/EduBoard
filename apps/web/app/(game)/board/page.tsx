@@ -11,7 +11,7 @@ import { toast } from "sonner";
 
 import {
   Timer, LogOut, Clock, LayoutDashboard,
-  Trophy, Volume2, VolumeX, SkipForward,
+  Trophy, Volume2, VolumeX, SkipForward, Dices,
 } from "lucide-react";
 
 import { useGameStore } from "../../../store/gameStore";
@@ -106,8 +106,11 @@ function BoardPage() {
   useEffect(() => {
     const handleResize = () => {
       const width = window.innerWidth;
+      const height = window.innerHeight;
       setIsMobile(width < 1024);
-      if (width < 768) {
+      if (height <= 500 && width > height) {
+        setDiceSize(42); // Landscape mobile
+      } else if (width < 768) {
         setDiceSize(52); // Mobile
       } else if (width < 1024) {
         setDiceSize(68); // Tablet
@@ -294,47 +297,47 @@ function BoardPage() {
       }`} />
 
       {/* ── TOP HUD ─────────────────────────────────────────────────────────── */}
-      <div className="fixed top-3 left-3 right-3 sm:top-6 sm:left-6 sm:right-6 flex items-start justify-between pointer-events-none z-50">
+      <div className="fixed top-3 left-3 right-3 sm:top-6 sm:left-6 sm:right-6 landscape-mobile:top-2 landscape-mobile:left-2 landscape-mobile:right-2 flex items-start justify-between pointer-events-none z-50">
         {/* Left: Room info */}
-        <div className="flex flex-col gap-1.5 sm:gap-2 pointer-events-auto">
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <div className="flex items-center gap-2 sm:gap-3 bg-white/70 backdrop-blur-xl px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl border border-white/50 shadow-lg">
+        <div className="flex flex-col gap-1.5 sm:gap-2 landscape-mobile:gap-1 pointer-events-auto">
+          <div className="flex items-center gap-1.5 sm:gap-2 landscape-mobile:gap-1">
+            <div className="flex items-center gap-2 sm:gap-3 landscape-mobile:gap-1.5 bg-white/70 backdrop-blur-xl px-2.5 py-1.5 sm:px-4 sm:py-2 landscape-mobile:px-2 landscape-mobile:py-1 rounded-lg sm:rounded-xl landscape-mobile:rounded-md border border-white/50 shadow-lg">
               <div className="flex flex-col">
                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1 hidden sm:inline">Room Code</span>
-                <span className="text-xs sm:text-sm font-black text-[#2c49c5] leading-none tracking-tight flex items-center gap-1">
+                <span className="text-xs sm:text-sm landscape-mobile:text-xs font-black text-[#2c49c5] leading-none tracking-tight flex items-center gap-1">
                   <span className="sm:hidden text-slate-400 text-[8px] font-bold tracking-tight">ROOM:</span>
                   {roomCode}
                 </span>
               </div>
-              {role === "guru" && <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-blue-500 rounded-full animate-pulse" />}
+              {role === "guru" && <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 landscape-mobile:w-1.5 landscape-mobile:h-1.5 bg-blue-500 rounded-full animate-pulse" />}
             </div>
 
             <button
               onClick={toggleMute}
-              className={`w-8 h-8 sm:w-10 sm:h-10 backdrop-blur-xl rounded-xl sm:rounded-2xl flex items-center justify-center transition-all border shadow-lg group cursor-pointer ${
+              className={`w-8 h-8 sm:w-10 sm:h-10 landscape-mobile:w-7 landscape-mobile:h-7 backdrop-blur-xl rounded-xl sm:rounded-2xl landscape-mobile:rounded-lg flex items-center justify-center transition-all border shadow-lg group cursor-pointer ${
                 isMuted
                   ? "bg-red-500/10 border-red-500/20 text-red-500 hover:bg-red-500/20"
                   : "bg-white/70 border-white/50 text-slate-400 hover:text-blue-500 hover:bg-white"
               }`}
             >
-              {isMuted ? <VolumeX className="w-4 h-4 sm:w-5 sm:h-5" /> : <Volume2 className="w-4 h-4 sm:w-5 sm:h-5" />}
+              {isMuted ? <VolumeX className="w-4 h-4 sm:w-5 sm:h-5 landscape-mobile:w-3.5 landscape-mobile:h-3.5" /> : <Volume2 className="w-4 h-4 sm:w-5 sm:h-5 landscape-mobile:w-3.5 landscape-mobile:h-3.5" />}
             </button>
           </div>
 
           {role === "guru" && (
-            <div className="bg-white/70 backdrop-blur-xl px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-lg sm:rounded-xl border border-white/50 inline-flex items-center gap-1.5 sm:gap-2 w-fit shadow-md">
+            <div className="bg-white/70 backdrop-blur-xl px-2.5 py-1.5 sm:px-3 sm:py-1.5 landscape-mobile:px-1.5 landscape-mobile:py-1 rounded-lg sm:rounded-xl landscape-mobile:rounded-md border border-white/50 inline-flex items-center gap-1.5 sm:gap-2 landscape-mobile:gap-1 w-fit shadow-md">
               <div className="w-1.5 h-1.5 bg-[#2c49c5] rounded-full animate-pulse shadow-[0_0_8px_rgba(44,73,197,0.8)]" />
-              <span className="text-[7px] sm:text-[9px] font-black text-[#2c49c5] uppercase tracking-[0.15em] leading-none">Monitoring Mode</span>
+              <span className="text-[7px] sm:text-[9px] landscape-mobile:text-[6px] font-black text-[#2c49c5] uppercase tracking-[0.15em] leading-none">Monitoring Mode</span>
             </div>
           )}
         </div>
 
         {/* Right: Global timer + controls */}
-        <div className="flex items-start gap-1.5 sm:gap-3 pointer-events-auto">
-          <div className="flex flex-col items-end gap-1.5 sm:gap-2">
-            <div className="flex items-center bg-slate-900/90 backdrop-blur-xl px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-md sm:rounded-lg border border-slate-800 shadow-xl">
-              <Timer className={`w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2.5 ${globalTimer <= 60 && globalTimer > 0 ? "text-red-500 animate-pulse" : "text-slate-400"}`} />
-              <span className={`text-sm sm:text-lg font-mono font-black ${globalTimer <= 60 && globalTimer > 0 ? "text-red-500" : "text-white"} leading-none`}>
+        <div className="flex items-start gap-1.5 sm:gap-3 landscape-mobile:gap-1 pointer-events-auto">
+          <div className="flex flex-col items-end gap-1.5 sm:gap-2 landscape-mobile:gap-1">
+            <div className="flex items-center bg-slate-900/90 backdrop-blur-xl px-2.5 py-1.5 sm:px-4 sm:py-2 landscape-mobile:px-2 landscape-mobile:py-1 rounded-md sm:rounded-lg landscape-mobile:rounded-md border border-slate-800 shadow-xl">
+              <Timer className={`w-3.5 h-3.5 sm:w-4 sm:h-4 landscape-mobile:w-3 landscape-mobile:h-3 mr-1.5 sm:mr-2.5 landscape-mobile:mr-1 ${globalTimer <= 60 && globalTimer > 0 ? "text-red-500 animate-pulse" : "text-slate-400"}`} />
+              <span className={`text-sm sm:text-lg landscape-mobile:text-xs font-mono font-black ${globalTimer <= 60 && globalTimer > 0 ? "text-red-500" : "text-white"} leading-none`}>
                 {formatTime(globalTimer)}
               </span>
             </div>
@@ -343,21 +346,21 @@ function BoardPage() {
               <motion.div
                 initial={{ x: 20, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
-                className="bg-orange-500 px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg sm:rounded-xl shadow-lg border border-orange-400 flex items-center gap-1.5 sm:gap-2"
+                className="bg-orange-500 px-2 py-1 sm:px-3 sm:py-1.5 landscape-mobile:px-1.5 landscape-mobile:py-0.5 rounded-lg sm:rounded-xl landscape-mobile:rounded-md shadow-lg border border-orange-400 flex items-center gap-1.5 sm:gap-2 landscape-mobile:gap-1"
               >
-                <Clock className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white animate-spin-slow" />
-                <span className="text-[8px] sm:text-[10px] font-black text-white uppercase tracking-widest italic leading-none">{timer}s</span>
+                <Clock className="w-2.5 h-2.5 sm:w-3 sm:h-3 landscape-mobile:w-2 landscape-mobile:h-2 text-white animate-spin-slow" />
+                <span className="text-[8px] sm:text-[10px] landscape-mobile:text-[7px] font-black text-white uppercase tracking-widest italic leading-none">{timer}s</span>
               </motion.div>
             )}
           </div>
 
           {role === "guru" ? (
-            <div className="flex flex-col items-end gap-1.5 sm:gap-2">
+            <div className="flex flex-col items-end gap-1.5 sm:gap-2 landscape-mobile:gap-1">
               <Link 
                 href="/dashboard" 
-                className="w-8 h-8 sm:w-10 sm:h-10 bg-yellow-400 hover:bg-yellow-300 text-yellow-950 rounded-xl flex items-center justify-center shadow-lg transition-all active:scale-95 group relative"
+                className="w-8 h-8 sm:w-10 sm:h-10 landscape-mobile:w-7 landscape-mobile:h-7 bg-yellow-400 hover:bg-yellow-300 text-yellow-950 rounded-xl landscape-mobile:rounded-lg flex items-center justify-center shadow-lg transition-all active:scale-95 group relative"
               >
-                <LayoutDashboard className="w-4 h-4 sm:w-5 sm:h-5" />
+                <LayoutDashboard className="w-4 h-4 sm:w-5 sm:h-5 landscape-mobile:w-3.5 landscape-mobile:h-3.5" />
                 {/* Tooltip */}
                 <div className="absolute top-full mt-2 right-0 bg-slate-950/95 backdrop-blur-md text-[8px] sm:text-[9px] font-black text-white px-2.5 py-1.5 rounded-lg border border-slate-800 shadow-xl opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100 transition-all origin-top-right duration-150 pointer-events-none whitespace-nowrap z-50">
                   Kembali ke Dashboard
@@ -371,10 +374,10 @@ function BoardPage() {
                   nextTurn();
                   toast.success("Giliran berhasil dilompati!");
                 }}
-                className="w-fit px-2.5 sm:px-3.5 h-6 md:h-10 bg-slate-900/90 hover:bg-slate-800 text-white rounded-md flex items-center justify-center gap-1 sm:gap-1.5 border border-slate-800 shadow-lg transition-all active:scale-95 group relative cursor-pointer lg:hidden mt-2"
+                className="w-fit px-2.5 sm:px-3.5 h-6 md:h-10 landscape-mobile:h-7 bg-slate-900/90 hover:bg-slate-800 text-white rounded-md flex items-center justify-center gap-1 sm:gap-1.5 border border-slate-800 shadow-lg transition-all active:scale-95 group relative cursor-pointer lg:hidden mt-2 landscape-mobile:mt-1"
               >
-                <SkipForward className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
-                <span className="text-[7px] sm:text-[9px] font-black uppercase tracking-wider text-slate-300 leading-none">SKIP</span>
+                <SkipForward className="w-3 h-3 sm:w-4 sm:h-4 landscape-mobile:w-3 landscape-mobile:h-3 text-white" />
+                <span className="text-[7px] sm:text-[9px] landscape-mobile:text-[7px] font-black uppercase tracking-wider text-slate-300 leading-none">SKIP</span>
                 {/* Tooltip */}
                 <div className="absolute top-full mt-2 right-0 bg-slate-950/95 backdrop-blur-md text-[8px] sm:text-[9px] font-black text-white px-2.5 py-1.5 rounded-lg border border-slate-800 shadow-xl opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100 transition-all origin-top-right duration-150 pointer-events-none whitespace-nowrap z-50">
                   Lompati Giliran
@@ -385,9 +388,9 @@ function BoardPage() {
           ) : (
             <button
               onClick={() => setShowExitConfirm(true)}
-              className="w-8 h-8 sm:w-10 sm:h-10 bg-red-500/80 hover:bg-red-600 text-white rounded-xl flex items-center justify-center border border-red-400/40 shadow-lg shadow-red-500/10 transition-all active:scale-95 group relative cursor-pointer"
+              className="w-8 h-8 sm:w-10 sm:h-10 landscape-mobile:w-7 landscape-mobile:h-7 bg-red-500/80 hover:bg-red-600 text-white rounded-xl landscape-mobile:rounded-lg flex items-center justify-center border border-red-400/40 shadow-lg shadow-red-500/10 transition-all active:scale-95 group relative cursor-pointer"
             >
-              <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
+              <LogOut className="w-4 h-4 sm:w-5 sm:h-5 landscape-mobile:w-3.5 landscape-mobile:h-3.5" />
               {/* Tooltip */}
               <div className="absolute top-full mt-2 right-0 bg-slate-950/95 backdrop-blur-md text-[8px] sm:text-[9px] font-black text-white px-2.5 py-1.5 rounded-lg border border-slate-800 shadow-xl opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100 transition-all origin-top-right duration-150 pointer-events-none whitespace-nowrap z-50">
                 Keluar Game
@@ -509,15 +512,15 @@ function BoardPage() {
           </div>
         ) : (
           /* Mobile & Tablet Horizontal Scrollable Player list directly below HUD */
-          <div className={`fixed ${standingsTopClass} left-3 md:left-6 right-3 md:right-6 z-30 flex items-center gap-2 md:gap-4.5 overflow-x-auto py-2 scrollbar-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pointer-events-auto scroll-smooth`}>
+          <div className={`fixed ${standingsTopClass} landscape-mobile:top-[38px] left-3 md:left-6 right-3 md:right-6 z-30 flex items-center gap-2 md:gap-4.5 landscape-mobile:gap-1.5 overflow-x-auto py-2 landscape-mobile:py-1 scrollbar-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pointer-events-auto scroll-smooth`}>
             {/* Compact Leaderboard CTA Button */}
             <motion.button
               whileTap={{ scale: 0.9 }}
               onClick={() => setShowLeaderboardModal(true)}
-              className="flex flex-col items-center justify-center w-[46px] md:w-[68px] h-[38px] md:h-[50px] bg-slate-950/90 backdrop-blur-xl border border-slate-800 rounded-lg md:rounded-xl flex-shrink-0 cursor-pointer shadow-md text-yellow-400 active:scale-95 transition-all"
+              className="flex flex-col items-center justify-center w-[46px] md:w-[68px] landscape-mobile:w-[38px] h-[38px] md:h-[50px] landscape-mobile:h-[28px] bg-slate-950/90 backdrop-blur-xl border border-slate-800 rounded-lg md:rounded-xl landscape-mobile:rounded-md flex-shrink-0 cursor-pointer shadow-md text-yellow-400 active:scale-95 transition-all"
             >
-              <Trophy className="w-3.5 md:w-5 h-3.5 md:h-5" />
-              <span className="text-[6.5px] md:text-[8.5px] font-black uppercase tracking-tighter leading-none mt-0.5">Skor</span>
+              <Trophy className="w-3.5 md:w-5 h-3.5 md:h-5 landscape-mobile:w-3 landscape-mobile:h-3" />
+              <span className="text-[6.5px] md:text-[8.5px] landscape-mobile:text-[5.5px] font-black uppercase tracking-tighter leading-none mt-0.5 landscape-mobile:mt-0">Skor</span>
             </motion.button>
 
             {[...groups]
@@ -555,7 +558,7 @@ function BoardPage() {
                     }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setShowLeaderboardModal(true)}
-                    className={`flex items-center gap-1.5 md:gap-3 p-1 md:p-2 pr-2.5 md:pr-5 md:pl-2.5 rounded-lg md:rounded-xl border flex-shrink-0 min-w-[95px] md:min-w-[160px] max-w-[120px] md:max-w-[190px] cursor-pointer shadow-sm relative ${
+                    className={`flex items-center gap-1.5 md:gap-3 landscape-mobile:gap-1 p-1 md:p-2 pr-2.5 md:pr-5 md:pl-2.5 landscape-mobile:p-0.5 landscape-mobile:pr-1.5 rounded-lg md:rounded-xl landscape-mobile:rounded-md border flex-shrink-0 min-w-[95px] md:min-w-[160px] landscape-mobile:min-w-[75px] max-w-[120px] md:max-w-[190px] landscape-mobile:max-w-[85px] cursor-pointer shadow-sm relative ${
                       isMyTurn
                         ? "shadow-[0_2px_10px_rgba(59,130,246,0.18)]"
                         : isSurrendered
@@ -563,10 +566,10 @@ function BoardPage() {
                         : "backdrop-blur-md"
                     }`}
                   >
-                    {isMyTurn && <div className="absolute inset-0 rounded-lg md:rounded-xl shadow-[0_0_8px_rgba(59,130,246,0.3)] animate-pulse" />}
+                    {isMyTurn && <div className="absolute inset-0 rounded-lg md:rounded-xl landscape-mobile:rounded-md shadow-[0_0_8px_rgba(59,130,246,0.3)] animate-pulse" />}
 
                     <div className="relative flex-shrink-0">
-                      <div className="w-6.5 h-6.5 md:w-10 md:h-10 rounded-full overflow-hidden border border-white shadow flex items-center justify-center flex-shrink-0"
+                      <div className="w-6.5 h-6.5 md:w-10 md:h-10 landscape-mobile:w-5.5 landscape-mobile:h-5.5 rounded-full overflow-hidden border border-white shadow flex items-center justify-center flex-shrink-0"
                            style={{ backgroundColor: g.color || "#3b82f6" }}>
                         <NextImage
                           src={`https://api.dicebear.com/7.x/adventurer/png?seed=${g.avatar || g.name}`}
@@ -576,25 +579,25 @@ function BoardPage() {
                         />
                       </div>
                       {g.isOffline && !isSurrendered && (
-                        <div className="absolute -bottom-0.5 -right-0.5 px-0.5 md:px-1 bg-slate-900 text-[4px] md:text-[6px] font-black text-white rounded-full border border-white">OFF</div>
+                        <div className="absolute -bottom-0.5 -right-0.5 px-0.5 md:px-1 landscape-mobile:px-0.5 bg-slate-900 text-[4px] md:text-[6px] landscape-mobile:text-[3px] font-black text-white rounded-full border border-white">OFF</div>
                       )}
                       {isSurrendered && (
-                        <div className="absolute -bottom-0.5 -right-0.5 px-0.5 md:px-1 bg-red-600 text-[4px] md:text-[6px] font-black text-white rounded-full border border-white">OUT</div>
+                        <div className="absolute -bottom-0.5 -right-0.5 px-0.5 md:px-1 landscape-mobile:px-0.5 bg-red-600 text-[4px] md:text-[6px] landscape-mobile:text-[3px] font-black text-white rounded-full border border-white">OUT</div>
                       )}
                       {isLeader && (
-                        <div className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 md:w-5 md:h-5 bg-yellow-400 rounded-full flex items-center justify-center shadow border border-white">
-                          <Trophy className="w-1.5 md:w-3 h-1.5 md:h-3 text-yellow-900" />
+                        <div className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 md:w-5 md:h-5 landscape-mobile:w-3 landscape-mobile:h-3 bg-yellow-400 rounded-full flex items-center justify-center shadow border border-white">
+                          <Trophy className="w-1.5 md:w-3 h-1.5 md:h-3 landscape-mobile:w-1.5 landscape-mobile:h-1.5 text-yellow-900" />
                         </div>
                       )}
                     </div>
 
-                    <div className="flex flex-col min-w-[45px] md:min-w-[75px] truncate">
-                      <span className={`text-[8.5px] md:text-[12px] font-black tracking-tight leading-none mb-0.5 truncate ${isMyTurn ? "text-slate-900" : "text-white"} ${isSurrendered ? "line-through opacity-50" : ""}`}>
+                    <div className="flex flex-col min-w-[45px] md:min-w-[75px] landscape-mobile:min-w-[32px] truncate">
+                      <span className={`text-[8.5px] md:text-[12px] landscape-mobile:text-[7.5px] font-black tracking-tight leading-none mb-0.5 truncate ${isMyTurn ? "text-slate-900" : "text-white"} ${isSurrendered ? "line-through opacity-50" : ""}`}>
                         {g.name}
                       </span>
                       <div className="flex items-center gap-0.5 md:gap-1">
-                        <span className="text-[8px] md:text-[10px] font-black text-blue-500 leading-none">{g.score}</span>
-                        <span className="text-[5.5px] md:text-[7px] font-bold text-slate-400 uppercase tracking-tighter leading-none">Pts</span>
+                        <span className="text-[8px] md:text-[10px] landscape-mobile:text-[7px] font-black text-blue-500 leading-none">{g.score}</span>
+                        <span className="text-[5.5px] md:text-[7px] landscape-mobile:text-[5px] font-bold text-slate-400 uppercase tracking-tighter leading-none">Pts</span>
                       </div>
                     </div>
                   </motion.div>
@@ -605,12 +608,12 @@ function BoardPage() {
       </main>
 
       {/* ── BOTTOM ACTION DOCK ───────────────────────────────────────────────── */}
-      <footer className="h-20 lg:h-24 fixed bottom-0 left-0 right-0 z-40 flex items-center justify-between px-6 lg:px-16 pointer-events-none">
+      <footer className="h-20 lg:h-24 landscape-mobile:h-12 fixed bottom-0 left-0 right-0 z-40 flex items-center justify-between px-6 lg:px-16 pointer-events-none">
         <div /> {/* Left spacer */}
 
         {/* Center: Dice + Card Decks */}
-        <div className="absolute left-1/2 bottom-1/2 -translate-x-1/2 translate-y-1/2 flex items-center gap-3 sm:gap-8 lg:gap-12 bg-slate-100/50 backdrop-blur-md p-1.5 sm:px-7 sm:py-3.5 lg:p-3 rounded-[1.8rem] sm:rounded-[2.5rem] border border-white shadow-inner pointer-events-auto max-w-[95vw] sm:max-w-none">
-          <div className="relative -translate-y-4 sm:-translate-y-6 lg:-translate-y-8 flex items-center justify-center w-14 h-14 sm:w-20 sm:h-20">
+        <div className="absolute left-1/2 bottom-1/2 -translate-x-1/2 translate-y-1/2 flex items-center gap-3 sm:gap-8 lg:gap-12 landscape-mobile:gap-2.5 bg-slate-100/50 backdrop-blur-md p-1.5 sm:px-7 sm:py-3.5 lg:p-3 landscape-mobile:p-1 rounded-[1.8rem] sm:rounded-[2.5rem] landscape-mobile:rounded-2xl border border-white shadow-inner pointer-events-auto max-w-[95vw] sm:max-w-none">
+          <div className="relative -translate-y-4 sm:-translate-y-6 lg:-translate-y-8 landscape-mobile:-translate-y-2 flex items-center justify-center w-14 h-14 sm:w-20 sm:h-20 landscape-mobile:w-11 landscape-mobile:h-11">
             <DiceController
               size={diceSize}
               value={diceValue}
@@ -620,7 +623,7 @@ function BoardPage() {
             />
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-4.5 lg:gap-6 -translate-y-4 sm:-translate-y-6 lg:-translate-y-8">
+          <div className="flex items-center gap-2 sm:gap-4.5 lg:gap-6 landscape-mobile:gap-1.5 -translate-y-4 sm:-translate-y-6 lg:-translate-y-8 landscape-mobile:-translate-y-2">
             <CardDeck type="DASAR"     label="Dasar"     isDrawn={isCardActive && displayCard?.type === "DASAR"}     />
             <CardDeck type="TANTANGAN" label="Tantangan" isDrawn={isCardActive && displayCard?.type === "TANTANGAN"} />
             <CardDeck type="PEMAHAMAN" label="Pemahaman" isDrawn={isCardActive && displayCard?.type === "PEMAHAMAN"} />
@@ -702,13 +705,13 @@ function BoardPage() {
             exit={{ y: -50, x: "-50%", opacity: 0 }}
             className="fixed top-0 left-1/2 z-[100] pointer-events-none flex flex-col items-center"
           >
-            <div className="bg-amber-500/90 backdrop-blur-md px-4 py-2 rounded-full border border-amber-400 shadow-[0_10px_30px_rgba(245,158,11,0.3)] flex items-center gap-2 animate-pulse">
+            <div className="bg-amber-500/90 backdrop-blur-md px-3 py-1.5 sm:px-4 sm:py-2 rounded-full border border-amber-400 shadow-[0_10px_30px_rgba(245,158,11,0.3)] flex items-center gap-1.5 sm:gap-2 animate-pulse">
               <div className="relative flex items-center justify-center">
                 <div className="absolute inset-0 bg-white/40 rounded-full animate-ping" />
-                <span className="text-[10px] sm:text-xs">🎲</span>
+                <Dices className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white" />
               </div>
-              <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-white">
-                Giliranmu! Ayo putar dadu sekarang
+              <span className="text-[8px] sm:text-xs font-black uppercase tracking-wider text-white">
+                Giliranmu! Lempar dadu
               </span>
             </div>
           </motion.div>

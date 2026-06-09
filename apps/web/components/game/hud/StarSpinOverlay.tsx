@@ -101,7 +101,7 @@ export default function StarSpinOverlay() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: isMobile ? 0 : 20 }}
             transition={{ duration: 0.25, ease: "easeOut" }}
-            className="relative bg-gradient-to-b from-stone-900/95 to-stone-950/98 border border-white/10 rounded-[2.5rem] p-6 lg:p-8 my-auto shadow-[0_20px_50px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.05)] max-w-sm w-full text-center flex flex-col items-center z-10 select-none overflow-hidden pointer-events-auto"
+            className="relative bg-gradient-to-b from-stone-900/95 to-stone-950/98 border border-white/10 rounded-[2.5rem] landscape-mobile:rounded-[1.5rem] p-6 lg:p-8 landscape-mobile:p-3 my-auto shadow-[0_20px_50px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.05)] max-w-sm landscape-mobile:max-w-[280px] w-full text-center flex flex-col items-center z-10 select-none overflow-hidden pointer-events-auto"
           >
             {/* Ambient inner glows */}
             {!isMobile && (
@@ -112,27 +112,27 @@ export default function StarSpinOverlay() {
             )}
 
             {/* Title Block */}
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 bg-yellow-500/10 border border-yellow-500/30 rounded-xl flex items-center justify-center animate-pulse">
-                <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+            <div className="flex items-center gap-2 landscape-mobile:gap-1 mb-2 landscape-mobile:mb-1">
+              <div className="w-8 h-8 landscape-mobile:w-6 landscape-mobile:h-6 bg-yellow-500/10 border border-yellow-500/30 rounded-xl landscape-mobile:rounded-lg flex items-center justify-center animate-pulse">
+                <Star className="w-4 h-4 landscape-mobile:w-3 landscape-mobile:h-3 text-yellow-500 fill-yellow-500" />
               </div>
-              <span className="text-xs font-black tracking-[0.25em] text-yellow-500 uppercase">PETAK KEBERUNTUNGAN</span>
+              <span className="text-xs landscape-mobile:text-[8px] font-black tracking-[0.25em] text-yellow-500 uppercase">PETAK KEBERUNTUNGAN</span>
             </div>
             
-            <h2 className="text-2xl lg:text-3xl font-black tracking-tight text-white mb-2">RODA PUTAR STAR</h2>
+            <h2 className="text-2xl lg:text-3xl landscape-mobile:text-base font-black tracking-tight text-white mb-2 landscape-mobile:mb-0.5">RODA PUTAR STAR</h2>
             
-            <p className="text-xs font-medium text-stone-400 mb-5 max-w-xs leading-relaxed">
+            <p className="text-xs landscape-mobile:text-[9.5px] font-medium text-stone-400 mb-5 landscape-mobile:mb-2 max-w-xs leading-relaxed">
               {isMyTurn ? (
-                <>Tim <strong className="text-yellow-400 font-bold">{activeGroup?.name}</strong>, klik tombol di tengah untuk menentukan nasib tim-mu!</>
+                <>Tim <strong className="text-yellow-400 font-bold">{activeGroup?.name}</strong>, klik SPIN di tengah!</>
               ) : (
-                <>Tim <strong className="text-yellow-400 font-bold">{activeGroup?.name}</strong> sedang memutar roda keberuntungan...</>
+                <>Tim <strong className="text-yellow-400 font-bold">{activeGroup?.name}</strong> sedang memutar roda...</>
               )}
             </p>
 
             {/* =======================================================================
                 SPIN WHEEL ASSEMBLY
                 ======================================================================= */}
-            <div className="relative w-60 h-60 lg:w-64 lg:h-64 mb-6 flex items-center justify-center pointer-events-auto">
+            <div className="relative w-60 h-60 lg:w-64 lg:h-64 landscape-mobile:w-40 landscape-mobile:h-40 mb-6 landscape-mobile:mb-2 flex items-center justify-center pointer-events-auto">
               {/* Premium Outer Glow Ring */}
               {!isMobile && <div className="absolute inset-[-12px] rounded-full bg-yellow-500/5 border border-yellow-500/10 blur-lg pointer-events-none" />}
               <div className="absolute inset-[-4px] rounded-full border-2 border-white/5 shadow-2xl pointer-events-none" />
@@ -197,34 +197,33 @@ export default function StarSpinOverlay() {
               </motion.div>
  
               {/* Static Top Selector Pin (The Needle) */}
-              <div className="absolute top-[-10px] left-1/2 -translate-x-1/2 z-20 flex flex-col items-center filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.4)] animate-bounce-slow pointer-events-none">
-                <ArrowUp className="w-8 h-8 text-yellow-400 rotate-180 fill-yellow-400 stroke-[2.5]" />
+              <div className="absolute top-[-10px] landscape-mobile:top-[-6px] left-1/2 -translate-x-1/2 z-20 flex flex-col items-center filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.4)] animate-bounce-slow pointer-events-none">
+                <ArrowUp className="w-8 h-8 landscape-mobile:w-5 landscape-mobile:h-5 text-yellow-400 rotate-180 fill-yellow-400 stroke-[2.5]" />
               </div>
  
               {/* Central Premium Button / Pivot */}
               <button
                 onClick={handleSpinClick}
                 disabled={!isMyTurn || isSpinAnimating || starSpinResult !== null || localClicked}
-                className={`absolute rounded-full z-30 flex flex-col items-center justify-center border-4 shadow-xl transition-all duration-300 outline-none pointer-events-auto ${
+                className={`absolute rounded-full z-30 flex flex-col items-center justify-center border-4 landscape-mobile:border-2 shadow-xl transition-all duration-300 outline-none pointer-events-auto w-16 h-16 landscape-mobile:w-11 landscape-mobile:h-11 ${
                   isSpinAnimating || starSpinResult !== null || localClicked
                     ? "bg-stone-800 border-stone-700 text-stone-600 scale-95 cursor-not-allowed pointer-events-none"
                     : isMyTurn
                     ? "bg-gradient-to-br from-yellow-400 to-yellow-600 border-white hover:scale-105 active:scale-95 cursor-pointer text-yellow-950 hover:shadow-yellow-500/20"
                     : "bg-stone-800 border-stone-700 text-stone-400 cursor-not-allowed pointer-events-none"
                 }`}
-                style={{ width: '68px', height: '68px' }}
               >
-                <span className="text-[9px] font-black tracking-widest uppercase leading-none mb-0.5 pointer-events-none">
+                <span className="text-[9px] landscape-mobile:text-[7px] font-black tracking-widest uppercase leading-none mb-0.5 pointer-events-none">
                   {isSpinAnimating ? "SPINNING" : "SPIN"}
                 </span>
-                <Zap className={`w-3 h-3 pointer-events-none ${isSpinAnimating ? "animate-pulse" : ""}`} />
+                <Zap className={`w-3 h-3 landscape-mobile:w-2 landscape-mobile:h-2 pointer-events-none ${isSpinAnimating ? "animate-pulse" : ""}`} />
               </button>
             </div>
  
             {/* =======================================================================
                 RESULT PANEL / SUB-HUD
                 ======================================================================= */}
-            <div className="h-16 w-full flex items-center justify-center">
+            <div className="h-16 landscape-mobile:h-10 w-full flex items-center justify-center">
               <AnimatePresence mode="wait">
                 {starSpinResult && !isSpinAnimating && (
                   <motion.div
@@ -232,14 +231,14 @@ export default function StarSpinOverlay() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: isMobile ? 0 : -12 }}
                     transition={{ duration: 0.2, ease: "easeOut" }}
-                    className={`bg-white/5 border border-white/10 rounded-2xl px-6 py-2.5 flex items-center gap-3 shadow-inner ${isMobile ? "" : "backdrop-blur-md"}`}
+                    className={`bg-white/5 border border-white/10 rounded-2xl landscape-mobile:rounded-xl px-6 py-2.5 landscape-mobile:px-3 landscape-mobile:py-1 flex items-center gap-3 landscape-mobile:gap-1.5 shadow-inner ${isMobile ? "" : "backdrop-blur-md"}`}
                   >
-                    {starSpinResult === "+5" && <Award className="w-5 h-5 text-emerald-400 animate-bounce" />}
-                    {starSpinResult === "-5" && <AlertTriangle className="w-5 h-5 text-rose-400 animate-bounce" />}
-                    {["DASAR", "TANTANGAN", "PEMAHAMAN"].includes(starSpinResult) && <Zap className="w-5 h-5 text-blue-400 animate-pulse" />}
-                    {starSpinResult === "SKIP" && <AlertCircle className="w-5 h-5 text-stone-400" />}
+                    {starSpinResult === "+5" && <Award className="w-5 h-5 landscape-mobile:w-4 landscape-mobile:h-4 text-emerald-400 animate-bounce" />}
+                    {starSpinResult === "-5" && <AlertTriangle className="w-5 h-5 landscape-mobile:w-4 landscape-mobile:h-4 text-rose-400 animate-bounce" />}
+                    {["DASAR", "TANTANGAN", "PEMAHAMAN"].includes(starSpinResult) && <Zap className="w-5 h-5 landscape-mobile:w-4 landscape-mobile:h-4 text-blue-400 animate-pulse" />}
+                    {starSpinResult === "SKIP" && <AlertCircle className="w-5 h-5 landscape-mobile:w-4 landscape-mobile:h-4 text-stone-400" />}
                     
-                    <span className="text-xs font-black text-white tracking-wide uppercase">
+                    <span className="text-xs landscape-mobile:text-[9.5px] font-black text-white tracking-wide uppercase">
                       HASIL: <strong className="text-yellow-400 font-bold">{starSpinResult}</strong>
                     </span>
                   </motion.div>

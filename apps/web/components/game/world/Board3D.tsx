@@ -450,7 +450,7 @@ function Pion({
 
       {/* ─── Floating Gold Arrow 2D Billboard (Kepala Pion) ─── */}
       {showActiveIndicator && (
-        <Html position={[0, TILE_TOP_Y + 0.1, -0.65]} center>
+        <Html position={[0, TILE_TOP_Y + 0.1, -0.65]} center zIndexRange={[1, 10]}>
           {/* Container luar pembungkus (tanpa translate-y pixel agar proporsional saat zoom) */}
           <div className="pointer-events-none select-none">
             {/* Container dalam untuk efek memantul */}
