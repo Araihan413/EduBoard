@@ -59,17 +59,20 @@ export default function LeaderboardOverlay({ groups, role, isMidGame = false, on
   }, [winner, isMidGame, isMobile]);
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      style={{ willChange: "opacity" }}
-      className={`fixed inset-0 z-[9999] ${isMobile ? "bg-black/90" : "bg-black/75"} flex items-center justify-center p-4 sm:p-6`}
-    >
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 pointer-events-none">
+      {/* Backdrop */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        style={{ willChange: "opacity" }}
+        className={`absolute inset-0 ${isMobile ? "bg-black/90" : "bg-black/75"} pointer-events-none`}
+      />
+
       <motion.div
         initial={{ scale: isMobile ? 0.98 : 0.9, y: isMobile ? 0 : 20, opacity: 0 }}
         animate={{ scale: 1, y: 0, opacity: 1 }}
         style={{ willChange: "transform, opacity" }}
-        className={`bg-slate-950 border border-white/10 rounded-[2.5rem] p-5 sm:p-8 md:p-10 shadow-[0_50px_100px_rgba(0,0,0,0.8)] flex flex-col relative overflow-hidden w-[95%] sm:w-full min-h-0 ${
+        className={`bg-slate-950 border border-white/10 rounded-[2.5rem] p-5 sm:p-8 md:p-10 shadow-[0_50px_100px_rgba(0,0,0,0.8)] flex flex-col relative overflow-hidden w-[95%] sm:w-full min-h-0 pointer-events-auto ${
           !isMidGame && winner 
             ? "max-w-md md:max-w-4xl h-[90vh] md:h-[75vh] max-h-[580px] md:max-h-[500px]" 
             : "max-w-xl h-[80vh] max-h-[580px] sm:max-h-[640px]"
@@ -307,6 +310,6 @@ export default function LeaderboardOverlay({ groups, role, isMidGame = false, on
           </div>
         )}
       </motion.div>
-    </motion.div>
+    </div>
   );
 }

@@ -7,7 +7,7 @@ interface ActiveRoom {
     maxGroups: number;
     turnDurationDasar?: number;
     turnDurationTantangan?: number;
-    turnDurationAksi?: number;
+    turnDurationPemahaman?: number;
   };
   groups: (any & { isOffline?: boolean })[];
   activeGroupIndex: number;
@@ -26,6 +26,123 @@ interface ActiveRoom {
   intervalId?: NodeJS.Timeout;
   stateSeq?: number;
   emptySince?: number;
+
+  // Server-Authoritative FSM
+  phase?: 'WAITING_FOR_ROLL' | 'ROLLING' | 'MOVING' | 'CHOOSING_PATH' | 'ACTIVE_QUESTION' | 'STAR_SPINNING' | 'TURN_RESOLVED';
+  transitionTimer?: number;
+  transitionEndTime?: number;
+  diceValue?: number;
+  isRolling?: boolean;
+  isMoving?: boolean;
+  hasRolled?: boolean;
+  isChoosingPath?: boolean;
+  visualPath?: number[];
+  stepsRemaining?: number;
+  availablePaths?: number[];
+  animatingPionId?: string | null;
+  starSpinResult?: string | null;
+  isSpinningStar?: boolean;
+  isSpinAnimating?: boolean;
+  lastResult?: any;
+}
+
+interface TileConfig {
+  id: number;
+  type: 'DASAR' | 'TANTANGAN' | 'PEMAHAMAN' | 'SKIP' | 'STAR';
+  x: number;
+  y: number;
+  rotation: number;
+  next: number[];
+}
+
+const TILE_GRAPH: TileConfig[] = [
+  { id: 0, type: "DASAR", x: -8.4, y: -6.07, rotation: 0, next: [1] },
+  { id: 1, type: "STAR", x: -6.7, y: -5.8, rotation: 0, next: [2] },
+  { id: 2, type: "DASAR", x: -5.2, y: -6.1, rotation: 0, next: [3] },
+  { id: 3, type: "PEMAHAMAN", x: -3.65, y: -6.2, rotation: 0, next: [4] },
+  { id: 4, type: "TANTANGAN", x: -2.1, y: -6.2, rotation: 0, next: [5] },
+  { id: 5, type: "STAR", x: -0.55, y: -6.2, rotation: 0, next: [6, 35] },
+  { id: 6, type: "DASAR", x: 1.38, y: -6.15, rotation: 0, next: [7] },
+  { id: 7, type: "TANTANGAN", x: 2.9, y: -6.2, rotation: 0, next: [8] },
+  { id: 8, type: "SKIP", x: 4.4, y: -6.2, rotation: 0, next: [9] },
+  { id: 9, type: "DASAR", x: 6, y: -6.2, rotation: 0, next: [10] },
+  { id: 10, type: "PEMAHAMAN", x: 7.6, y: -6, rotation: 0, next: [11] },
+  { id: 11, type: "TANTANGAN", x: 7.6, y: -4.6, rotation: 0, next: [12] },
+  { id: 12, type: "DASAR", x: 7.6, y: -3.2, rotation: 0, next: [13] },
+  { id: 13, type: "DASAR", x: 7.6, y: -1.7, rotation: 0, next: [14] },
+  { id: 14, type: "STAR", x: 7.65, y: -0.2, rotation: 0, next: [15, 39] },
+  { id: 15, type: "TANTANGAN", x: 7.8, y: 1.8, rotation: 0, next: [16] },
+  { id: 16, type: "DASAR", x: 8, y: 3.45, rotation: 0, next: [17] },
+  { id: 17, type: "PEMAHAMAN", x: 8.05, y: 4.95, rotation: 0, next: [18] },
+  { id: 18, type: "TANTANGAN", x: 7.4, y: 6.4, rotation: 0, next: [19] },
+  { id: 19, type: "PEMAHAMAN", x: 5.8, y: 6.65, rotation: 0, next: [20] },
+  { id: 20, type: "DASAR", x: 4.2, y: 6.6, rotation: 0, next: [21] },
+  { id: 21, type: "DASAR", x: 2.67, y: 6.25, rotation: 0, next: [22] },
+  { id: 22, type: "SKIP", x: 1.19, y: 5.82, rotation: 0, next: [23] },
+  { id: 23, type: "TANTANGAN", x: -0.36, y: 5.2, rotation: 0, next: [24] },
+  { id: 24, type: "STAR", x: -1.7, y: 4.35, rotation: 0, next: [25, 47] },
+  { id: 25, type: "TANTANGAN", x: -3.7, y: 5, rotation: 0, next: [26] },
+  { id: 26, type: "PEMAHAMAN", x: -4.1, y: 6.6, rotation: 0, next: [27] },
+  { id: 27, type: "SKIP", x: -5.7, y: 6.3, rotation: 0, next: [28] },
+  { id: 28, type: "DASAR", x: -7.1, y: 5.55, rotation: 0, next: [29] },
+  { id: 29, type: "PEMAHAMAN", x: -7.75, y: 4, rotation: 0, next: [30] },
+  { id: 30, type: "TANTANGAN", x: -7.85, y: 2.4, rotation: 0, next: [31] },
+  { id: 31, type: "SKIP", x: -7.78, y: 0.65, rotation: 0, next: [32] },
+  { id: 32, type: "DASAR", x: -7.6, y: -1.15, rotation: 0, next: [33] },
+  { id: 33, type: "TANTANGAN", x: -7.75, y: -2.9, rotation: 0, next: [34] },
+  { id: 34, type: "PEMAHAMAN", x: -7.6, y: -4.4, rotation: 0, next: [1] },
+  { id: 35, type: "PEMAHAMAN", x: 0.8, y: -4.6, rotation: 0, next: [36] },
+  { id: 36, type: "STAR", x: 1.9, y: -3.25, rotation: 0, next: [37, 43] },
+  { id: 37, type: "PEMAHAMAN", x: 3.06, y: -1.5, rotation: 0, next: [38] },
+  { id: 38, type: "DASAR", x: 4, y: -0.2, rotation: 0, next: [40] },
+  { id: 39, type: "DASAR", x: 6.4, y: 0.9, rotation: 0, next: [40] },
+  { id: 40, type: "TANTANGAN", x: 4.7, y: 1.35, rotation: 0, next: [41] },
+  { id: 41, type: "DASAR", x: 3.1, y: 2.6, rotation: 0, next: [42] },
+  { id: 42, type: "PEMAHAMAN", x: 1.95, y: 4.2, rotation: 0, next: [22] },
+  { id: 43, type: "TANTANGAN", x: 1.5, y: -1.25, rotation: 0, next: [44] },
+  { id: 44, type: "PEMAHAMAN", x: 0.3, y: -0.1, rotation: 0, next: [45] },
+  { id: 45, type: "DASAR", x: -1.15, y: 0.6, rotation: 0, next: [46] },
+  { id: 46, type: "DASAR", x: -2.65, y: 1.15, rotation: 0, next: [48] },
+  { id: 47, type: "PEMAHAMAN", x: -3.25, y: 3, rotation: 0, next: [48] },
+  { id: 48, type: "SKIP", x: -4.18, y: 1.7, rotation: 0, next: [49] },
+  { id: 49, type: "DASAR", x: -5.2, y: 0.6, rotation: 0, next: [50] },
+  { id: 50, type: "PEMAHAMAN", x: -6.2, y: -0.6, rotation: 0, next: [32] },
+];
+
+function getTileById(id: number): TileConfig {
+  const tile = TILE_GRAPH.find(t => t.id === id);
+  return tile || TILE_GRAPH[0];
+}
+
+function calculateSubPath(fromTileId: number, steps: number): { path: number[], stepsRemaining: number } {
+  const path: number[] = [];
+  let currentId = fromTileId;
+  let remaining = steps;
+
+  while (remaining > 0) {
+    const currentTile = getTileById(currentId);
+    const nextIds = currentTile.next;
+
+    if (!nextIds || nextIds.length === 0) {
+      break;
+    }
+
+    if (nextIds.length > 1) {
+      break;
+    }
+
+    const nextId = nextIds[0];
+    path.push(nextId);
+    currentId = nextId;
+    remaining--;
+
+    const nextTile = getTileById(currentId);
+    if (nextTile.next && nextTile.next.length > 1 && remaining > 0) {
+      break;
+    }
+  }
+
+  return { path, stepsRemaining: remaining };
 }
 
 const activeRooms = new Map<string, ActiveRoom>();
@@ -610,6 +727,11 @@ export function handleSocketEvents(io: Server, socket: Socket) {
         liveRoom.gameStatus = 'PLAYING';
         liveRoom.isGlobalTimerRunning = true;
         liveRoom.globalTimer = liveRoom.roomConfig?.gameDurationSec || 600;
+        liveRoom.phase = 'WAITING_FOR_ROLL';
+        liveRoom.transitionTimer = undefined;
+        liveRoom.hasRolled = false;
+        liveRoom.isRolling = false;
+        liveRoom.isMoving = false;
         updated = true;
       }
 
@@ -618,8 +740,42 @@ export function handleSocketEvents(io: Server, socket: Socket) {
         updated = true;
       }
 
+      // Decrement main timer or resolve timeout
       if (liveRoom.isTimerRunning && liveRoom.timer > 0) {
         liveRoom.timer--;
+        updated = true;
+      } else if (liveRoom.isTimerRunning && liveRoom.timer === 0) {
+        liveRoom.isTimerRunning = false;
+        resolveServerTimeout(roomCode, io);
+        updated = true;
+      }
+
+      // Check precise transition time for visual FSM animations
+      if (liveRoom.transitionEndTime !== undefined) {
+        if (Date.now() >= liveRoom.transitionEndTime) {
+          liveRoom.transitionEndTime = undefined;
+          liveRoom.transitionTimer = undefined;
+          handleServerTransition(roomCode, io);
+          updated = true;
+        } else {
+          // Sync transitionTimer (in seconds) for potential client monitoring/logs
+          const remainingSec = Math.ceil((liveRoom.transitionEndTime - Date.now()) / 1000);
+          if (liveRoom.transitionTimer !== remainingSec) {
+            liveRoom.transitionTimer = remainingSec;
+            updated = true;
+          }
+        }
+      } else if (liveRoom.transitionTimer !== undefined) {
+        // Fallback for any legacy code setting transitionTimer directly
+        if (liveRoom.transitionTimer > 0) {
+          liveRoom.transitionTimer--;
+          if (liveRoom.transitionTimer === 0) {
+            liveRoom.transitionTimer = undefined;
+            handleServerTransition(roomCode, io);
+          }
+        } else {
+          liveRoom.transitionTimer = undefined;
+        }
         updated = true;
       }
 
@@ -721,18 +877,41 @@ export function handleSocketEvents(io: Server, socket: Socket) {
       return;
     }
 
+    // Guard: Prevent double grading or submitting if already submitted/closed
+    if (room.phase !== 'ACTIVE_QUESTION' || !room.currentCard) {
+      return;
+    }
+
     const group = room.groups.find(g => g.id === data.groupId);
     if (group) {
       group.score += data.score;
-      room.logs = [`${group.name} menjawab ${data.isCorrect ? "benar" : "salah"}`, ...room.logs];
+      room.logs = [`${group.name} menjawab ${data.isCorrect ? "benar" : "salah"}.`, ...room.logs];
     }
 
-    // Broadcast immediately to ensure game continues
-    io.to(data.roomCode).emit("game:state", {
-      roomCode: data.roomCode,
-      groups: room.groups,
-      logs: room.logs
-    });
+    const card = room.currentCard;
+    const currentTurnAtSubmit = room.currentTurn;
+
+    // Transition to turn resolved with a 3-second display of result toast
+    room.currentCard = null;
+    room.isTimerRunning = false;
+    room.phase = 'TURN_RESOLVED';
+    room.transitionEndTime = Date.now() + 3000;
+    room.transitionTimer = 3;
+    room.lastResult = {
+      type: data.answer === 'TIMEOUT' ? 'FAILURE' : (data.isCorrect ? 'SUCCESS' : 'FAILURE'),
+      title: data.answer === 'TIMEOUT' ? 'WAKTU HABIS!' : (data.isCorrect ? 'BENAR!' : 'SALAH!'),
+      message: data.answer === 'TIMEOUT' 
+        ? `Waktu habis! Jawaban tim ${group?.name || 'Siswa'} dianggap kosong.`
+        : (data.isCorrect 
+            ? `Selamat! Jawaban kamu tepat.` 
+            : `Yah, kurang tepat. Jawabannya adalah: ${card.answerKey}`),
+      points: data.score,
+      groupName: group?.name || 'Siswa',
+      turnNumber: currentTurnAtSubmit
+    };
+
+    const { intervalId, ...roomData } = room;
+    io.to(data.roomCode).emit("game:state", roomData);
 
     // Background DB Persistence (non-blocking)
     try {
@@ -905,30 +1084,37 @@ export function handleSocketEvents(io: Server, socket: Socket) {
     const room = activeRooms.get(data.roomCode);
     if (!room || room.gameStatus === 'FINISHED') return;
 
-    // Always update in-memory state first (so game never hangs)
+    if (room.phase !== 'ACTIVE_QUESTION') return;
+
     const group = room.groups.find(g => g.id === data.groupId);
     if (group) {
       group.score += data.score;
     }
-    room.pendingReviews = room.pendingReviews.filter(r => r.dbAnswerId !== data.dbAnswerId);
+
+    const review = room.pendingReviews.find(r => r.dbAnswerId === data.dbAnswerId || r.id === data.dbAnswerId);
+    room.pendingReviews = room.pendingReviews.filter(r => r.dbAnswerId !== data.dbAnswerId && r.id !== data.dbAnswerId);
     room.logs = [`Guru memberikan ${data.score} poin untuk ${group?.name || 'tim'}`, ...room.logs];
 
-    // Broadcast immediately — game continues regardless of DB
-    io.to(data.roomCode).emit("game:state", {
-      roomCode: data.roomCode,
-      groups: room.groups,
-      pendingReviews: room.pendingReviews,
-      logs: room.logs,
-      lastResult: {
-        type: data.score > 0 ? 'SUCCESS' : 'FAILURE',
-        title: data.score > 0 ? 'DINILAI!' : 'TIDAK TEPAT!',
-        message: data.score > 0 
-          ? `Guru memberikan ${data.score} poin untuk jawabanmu!` 
-          : `Guru menyatakan jawaban kurang tepat (0 poin).`,
-        points: data.score,
-        groupName: group?.name || 'Siswa'
-      }
-    });
+    const currentTurnAtGrade = room.currentTurn;
+
+    room.currentCard = null;
+    room.isTimerRunning = false;
+    room.phase = 'TURN_RESOLVED';
+    room.transitionEndTime = Date.now() + 3000;
+    room.transitionTimer = 3;
+    room.lastResult = {
+      type: data.score > 0 ? 'SUCCESS' : 'FAILURE',
+      title: data.score > 0 ? (data.score >= (review?.points || 10) ? 'TUNTAS!' : 'SEBAGIAN!') : 'BELUM TEPAT!',
+      message: data.score > 0 
+        ? `Guru memberikan penilaian: ${data.score} poin untuk tim ${group?.name || 'Siswa'}.`
+        : `Yah, jawaban tim ${group?.name || 'Siswa'} dinilai kurang tepat oleh Guru.`,
+      points: data.score,
+      groupName: group?.name || 'Siswa',
+      turnNumber: currentTurnAtGrade
+    };
+
+    const { intervalId, ...roomData } = room;
+    io.to(data.roomCode).emit("game:state", roomData);
 
     // Background DB persistence — skip fallback in-memory answers that have no DB record
     if (!data.dbAnswerId.startsWith('fallback-')) {
@@ -951,4 +1137,448 @@ export function handleSocketEvents(io: Server, socket: Socket) {
       }
     }
   });
+
+  socket.on("game:roll_dice", async (roomCode: string) => {
+    const sender = socketToUser.get(socket.id);
+    if (!sender || sender.roomCode !== roomCode) return;
+    
+    const room = activeRooms.get(roomCode);
+    if (!room || room.gameStatus !== 'PLAYING') return;
+    
+    if (room.hasRolled) {
+      socket.emit("error", { message: "Dadu sudah dikocok pada giliran ini." });
+      return;
+    }
+
+    const activeGroup = room.groups[room.activeGroupIndex];
+    if (!activeGroup) return;
+
+    const isMyTurn = sender.role !== 'guru' && activeGroup.name.trim().toLowerCase() === sender.groupName.trim().toLowerCase();
+    const isGuruTakeover = sender.role === 'guru' && (activeGroup.isOffline || room.groups.every(g => g.isOffline || g.name === ''));
+    if (!isMyTurn && !isGuruTakeover) {
+      socket.emit("error", { message: "Akses ditolak: Bukan giliran kelompok Anda." });
+      return;
+    }
+
+    const val = Math.floor(Math.random() * 6) + 1;
+    room.diceValue = val;
+    room.isRolling = true;
+    room.hasRolled = true;
+    room.isMoving = false;
+    room.phase = 'ROLLING';
+    room.transitionEndTime = Date.now() + 2000;
+    room.transitionTimer = 2; // 2 seconds rolling animation
+    room.logs = [`${activeGroup.name} mengocok dadu... hasil: ${val}`, ...room.logs];
+
+    const { intervalId, ...roomData } = room;
+    io.to(roomCode).emit("game:state", roomData);
+  });
+
+  socket.on("game:select_branch", async (data: { roomCode: string, nextTileId: number }) => {
+    const sender = socketToUser.get(socket.id);
+    if (!sender || sender.roomCode !== data.roomCode) return;
+    
+    const room = activeRooms.get(data.roomCode);
+    if (!room || room.gameStatus !== 'PLAYING') return;
+
+    if (room.phase !== 'CHOOSING_PATH') return;
+
+    const activeGroup = room.groups[room.activeGroupIndex];
+    if (!activeGroup) return;
+
+    const isMyTurn = sender.role !== 'guru' && activeGroup.name.trim().toLowerCase() === sender.groupName.trim().toLowerCase();
+    const isGuruTakeover = sender.role === 'guru' && (activeGroup.isOffline || room.groups.every(g => g.isOffline || g.name === ''));
+    if (!isMyTurn && !isGuruTakeover) return;
+
+    const remaining = room.stepsRemaining || 0;
+    const newRemaining = Math.max(0, remaining - 1);
+
+    const { path, stepsRemaining } = calculateSubPath(data.nextTileId, newRemaining);
+    const nextVisualPath = [data.nextTileId, ...path];
+    const destinationTileId = nextVisualPath[nextVisualPath.length - 1];
+
+    activeGroup.position = destinationTileId;
+    room.isChoosingPath = false;
+    room.availablePaths = [];
+    room.stepsRemaining = stepsRemaining;
+    room.visualPath = nextVisualPath;
+    room.animatingPionId = activeGroup.id;
+    room.isMoving = true;
+
+    room.phase = 'MOVING';
+    const moveDurationMs = nextVisualPath.length * 420 + 300;
+    room.transitionEndTime = Date.now() + moveDurationMs;
+    room.transitionTimer = Math.ceil(moveDurationMs / 1000);
+
+    const { intervalId, ...roomData } = room;
+    io.to(data.roomCode).emit("game:state", roomData);
+  });
+
+  socket.on("game:spin_star", async (roomCode: string) => {
+    const sender = socketToUser.get(socket.id);
+    if (!sender || sender.roomCode !== roomCode) return;
+    
+    const room = activeRooms.get(roomCode);
+    if (!room || room.gameStatus !== 'PLAYING') return;
+
+    if (room.phase !== 'STAR_SPINNING' || !room.isSpinningStar || room.isSpinAnimating || room.starSpinResult !== null) return;
+
+    const activeGroup = room.groups[room.activeGroupIndex];
+    if (!activeGroup) return;
+
+    const isMyTurn = sender.role !== 'guru' && activeGroup.name.trim().toLowerCase() === sender.groupName.trim().toLowerCase();
+    const isGuruTakeover = sender.role === 'guru' && (activeGroup.isOffline || room.groups.every(g => g.isOffline || g.name === ''));
+    if (!isMyTurn && !isGuruTakeover) return;
+
+    const options = ["+5", "-5", "DASAR", "TANTANGAN", "PEMAHAMAN", "SKIP"];
+    const result = options[Math.floor(Math.random() * options.length)];
+
+    room.isSpinAnimating = true;
+    room.starSpinResult = result;
+    room.transitionEndTime = Date.now() + 3000;
+    room.transitionTimer = 3; // 3 seconds spinning animation
+    room.logs = [`Roda putar STAR berputar untuk tim ${activeGroup.name}...`, ...room.logs];
+
+    const { intervalId, ...roomData } = room;
+    io.to(roomCode).emit("game:state", roomData);
+  });
+
+  socket.on("game:skip_turn", async (roomCode: string) => {
+    const sender = socketToUser.get(socket.id);
+    if (!sender || sender.roomCode !== roomCode || sender.role !== 'guru') return;
+    
+    const room = activeRooms.get(roomCode);
+    if (!room || room.gameStatus !== 'PLAYING') return;
+
+    room.logs = [`Guru melompati giliran kelompok ${room.groups[room.activeGroupIndex]?.name ?? ''}`, ...room.logs];
+    advanceTurn(roomCode, io);
+  });
+}
+
+// ─── SERVER-SIDE FSM TRANSITION HELPERS ───────────────────────────────────────
+
+function drawCard(roomCode: string, type: string, io: Server) {
+  const room = activeRooms.get(roomCode);
+  if (!room) return;
+
+  const activeGroup = room.groups[room.activeGroupIndex];
+  if (!activeGroup) return;
+
+  let pool = room.questions && room.questions.length > 0 ? room.questions : [];
+  if (type) {
+    pool = pool.filter(q => q.type.toString().toUpperCase() === type.toUpperCase());
+  }
+
+  if (pool.length === 0) {
+    room.logs = [`Sistem: Tidak ada soal untuk tipe ${type}!`, ...room.logs];
+    io.to(roomCode).emit("game:state", { roomCode, logs: room.logs });
+    setTimeout(() => advanceTurn(roomCode, io), 2000);
+    return;
+  }
+
+  const card = pool[Math.floor(Math.random() * pool.length)];
+  room.currentCard = card;
+  room.timer = (card.type === 'PEMAHAMAN' ? room.roomConfig.turnDurationPemahaman :
+                card.type === 'TANTANGAN' ? room.roomConfig.turnDurationTantangan :
+                room.roomConfig.turnDurationDasar) || (card.type === 'PEMAHAMAN' ? 90 : card.type === 'TANTANGAN' ? 60 : 30);
+  room.isTimerRunning = true;
+  room.phase = 'ACTIVE_QUESTION';
+  room.logs = [`Kartu ${card.type} ditarik: ${card.text}`, ...room.logs];
+
+  const { intervalId, ...roomData } = room;
+  io.to(roomCode).emit("game:state", roomData);
+}
+
+function resolvePawnLanding(roomCode: string, io: Server) {
+  const room = activeRooms.get(roomCode);
+  if (!room) return;
+
+  const activeGroup = room.groups[room.activeGroupIndex];
+  if (!activeGroup) return;
+
+  const tile = getTileById(activeGroup.position);
+
+  if (tile.type === 'SKIP') {
+    room.logs = [`${activeGroup.name} mendarat di petak SKIP!`, ...room.logs];
+    room.phase = 'TURN_RESOLVED';
+    room.transitionEndTime = Date.now() + 3000;
+    room.transitionTimer = 3; 
+    room.lastResult = {
+      type: "INFO",
+      title: "GILIRAN DILEWATI",
+      message: `Tim ${activeGroup.name} mendarat di petak SKIP. Giliran dilewati!`,
+      points: 0,
+      groupName: activeGroup.name,
+      turnNumber: room.currentTurn
+    };
+
+    const { intervalId, ...roomData } = room;
+    io.to(roomCode).emit("game:state", roomData);
+  } else if (tile.type === 'STAR') {
+    room.logs = [`${activeGroup.name} mendarat di petak STAR! Roda putar aktif.`, ...room.logs];
+    room.phase = 'STAR_SPINNING';
+    room.isSpinningStar = true;
+    room.starSpinResult = null;
+    room.isSpinAnimating = false;
+
+    const { intervalId, ...roomData } = room;
+    io.to(roomCode).emit("game:state", roomData);
+  } else {
+    drawCard(roomCode, tile.type, io);
+  }
+}
+
+async function advanceTurn(roomCode: string, io: Server) {
+  const room = activeRooms.get(roomCode);
+  if (!room || room.gameStatus === 'FINISHED') return;
+
+  if (room.groups.length === 0) return;
+
+  let nextIndex = (room.activeGroupIndex + 1) % room.groups.length;
+  let searchCount = 0;
+  
+  while (room.groups[nextIndex].status === 'SURRENDERED' && searchCount < room.groups.length) {
+    nextIndex = (nextIndex + 1) % room.groups.length;
+    searchCount++;
+  }
+
+  room.activeGroupIndex = nextIndex;
+  room.currentTurn += 1;
+  room.currentCard = null;
+  room.lastResult = null;
+  room.timer = 0;
+  room.isTimerRunning = false;
+  room.isMoving = false;
+  room.isRolling = false;
+  room.hasRolled = false;
+  room.isChoosingPath = false;
+  room.availablePaths = [];
+  room.stepsRemaining = 0;
+  room.isSpinningStar = false;
+  room.starSpinResult = null;
+  room.isSpinAnimating = false;
+  room.visualPath = [];
+  room.phase = 'WAITING_FOR_ROLL';
+  room.transitionTimer = undefined;
+  room.transitionEndTime = undefined;
+
+  try {
+    await prisma.room.update({
+      where: { code: roomCode },
+      data: {
+        activeGroupIndex: nextIndex,
+        currentTurn: room.currentTurn
+      }
+    });
+  } catch (err) {
+    console.error("Gagal update turn saat advance di DB:", err);
+  }
+
+  const { intervalId, ...roomData } = room;
+  io.to(roomCode).emit("game:state", roomData);
+}
+
+async function resolveServerTimeout(roomCode: string, io: Server) {
+  const room = activeRooms.get(roomCode);
+  if (!room || !room.currentCard) return;
+
+  const activeGroup = room.groups[room.activeGroupIndex];
+  if (!activeGroup) return;
+
+  const card = room.currentCard;
+  const currentTurnAtTimeout = room.currentTurn;
+
+  room.currentCard = null;
+  room.isTimerRunning = false;
+  room.phase = 'TURN_RESOLVED';
+  room.transitionEndTime = Date.now() + 3000;
+  room.transitionTimer = 3;
+  room.lastResult = {
+    type: 'FAILURE',
+    title: 'WAKTU HABIS!',
+    message: `Waktu menjawab telah habis untuk tim ${activeGroup.name}.`,
+    points: 0,
+    groupName: activeGroup.name,
+    turnNumber: currentTurnAtTimeout
+  };
+
+  const { intervalId, ...roomData } = room;
+  io.to(roomCode).emit("game:state", roomData);
+
+  try {
+    let dbRoom = await prisma.room.findUnique({
+      where: { code: roomCode },
+      include: { session: true }
+    });
+
+    if (dbRoom) {
+      if (!dbRoom.session) {
+        const newSession = await prisma.gameSession.create({
+          data: { roomId: dbRoom.id }
+        });
+        (dbRoom as any).session = newSession;
+      }
+
+      if (dbRoom.session) {
+        const fallbackText = card.type === 'DASAR' 
+          ? 'TIMEOUT' 
+          : (card.type === 'PEMAHAMAN' 
+              ? 'Waktu habis, jawaban tulisan belum selesai.' 
+              : 'Waktu habis, siswa belum selesai menjawab lisan.');
+
+        await prisma.answer.create({
+          data: {
+            sessionId: dbRoom.session.id,
+            groupId: activeGroup.id,
+            questionId: card.id,
+            answerText: fallbackText,
+            isCorrect: false,
+            scoreGiven: 0
+          }
+        });
+
+        await prisma.turnLog.create({
+          data: {
+            sessionId: dbRoom.session.id,
+            groupId: activeGroup.id,
+            questionId: card.id,
+            turnNumber: currentTurnAtTimeout
+          }
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Gagal menyimpan timeout ke DB:", err);
+  }
+}
+
+function handleServerTransition(roomCode: string, io: Server) {
+  const room = activeRooms.get(roomCode);
+  if (!room) return;
+
+  if (room.phase === 'ROLLING') {
+    room.isRolling = false;
+    const activeGroup = room.groups[room.activeGroupIndex];
+    if (!activeGroup) return;
+
+    const diceVal = room.diceValue || 1;
+    const { path, stepsRemaining } = calculateSubPath(activeGroup.position, diceVal);
+
+    if (path.length === 0) {
+      const currentTile = getTileById(activeGroup.position);
+      if (stepsRemaining > 0 && currentTile.next && currentTile.next.length > 1) {
+        room.isChoosingPath = true;
+        room.availablePaths = currentTile.next;
+        room.stepsRemaining = stepsRemaining;
+        room.isMoving = false;
+        room.phase = 'CHOOSING_PATH';
+        room.transitionTimer = undefined;
+        room.transitionEndTime = undefined;
+      } else {
+        room.stepsRemaining = 0;
+        room.isMoving = false;
+        room.visualPath = [];
+        resolvePawnLanding(roomCode, io);
+      }
+    } else {
+      const destinationTileId = path[path.length - 1];
+      activeGroup.position = destinationTileId;
+      room.stepsRemaining = stepsRemaining;
+      room.visualPath = path;
+      room.animatingPionId = activeGroup.id;
+      room.isMoving = true;
+      room.phase = 'MOVING';
+      const moveDurationMs = 500 + path.length * 420 + 300;
+      room.transitionEndTime = Date.now() + moveDurationMs;
+      room.transitionTimer = Math.ceil(moveDurationMs / 1000);
+    }
+
+    const { intervalId, ...roomData } = room;
+    io.to(roomCode).emit("game:state", roomData);
+  } 
+  else if (room.phase === 'MOVING') {
+    room.isMoving = false;
+    room.visualPath = [];
+    room.animatingPionId = null;
+
+    const activeGroup = room.groups[room.activeGroupIndex];
+    if (activeGroup) {
+      const currentTile = getTileById(activeGroup.position);
+      const stepsRemaining = room.stepsRemaining || 0;
+      if (stepsRemaining > 0 && currentTile.next && currentTile.next.length > 1) {
+        room.isChoosingPath = true;
+        room.availablePaths = currentTile.next;
+        room.phase = 'CHOOSING_PATH';
+        room.transitionTimer = undefined;
+        room.transitionEndTime = undefined;
+
+        const { intervalId, ...roomData } = room;
+        io.to(roomCode).emit("game:state", roomData);
+        return;
+      }
+    }
+
+    resolvePawnLanding(roomCode, io);
+  } 
+  else if (room.phase === 'STAR_SPINNING') {
+    room.isSpinAnimating = false;
+    const result = room.starSpinResult;
+    const activeGroup = room.groups[room.activeGroupIndex];
+    
+    if (!activeGroup || !result) return;
+
+    const currentTurnAtResult = room.currentTurn;
+
+    if (result === "+5" || result === "-5") {
+      const points = result === "+5" ? 5 : -5;
+      activeGroup.score = Math.max(0, activeGroup.score + points);
+      
+      room.isSpinningStar = false;
+      room.phase = 'TURN_RESOLVED';
+      room.transitionEndTime = Date.now() + 3000;
+      room.transitionTimer = 3; 
+      room.lastResult = {
+        type: points > 0 ? "SUCCESS" : "FAILURE",
+        title: points > 0 ? "BONUS POIN!" : "POIN DIKURANGI!",
+        message: points > 0 
+          ? `Selamat! Tim ${activeGroup.name} mendapatkan bonus +5 poin dari roda putar STAR.` 
+          : `Aduh! Tim ${activeGroup.name} kehilangan -5 poin dari roda putar STAR.`,
+        points: points,
+        groupName: activeGroup.name,
+        turnNumber: currentTurnAtResult
+      };
+      room.logs = [`Tim ${activeGroup.name} mendapat hasil roda putar: ${result} (Poin sekarang: ${activeGroup.score})`, ...room.logs];
+
+      prisma.group.update({
+        where: { id: activeGroup.id },
+        data: { score: activeGroup.score }
+      }).catch(err => console.error("Gagal update score bintang di DB:", err));
+
+    } else if (result === "SKIP") {
+      room.isSpinningStar = false;
+      room.phase = 'TURN_RESOLVED';
+      room.transitionEndTime = Date.now() + 3000;
+      room.transitionTimer = 3;
+      room.lastResult = {
+        type: "INFO",
+        title: "GILIRAN DILEWATI",
+        message: `Tim ${activeGroup.name} mendapat SKIP. Tidak terjadi apa-apa dan giliran dilewati.`,
+        points: 0,
+        groupName: activeGroup.name,
+        turnNumber: currentTurnAtResult
+      };
+      room.logs = [`Tim ${activeGroup.name} mendapat hasil roda putar: SKIP. Giliran dilewati.`, ...room.logs];
+
+    } else {
+      room.isSpinningStar = false;
+      drawCard(roomCode, result, io);
+      return;
+    }
+
+    const { intervalId, ...roomData } = room;
+    io.to(roomCode).emit("game:state", roomData);
+  } 
+  else if (room.phase === 'TURN_RESOLVED') {
+    advanceTurn(roomCode, io);
+  }
 }

@@ -15,7 +15,6 @@ export default function StarSpinOverlay() {
     activeGroupIndex,
     myGroupName,
     isGuru,
-    animatingPionId
   } = useGameStore();
 
   const [isMobile, setIsMobile] = useState(false);
@@ -32,12 +31,14 @@ export default function StarSpinOverlay() {
 
   useEffect(() => {
     if (!isSpinningStar) {
-      setLocalClicked(false);
+      const timer = setTimeout(() => {
+        setLocalClicked(false);
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [isSpinningStar]);
 
   const activeGroup = groups[activeGroupIndex];
-  const isPionMoving = animatingPionId === activeGroup?.id;
   const isMyTurn = !isGuru && activeGroup?.name?.trim().toLowerCase() === myGroupName?.trim().toLowerCase();
 
   const options = [
@@ -85,13 +86,13 @@ export default function StarSpinOverlay() {
   return (
     <AnimatePresence>
       {isSpinningStar && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 overflow-y-auto pointer-events-none">
           {/* Backdrop Blur */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-stone-950/90"
+            className="absolute inset-0 bg-stone-950/90 pointer-events-none"
           />
 
           {/* Floating Premium Container */}
@@ -100,7 +101,7 @@ export default function StarSpinOverlay() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: isMobile ? 0 : 20 }}
             transition={{ duration: 0.25, ease: "easeOut" }}
-            className="relative bg-gradient-to-b from-stone-900/95 to-stone-950/98 border border-white/10 rounded-[2.5rem] p-6 lg:p-8 my-auto shadow-[0_20px_50px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.05)] max-w-sm w-full text-center flex flex-col items-center z-10 select-none overflow-hidden"
+            className="relative bg-gradient-to-b from-stone-900/95 to-stone-950/98 border border-white/10 rounded-[2.5rem] p-6 lg:p-8 my-auto shadow-[0_20px_50px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.05)] max-w-sm w-full text-center flex flex-col items-center z-10 select-none overflow-hidden pointer-events-auto"
           >
             {/* Ambient inner glows */}
             {!isMobile && (

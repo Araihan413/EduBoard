@@ -80,7 +80,7 @@ function CardFrontFace({
 }: CardOverlayProps & { cardType: string; isMobile: boolean }) {
   const { isGrading } = useGameStore();
   const accent = getAccent(cardType, isUnderReview);
-  const review = pendingReviews.find((r) => r.groupId === activeGroup?.id) ?? pendingReviews[0];
+  const review = (activeGroup && pendingReviews.find((r) => r.groupId === activeGroup.id)) ?? pendingReviews[0];
   const lastReviewId = useRef(review?.id);
 
   useEffect(() => {
@@ -97,7 +97,12 @@ function CardFrontFace({
     gradeSubjektif(id, score);
   };
 
-  const activeReview = pendingReviews.find((r) => r.groupId === activeGroup?.id) ?? pendingReviews[0];
+  const activeReview = (activeGroup && pendingReviews.find((r) => r.groupId === activeGroup.id)) ?? pendingReviews[0];
+
+  const isMyTurn = role === "siswa" && 
+    !!activeGroup?.name && 
+    !!myGroupName && 
+    activeGroup.name.trim().toLowerCase() === myGroupName.trim().toLowerCase();
 
   return (
     <div className="absolute inset-0 bg-white rounded-[2.5rem] flex flex-col p-5 md:p-8 overflow-hidden shadow-[0_40px_100px_rgba(0,0,0,0.2)] border-2 border-slate-100">
@@ -178,15 +183,20 @@ function CardFrontFace({
               <p className="text-[9px] font-black text-zinc-400 uppercase tracking-[0.3em] mb-2">ISI KARTU</p>
               <p className="text-base md:text-lg font-bold text-zinc-900 leading-snug mb-4 md:mb-6">&ldquo;{displayCard?.text}&rdquo;</p>
 
-              {role === "siswa" && activeGroup?.name === myGroupName && (
+              {isMyTurn && activeGroup && (
                 <div className="mt-3 pt-3 border-t border-zinc-100">
                   {displayCard?.type === "DASAR" && displayCard.options ? (
                     <div className="grid grid-cols-1 gap-2 mb-2 md:mb-4">
                       {displayCard.options.filter((o) => o?.trim()).map((opt, i) => (
                         <button
                           key={i}
-                          onClick={() => submitAnswerObjektif(activeGroup.id, opt)}
-                          className="w-full text-left px-4 md:px-5 py-2.5 md:py-3.5 rounded-xl border-2 border-zinc-900 bg-white text-xs md:text-base font-black text-zinc-900 hover:bg-zinc-50 hover:-translate-y-0.5 shadow-[4px_4px_0_0_rgba(0,0,0,0.85)] active:translate-y-0 active:shadow-none transition-all"
+                          disabled={isSubmitting}
+                          onClick={() => {
+                            if (isSubmitting) return;
+                            setIsSubmitting(true);
+                            submitAnswerObjektif(activeGroup.id, opt);
+                          }}
+                          className="w-full text-left px-4 md:px-5 py-2.5 md:py-3.5 rounded-xl border-2 border-zinc-900 bg-white text-xs md:text-base font-black text-zinc-900 hover:bg-zinc-50 hover:-translate-y-0.5 shadow-[4px_4px_0_0_rgba(0,0,0,0.85)] active:translate-y-0 active:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {opt}
                         </button>
@@ -218,6 +228,7 @@ function CardFrontFace({
                           )}
                           <button
                             onClick={() => {
+                              if (isSubmitting) return;
                               setIsSubmitting(true);
                               submitAnswerSubjektif(
                                 activeGroup.id,
@@ -227,8 +238,8 @@ function CardFrontFace({
                               );
                               setTantanganText("");
                             }}
-                            disabled={displayCard.type === "PEMAHAMAN" && !tantanganText.trim()}
-                            className="w-full py-2.5 md:py-3.5 mb-2 md:mb-4 rounded-xl bg-zinc-900 text-white font-black text-xs md:text-sm tracking-[0.15em] md:tracking-[0.2em] uppercase hover:bg-zinc-800 disabled:opacity-20 transition-all shadow-[4px_4px_0_0_rgba(0,0,0,0.2)]"
+                            disabled={isSubmitting || (displayCard.type === "PEMAHAMAN" && !tantanganText.trim())}
+                            className="w-full py-2.5 md:py-3.5 mb-2 md:mb-4 rounded-xl bg-zinc-900 text-white font-black text-xs md:text-sm tracking-[0.15em] md:tracking-[0.2em] uppercase hover:bg-zinc-800 disabled:opacity-20 transition-all shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] disabled:cursor-not-allowed"
                           >
                             {displayCard.type === "TANTANGAN" ? "SAYA SUDAH SELESAI" : "KIRIM JAWABAN"}
                           </button>
@@ -237,8 +248,13 @@ function CardFrontFace({
                     </div>
                   ) : (
                     <button
-                      onClick={() => submitAnswerObjektif(activeGroup.id, "SELESAI")}
-                      className="w-full py-2.5 md:py-4 mb-2 md:mb-4 rounded-xl bg-zinc-900 text-white text-xs md:text-base font-black tracking-widest uppercase hover:bg-zinc-800 transition-all shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] active:scale-95"
+                      disabled={isSubmitting}
+                      onClick={() => {
+                        if (isSubmitting) return;
+                        setIsSubmitting(true);
+                        submitAnswerObjektif(activeGroup.id, "SELESAI");
+                      }}
+                      className="w-full py-2.5 md:py-4 mb-2 md:mb-4 rounded-xl bg-zinc-900 text-white text-xs md:text-base font-black tracking-widest uppercase hover:bg-zinc-800 transition-all shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       LANJUT
                     </button>
@@ -246,7 +262,7 @@ function CardFrontFace({
                 </div>
               )}
 
-              {(role === "guru" || activeGroup?.name !== myGroupName) && (
+              {(role === "guru" || !isMyTurn) && (
                 <div className="mt-3 bg-zinc-100 border border-zinc-200 p-4 rounded-xl text-center">
                   <p className="text-[8px] font-black text-zinc-400 uppercase tracking-widest mb-0.5">STATUS</p>
                   <p className="text-sm font-black text-zinc-800">MENUNGGU TIM {activeGroup?.name ?? "..."}</p>
@@ -366,12 +382,11 @@ export default function CardOverlay(props: CardOverlayProps) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-[100] flex items-center justify-center"
-          style={{ pointerEvents: phase === "drawing" ? "none" : "auto" }}
+          className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none"
         >
           {/* Backdrop */}
           <motion.div
-            className="absolute inset-0 bg-slate-900"
+            className="absolute inset-0 bg-slate-900 pointer-events-none"
             initial={{ opacity: 0 }}
             animate={{ opacity: phase === "returning" ? 0 : 0.4 }}
             transition={{ duration: 0.3 }}
@@ -379,7 +394,7 @@ export default function CardOverlay(props: CardOverlayProps) {
 
           {/* Card Container */}
           <motion.div
-            className="relative z-10"
+            className={`relative z-10 ${phase === "drawing" ? "pointer-events-none" : "pointer-events-auto"}`}
             style={{ perspective: isMobile ? undefined : 1200, width: "min(320px, 88vw)", height: "min(470px, 78vh)" }}
             variants={POSITION_VARIANTS}
             initial="hidden"

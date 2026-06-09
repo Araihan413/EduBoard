@@ -25,18 +25,18 @@ export default function ResultNotification({ result, onClose }: ResultNotificati
 
   const isSuccess = result.type === "SUCCESS";
   const isFailure = result.type === "FAILURE";
-  const canClose  = result.groupName === myGroupName || isGuru;
+  const canClose  = (result.groupName && myGroupName && result.groupName.trim().toLowerCase() === myGroupName.trim().toLowerCase()) || isGuru;
 
   // Sync auto-close fail-safe for the active player or guru
   useEffect(() => {
     if (canClose) {
       const t = setTimeout(() => {
         if (onClose) onClose();
-        else clearLastResult(result.turnNumber);
+        else clearLastResult();
       }, 4000); // 4s fail-safe (giving 1s buffer after store's 3s timer)
       return () => clearTimeout(t);
     }
-  }, [canClose, onClose, clearLastResult, result.turnNumber]);
+  }, [canClose, onClose, clearLastResult]);
 
   // Observer local fail-safe cleanup to prevent screen from being stuck
   useEffect(() => {
@@ -66,12 +66,12 @@ export default function ResultNotification({ result, onClose }: ResultNotificati
       exit={{ opacity: 0, y: isMobile ? 0 : 24 }}
       transition={{ duration: 0.25, ease: "easeOut" }}
       style={{ willChange: "transform, opacity" }}
-      className="fixed inset-0 z-[200] flex items-center justify-center p-6 pointer-events-none"
+      className="fixed inset-0 z-200 flex items-center justify-center p-6 pointer-events-none"
     >
       <div className="bg-white/95 border-2 border-slate-100 rounded-3xl md:rounded-[2.5rem] p-6 md:p-10 shadow-[0_40px_100px_rgba(0,0,0,0.15)] flex flex-col items-center max-w-sm w-[90%] md:w-full text-center relative overflow-hidden pointer-events-auto">
         {canClose && (
           <button
-            onClick={() => (onClose ? onClose() : clearLastResult(result.turnNumber))}
+            onClick={() => (onClose ? onClose() : clearLastResult())}
             className="absolute top-4 right-4 md:top-6 md:right-6 p-2 rounded-full hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600"
           >
             <X className="w-5 h-5" />

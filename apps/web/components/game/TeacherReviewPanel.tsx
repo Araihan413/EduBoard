@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, XCircle, AlertCircle, Bookmark, Star, Sparkles } from "lucide-react";
 import { useGameStore, type PendingReview } from "../../store/gameStore";
@@ -11,13 +12,29 @@ interface TeacherReviewPanelProps {
 
 export default function TeacherReviewPanel({ pendingReviews, onGrade }: TeacherReviewPanelProps) {
   const gameStatus = useGameStore(state => state.gameStatus);
-  if (pendingReviews.length === 0 || gameStatus === "FINISHED") return null;
+  const isGrading = useGameStore(state => state.isGrading);
+  const [isLocalSubmitting, setIsLocalSubmitting] = useState(false);
 
   // We only show the most recent one for focus
   const currentReview = pendingReviews[0];
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLocalSubmitting(false);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [currentReview?.id]);
+
+  if (pendingReviews.length === 0 || gameStatus === "FINISHED" || !currentReview) return null;
+
+  const handleGrade = (reviewId: string, score: number) => {
+    if (isLocalSubmitting || isGrading) return;
+    setIsLocalSubmitting(true);
+    onGrade(reviewId, score);
+  };
+
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-6">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 pointer-events-none">
       <AnimatePresence mode="wait">
         <motion.div
           key="backdrop"
@@ -25,7 +42,7 @@ export default function TeacherReviewPanel({ pendingReviews, onGrade }: TeacherR
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           style={{ willChange: "opacity" }}
-          className="absolute inset-0 bg-slate-950/75"
+          className="absolute inset-0 bg-slate-950/75 pointer-events-none"
         />
 
         <motion.div
@@ -34,7 +51,7 @@ export default function TeacherReviewPanel({ pendingReviews, onGrade }: TeacherR
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.9, opacity: 0, y: 20 }}
           style={{ willChange: "transform, opacity" }}
-          className="relative w-full max-w-lg bg-white rounded-[2rem] md:rounded-[2.5rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] overflow-hidden border border-slate-100 flex flex-col max-h-[90vh]"
+          className="relative w-full max-w-lg bg-white rounded-[2rem] md:rounded-[2.5rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] overflow-hidden border border-slate-100 flex flex-col max-h-[90vh] pointer-events-auto"
         >
           {/* Header Accent */}
           <div className="absolute top-0 left-0 right-0 h-1.5 md:h-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 z-10" />
@@ -86,8 +103,9 @@ export default function TeacherReviewPanel({ pendingReviews, onGrade }: TeacherR
               
               <div className="grid grid-cols-3 gap-2 md:gap-4">
                 <button 
-                  onClick={() => onGrade(currentReview.id, 0)}
-                  className="flex flex-col items-center gap-2 md:gap-3 p-3 md:p-5 rounded-2xl md:rounded-3xl bg-white border-2 border-slate-100 hover:border-red-500 hover:bg-red-50 transition-all group"
+                  disabled={isLocalSubmitting || isGrading}
+                  onClick={() => handleGrade(currentReview.id, 0)}
+                  className="flex flex-col items-center gap-2 md:gap-3 p-3 md:p-5 rounded-2xl md:rounded-3xl bg-white border-2 border-slate-100 hover:border-red-500 hover:bg-red-50 transition-all group disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
                 >
                     <XCircle className="w-6 h-6 md:w-8 md:h-8 text-slate-300 group-hover:text-red-500 transition-colors" />
                     <div className="text-center">
@@ -97,8 +115,9 @@ export default function TeacherReviewPanel({ pendingReviews, onGrade }: TeacherR
                 </button>
                 
                 <button 
-                  onClick={() => onGrade(currentReview.id, Math.floor(currentReview.points / 2))}
-                  className="flex flex-col items-center gap-2 md:gap-3 p-3 md:p-5 rounded-2xl md:rounded-3xl bg-white border-2 border-slate-100 hover:border-orange-500 hover:bg-orange-50 transition-all group"
+                  disabled={isLocalSubmitting || isGrading}
+                  onClick={() => handleGrade(currentReview.id, Math.floor(currentReview.points / 2))}
+                  className="flex flex-col items-center gap-2 md:gap-3 p-3 md:p-5 rounded-2xl md:rounded-3xl bg-white border-2 border-slate-100 hover:border-orange-500 hover:bg-orange-50 transition-all group disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
                 >
                     <Star className="w-6 h-6 md:w-8 md:h-8 text-slate-300 group-hover:text-orange-500 transition-colors" />
                     <div className="text-center">
@@ -108,8 +127,9 @@ export default function TeacherReviewPanel({ pendingReviews, onGrade }: TeacherR
                 </button>
                 
                 <button 
-                  onClick={() => onGrade(currentReview.id, currentReview.points)}
-                  className="flex flex-col items-center gap-2 md:gap-3 p-3 md:p-5 rounded-2xl md:rounded-3xl bg-white border-2 border-slate-100 hover:border-emerald-500 hover:bg-emerald-50 transition-all group shadow-sm hover:shadow-xl hover:shadow-emerald-500/10"
+                  disabled={isLocalSubmitting || isGrading}
+                  onClick={() => handleGrade(currentReview.id, currentReview.points)}
+                  className="flex flex-col items-center gap-2 md:gap-3 p-3 md:p-5 rounded-2xl md:rounded-3xl bg-white border-2 border-slate-100 hover:border-emerald-500 hover:bg-emerald-50 transition-all group shadow-sm hover:shadow-xl hover:shadow-emerald-500/10 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
                 >
                     <CheckCircle2 className="w-6 h-6 md:w-8 md:h-8 text-slate-300 group-hover:text-emerald-500 transition-colors" />
                     <div className="text-center">

@@ -25,14 +25,14 @@ export default function ConfirmationDialog({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center p-6">
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 pointer-events-none">
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onCancel}
-            className="absolute inset-0 bg-slate-900/75"
+            className="absolute inset-0 bg-slate-900/75 pointer-events-auto"
           />
 
           {/* Modal Container */}
@@ -41,7 +41,7 @@ export default function ConfirmationDialog({
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
             style={{ willChange: "transform, opacity" }}
-            className="relative w-full max-w-sm bg-white rounded-[2.5rem] p-8 shadow-[0_40px_100px_rgba(0,0,0,0.3)] border border-slate-100 flex flex-col items-center text-center overflow-hidden"
+            className="relative w-full max-w-sm bg-white rounded-[2.5rem] p-8 shadow-[0_40px_100px_rgba(0,0,0,0.3)] border border-slate-100 flex flex-col items-center text-center overflow-hidden pointer-events-auto"
           >
             {/* Decoration */}
             <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full -translate-y-1/2 translate-x-1/2" />

@@ -119,6 +119,7 @@ interface GameState {
   myAvatar?: string;
   myColor?: string;
   lastResult: AnswerResult | null;
+  lastClosedResultTurn: number | null;
   isMuted: boolean;
   countdown: number | null;
   activeTab: 'SESI' | 'SOAL' | 'RIWAYAT';
@@ -175,17 +176,13 @@ interface GameActions {
   // Actions - Mekanik Permainan
   drawCard: (type?: QuestionType) => void;
   rollDice: () => void;
-  moveGroup: (groupId: string, steps: number) => void;
   selectBranch: (nextTileId: number) => void;
-  /** @internal — dipanggil saat pion berhenti di tile akhir */
-  _landOnTile: (groupId: string, tileId: number) => void;
   submitAnswerObjektif: (groupId: string, answer: string) => void;
   submitAnswerSubjektif: (groupId: string, answerText: string) => void;
   reviewSubmission: (reviewId: string, score: number) => void;
   gradeSubjektif: (reviewId: string, score: number) => void; // alias for reviewSubmission (used in board/page.tsx)
-  nextTurn: (fromTurn?: number) => void;
-  decrementTimer: () => void;
-  clearLastResult: (fromTurn?: number) => void;
+  nextTurn: () => void;
+  clearLastResult: () => void;
   
   updateGroups: (groups: Group[]) => void;
   updateGroup: (groupId: string, updates: Partial<Group>) => void;
@@ -200,7 +197,7 @@ interface GameActions {
   reactivateSession: () => void;
   exitToLobby: () => void;
   setAnimatingPionId: (id: string | null) => void;
-  onPionAnimationFinished: (groupId: string, tileId: number) => void;
+  onPionAnimationFinished: () => void;
   checkActiveSession: () => Promise<void>;
 }
 
@@ -326,11 +323,16 @@ export const useGameStore = create<GameState & GameActions>()(
           // Merge server state but preserve client-only identity fields
           set((state) => {
             // Priority: current state → server state → localStorage fallback
+            let finalLastResult = newState.lastResult;
+            if (finalLastResult && finalLastResult.turnNumber === state.lastClosedResultTurn) {
+              finalLastResult = null;
+            }
+
             let finalGroupName = state.myGroupName;
             if (!finalGroupName) {
-              // Try to recover from localStorage directly as last resort
+              // Try to recover from sessionStorage directly as last resort
               try {
-                const persisted = localStorage.getItem('eduboard-storage');
+                const persisted = sessionStorage.getItem('eduboard-storage');
                 if (persisted) {
                   const parsed = JSON.parse(persisted);
                   finalGroupName = parsed?.state?.myGroupName || null;
@@ -413,6 +415,7 @@ export const useGameStore = create<GameState & GameActions>()(
               myAvatar: finalMyAvatar,
               myColor: finalMyColor,
               ...localReset,
+              ...(finalLastResult !== undefined ? { lastResult: finalLastResult } : {}),
               ...(newState.gameStatus === 'FINISHED' ? { currentCard: null, pendingReviews: [] } : {})
             };
           });
@@ -429,10 +432,6 @@ export const useGameStore = create<GameState & GameActions>()(
               countdown: data.countdown,
               ...(isFinishing ? { gameStatus: 'FINISHED', isGlobalTimerRunning: false, isTimerRunning: false, currentCard: null, pendingReviews: [] } : {})
             });
-            
-            if (data.timer <= 0 && get().isTimerRunning) {
-               get().decrementTimer();
-            }
         });
 
         socket.on("room:full", (data: { message: string }) => {
@@ -450,7 +449,7 @@ export const useGameStore = create<GameState & GameActions>()(
           toast.error(errMsg);
         });
 
-        socket.on("room:superseded", (data: { message: string }) => {
+        socket.on("room:superseded", () => {
           set({ isSuperseded: true });
         });
       }
@@ -495,6 +494,7 @@ export const useGameStore = create<GameState & GameActions>()(
         myAvatar: undefined,
         myColor: undefined,
         lastResult: null,
+        lastClosedResultTurn: null,
         isMuted: false,
         countdown: null,
         activeTab: 'SESI',
@@ -523,7 +523,7 @@ export const useGameStore = create<GameState & GameActions>()(
         setCountdown: (val) => syncSet({ countdown: val }),
         updateGroups: (groups) => syncSet({ groups: [...groups].sort((a, b) => a.id.localeCompare(b.id)) }),
         updateGroup: (groupId, updates) => syncSet((state) => {
-          const isMyGroup = state.myGroupName && state.groups.find(g => g.id === groupId)?.name === state.myGroupName;
+          const isMyGroup = state.myGroupName && state.groups.find(g => g.id === groupId)?.name?.trim().toLowerCase() === state.myGroupName?.trim().toLowerCase();
           return {
             groups: state.groups.map(g => g.id === groupId ? { ...g, ...updates } : g),
             ...(isMyGroup ? {
@@ -556,78 +556,9 @@ export const useGameStore = create<GameState & GameActions>()(
           const isMyTurn = !state.isGuru && activeG.name?.trim().toLowerCase() === state.myGroupName?.trim().toLowerCase();
           if (!isMyTurn) return;
 
-          const options = ["+5", "-5", "DASAR", "TANTANGAN", "PEMAHAMAN", "SKIP"];
-          const result = options[Math.floor(Math.random() * options.length)];
-
-          syncSet({
-            isSpinAnimating: true,
-            starSpinResult: result,
-            logs: [`Roda putar STAR berputar untuk tim ${activeG.name}...`, ...state.logs]
-          });
-
-          // Spin animation duration: 2500ms
-          setTimeout(() => {
-            syncSet({ isSpinAnimating: false });
-
-            // Apply spin results after animation finishes
-            setTimeout(() => {
-              const innerState = get();
-              const activeGroupCurrent = innerState.groups[innerState.activeGroupIndex];
-              if (!activeGroupCurrent) return;
-
-              const currentTurnAtResult = innerState.currentTurn;
-
-              if (result === "+5" || result === "-5") {
-                const points = result === "+5" ? 5 : -5;
-                const newScore = Math.max(0, activeGroupCurrent.score + points);
-                
-                // Show custom result notification
-                syncSet((s) => ({
-                  groups: s.groups.map(g => g.id === activeGroupCurrent.id ? { ...g, score: newScore } : g),
-                  isSpinningStar: false,
-                  lastSpinCloseTime: Date.now(),
-                  lastResult: {
-                    type: points > 0 ? "SUCCESS" : "FAILURE",
-                    title: points > 0 ? "BONUS POIN!" : "POIN DIKURANGI!",
-                    message: points > 0 
-                      ? `Selamat! Tim ${activeGroupCurrent.name} mendapatkan bonus +5 poin dari roda putar STAR.` 
-                      : `Aduh! Tim ${activeGroupCurrent.name} kehilangan -5 poin dari roda putar STAR.`,
-                    points: points,
-                    groupName: activeGroupCurrent.name,
-                    turnNumber: currentTurnAtResult
-                  },
-                  logs: [`Tim ${activeGroupCurrent.name} mendapat hasil roda putar: ${result} (Poin sekarang: ${newScore})`, ...s.logs]
-                }));
-                // Auto advance turn after showing result toast (3000ms)
-                if (resultTimeoutId) clearTimeout(resultTimeoutId);
-                resultTimeoutId = setTimeout(() => get().nextTurn(currentTurnAtResult), 3000);
-
-              } else if (result === "SKIP") {
-                syncSet((s) => ({
-                  isSpinningStar: false,
-                  lastSpinCloseTime: Date.now(),
-                  lastResult: {
-                    type: "INFO",
-                    title: "GILIRAN DILEWATI",
-                    message: `Tim ${activeGroupCurrent.name} mendapat SKIP. Tidak terjadi apa-apa dan giliran dilewati.`,
-                    points: 0,
-                    groupName: activeGroupCurrent.name,
-                    turnNumber: currentTurnAtResult
-                  },
-                  logs: [`Tim ${activeGroupCurrent.name} mendapat hasil roda putar: SKIP. Giliran dilewati.`, ...s.logs]
-                }));
-                if (resultTimeoutId) clearTimeout(resultTimeoutId);
-                resultTimeoutId = setTimeout(() => get().nextTurn(currentTurnAtResult), 3000);
-
-              } else {
-                // It's a question card type: DASAR, TANTANGAN, or PEMAHAMAN!
-                syncSet({ isSpinningStar: false, lastSpinCloseTime: Date.now() });
-                setTimeout(() => {
-                  get().drawCard(result as QuestionType);
-                }, 300);
-              }
-            }, 800); // 800ms settle delay to see the winning card before applying
-          }, 2500);
+          if (socket && state.roomCode) {
+            socket.emit("game:spin_star", state.roomCode);
+          }
         },
         setStateFromSync: (newState) => set(newState),
 
@@ -815,7 +746,7 @@ export const useGameStore = create<GameState & GameActions>()(
                   get().fetchQuestions(roomData.questionSetId, 1, false, 999);
                 }
               }
-            } catch (err) {
+            } catch {
               // rejoin failed silently
             }
           }
@@ -887,6 +818,7 @@ export const useGameStore = create<GameState & GameActions>()(
             isRolling: false,
             hasRolled: false,
             lastResult: null,
+            lastClosedResultTurn: null,
             countdown: null,
             timer: 0,
             globalTimer: 0,
@@ -1149,196 +1081,35 @@ export const useGameStore = create<GameState & GameActions>()(
         }),
 
         rollDice: () => {
-          const val = Math.floor(Math.random() * 6) + 1;
-          syncSet({ diceValue: val, isRolling: true, hasRolled: true, logs: [`Dadu dikocok... hasil: ${val}`, ...get().logs] });
-
-          // Step 1: Stop dice animation after 1500ms (dice settles on result)
-          setTimeout(() => {
-            syncSet({ isRolling: false });
-
-            // Step 2: Wait 600ms so the player can "read" the dice result,
-            // then start moving the pawn
-            setTimeout(() => {
-              get().moveGroup(get().groups[get().activeGroupIndex].id, val);
-            }, 600);
-          }, 1500);
-        },
-
-        moveGroup: (groupId, steps) => {
           const state = get();
-          const group = state.groups.find(g => g.id === groupId);
-          if (!group) return;
-
-          // Calculate sub-path from current position
-          const { path, stepsRemaining } = calculateSubPath(group.position, steps);
-
-          if (path.length === 0) {
-            const currentTile = getTileById(group.position);
-            const nextIds = currentTile.next;
-            
-            if (stepsRemaining > 0 && nextIds && nextIds.length > 1) {
-              // Started exactly on a fork: open the path selection immediately!
-              syncSet({
-                stepsRemaining: stepsRemaining,
-                isChoosingPath: true,
-                availablePaths: nextIds,
-                isMoving: false,
-                visualPath: [],
-                animatingPionId: null
-              });
-            } else {
-              syncSet({
-                stepsRemaining: 0,
-                isMoving: false,
-                visualPath: []
-              });
-            }
-            return;
+          if (socket && state.roomCode) {
+            socket.emit("game:roll_dice", state.roomCode);
           }
-
-          const destinationTileId = path[path.length - 1];
-
-          // Set the group's position directly to the destination tile of the sub-path
-          const updatedGroups = state.groups.map(g => 
-            g.id === groupId ? { ...g, position: destinationTileId } : g
-          );
-
-          syncSet({
-            stepsRemaining,
-            isChoosingPath: false,
-            availablePaths: [],
-            isMoving: true,
-            visualPath: path,
-            groups: updatedGroups,
-            animatingPionId: groupId
-          });
         },
+
 
         selectBranch: (nextTileId) => {
           const state = get();
-          const group = state.groups[state.activeGroupIndex];
-          if (!group) return;
-
-          // Only the active student whose turn it is or Guru can choose the branch
-          const isMyTurn = !state.isGuru && group.name?.trim().toLowerCase() === state.myGroupName?.trim().toLowerCase();
-          const isDriver = isMyTurn || state.isGuru;
-          if (!isDriver) return;
-
-          const remaining = state.stepsRemaining;
-          const newRemaining = Math.max(0, remaining - 1);
-
-          // Calculate sub-path starting *from* nextTileId for newRemaining steps
-          const { path, stepsRemaining } = calculateSubPath(nextTileId, newRemaining);
-
-          // Combine the chosen branch tile and the subsequent sub-path
-          const nextVisualPath = [nextTileId, ...path];
-          const destinationTileId = nextVisualPath[nextVisualPath.length - 1];
-
-          const updatedGroups = state.groups.map(g => 
-            g.id === group.id ? { ...g, position: destinationTileId } : g
-          );
-
-          // Sync the choice and the new position to the server immediately
-          syncSet({
-            isChoosingPath: false,
-            availablePaths: [],
-            isMoving: true,
-            stepsRemaining: stepsRemaining,
-            visualPath: nextVisualPath,
-            groups: updatedGroups,
-            animatingPionId: group.id
-          });
-
-          if (socket) {
-            socket.emit('game:branch_selected', { 
-              roomCode: state.roomCode, 
-              groupId: group.id, 
-              tileId: destinationTileId 
+          if (socket && state.roomCode) {
+            socket.emit("game:select_branch", {
+              roomCode: state.roomCode,
+              nextTileId
             });
           }
         },
 
-        onPionAnimationFinished: (groupId: string, tileId: number) => {
-          const state = get();
-          
-          // Guard: If we are already choosing a path, or a card is active, or we are spinning, return early.
-          // This prevents spectator clients from double-triggering landing logic or racing, 
-          // while ensuring we are not blocked if isMoving is prematurely reset by the network.
-          if (state.isChoosingPath || state.currentCard !== null || state.isSpinningStar) return;
-
-          const activeG = state.groups[state.activeGroupIndex];
-          if (!activeG || activeG.id !== groupId) return;
-
-          // Spectators only update their visual moving states locally, they do not trigger logical landing.
-          const isMyTurn = !state.isGuru && activeG.name?.trim().toLowerCase() === state.myGroupName?.trim().toLowerCase();
-          const isGuruDriver = state.isGuru && (activeG.isOffline || state.groups.every(g => g.isOffline || g.name === ''));
-          const isDriver = isMyTurn || isGuruDriver;
-
-          if (!isDriver) {
-            set({ isMoving: false, visualPath: [] });
-            return;
-          }
-
-          const stepsRemaining = state.stepsRemaining;
-          const currentTile = getTileById(tileId);
-          const nextIds = currentTile.next;
-
-          if (stepsRemaining > 0 && nextIds.length > 1) {
-            // Stopped at a fork and still have steps remaining: transition to choosing path
-            syncSet({
-              isMoving: false,
-              isChoosingPath: true,
-              availablePaths: nextIds,
-              visualPath: [],
-              animatingPionId: null
-            });
-          } else {
-            // Steps exhausted or dead end: trigger landing logic
-            get()._landOnTile(groupId, tileId);
-          }
+        onPionAnimationFinished: () => {
+          set({ isMoving: false, visualPath: [], animatingPionId: null });
         },
 
-        _landOnTile: (groupId: string, tileId: number) => {
-          const finalGroups = get().groups;
-          syncSet({ 
-            isMoving: false, 
-            visualPath: [],
-            groups: finalGroups,
-            animatingPionId: null
-          });
-          const tile = getTileById(tileId);
-          const group = get().groups.find(g => g.id === groupId);
-          if (!group) return;
-
-          if (tile.type === 'SKIP') {
-            syncSet((s) => ({ logs: [`${group.name} mendarat di SKIP!`, ...s.logs] }));
-            setTimeout(() => get().nextTurn(), 1000);
-          } else if (tile.type === 'STAR') {
-            // STAR is the intersection tile! Open the Star Spin Wheel.
-            syncSet((s) => ({ 
-              logs: [`${group.name} mendarat di petak STAR! Roda putar aktif.`, ...s.logs],
-              isSpinningStar: true,
-              starSpinResult: null,
-              isSpinAnimating: false
-            }));
-          } else {
-            // Draw a question card
-            setTimeout(() => {
-              get().drawCard(tile.type as QuestionType);
-            }, 300);
-          }
-        },
 
         submitAnswerObjektif: (groupId, answer) => {
           const state = get();
           const card = state.currentCard;
           if (!card) return;
 
-          // Special handling for info/action cards that just need "SELESAI"
           const isInfoCard = answer === "SELESAI";
           const isCorrect = isInfoCard ? true : (card.answerKey === answer);
-          
-          // Action cards should give points when completed
           const score = (isInfoCard && card.type === 'TANTANGAN') ? (card.points || 10) : (isCorrect ? (card.points || 10) : 0);
           
           if (socket) {
@@ -1352,34 +1123,6 @@ export const useGameStore = create<GameState & GameActions>()(
               turnNumber: state.currentTurn
             });
           }
-
-          // Step 1: Close the card immediately → triggers the 800ms return animation
-          syncSet({ currentCard: null, isTimerRunning: false, lastCardDismissTime: Date.now() });
-
-          // Step 2: After card has finished closing, show the result toast
-          setTimeout(() => {
-            const group = get().groups.find(g => g.id === groupId);
-            const currentTurnAtTrigger = get().currentTurn;
-            syncSet({
-              lastResult: { 
-                type: isInfoCard ? (card.type === 'TANTANGAN' ? 'SUCCESS' : 'INFO') : (isCorrect ? 'SUCCESS' : 'FAILURE'),
-                title: isInfoCard ? (card.type === 'TANTANGAN' ? 'BERHASIL!' : 'LANJUT!') : (isCorrect ? 'BENAR!' : 'SALAH!'),
-                message: isInfoCard 
-                  ? (card.type === 'TANTANGAN' ? `Jawaban lisan berhasil disampaikan!` : `Giliran tim ${group?.name} selesai.`)
-                  : (isCorrect 
-                      ? `Selamat! Jawaban kamu tepat.` 
-                      : (card.type === 'TANTANGAN')
-                        ? `Waktu habis atau aksi belum selesai.`
-                        : `Yah, kurang tepat. Jawabannya adalah: ${card.answerKey}`),
-                points: score,
-                groupName: group?.name || 'Siswa',
-                turnNumber: currentTurnAtTrigger
-              }
-            });
-            // Step 3: Auto-advance after toast is shown (3s)
-            if (resultTimeoutId) clearTimeout(resultTimeoutId);
-            resultTimeoutId = setTimeout(() => get().nextTurn(currentTurnAtTrigger), 3000);
-          }, 850); // 800ms card animation + 50ms buffer
         },
 
         submitAnswerSubjektif: (groupId, answerText) => {
@@ -1387,7 +1130,6 @@ export const useGameStore = create<GameState & GameActions>()(
           const card = state.currentCard;
           if (!card) return;
 
-          // Guard: If we already have a pending review for this group in this turn, don't submit again
           const alreadyHasReview = state.pendingReviews.some(r => r.groupId === groupId);
           if (alreadyHasReview) {
             return;
@@ -1403,29 +1145,14 @@ export const useGameStore = create<GameState & GameActions>()(
               turnNumber: state.currentTurn
             });
           }
-          syncSet((s) => ({
-            isTimerRunning: false,
-            logs: [`Menunggu penilaian Guru untuk jawaban ${s.groups.find(g => g.id === groupId)?.name || "Siswa"}`, ...s.logs]
-          }));
         },
 
         reviewSubmission: (reviewId, score) => {
           const state = get();
-          
-          // Guard: Prevent grading if game finished
-          if (state.gameStatus === 'FINISHED') {
-            return;
-          }
-          
-          // Guard: Prevent double grading
-          if (state.isGrading) return;
+          if (state.gameStatus === 'FINISHED') return;
 
-          const review = state.pendingReviews.find(r => r.id === reviewId);
-          if (!review) {
-            return;
-          }
-
-          set({ isGrading: true });
+          const review = state.pendingReviews.find(r => r.id === reviewId || r.dbAnswerId === reviewId);
+          if (!review) return;
 
           if (socket) {
             socket.emit("teacher:grade_answer", {
@@ -1436,126 +1163,28 @@ export const useGameStore = create<GameState & GameActions>()(
               isCorrect: score > 0
             });
           }
-
-          // Step 1: Close the card immediately on teacher side → triggers 800ms return animation
-          // This also broadcasts currentCard: null to students via syncSet
-          syncSet({ currentCard: null, isTimerRunning: false, lastCardDismissTime: Date.now() });
-
-          // Step 2: After card has finished closing, show the result toast
-          setTimeout(() => {
-            const currentTurnAtTrigger = get().currentTurn;
-            syncSet({
-              lastResult: { 
-                type: score > 0 ? 'SUCCESS' : 'FAILURE',
-                title: score > 0 ? (score >= review.points ? 'TUNTAS!' : 'SEBAGIAN!') : 'BELUM TEPAT!',
-                message: score > 0 
-                  ? `Guru memberikan penilaian: ${score} poin untuk tim ${review.groupName}.`
-                  : `Yah, jawaban tim ${review.groupName} dinilai kurang tepat oleh Guru.`,
-                points: score,
-                groupName: review.groupName,
-                turnNumber: currentTurnAtTrigger
-              }
-            });
-            // Step 3: Auto-advance after toast is shown (3s)
-            if (resultTimeoutId) clearTimeout(resultTimeoutId);
-            resultTimeoutId = setTimeout(() => get().nextTurn(currentTurnAtTrigger), 3000);
-          }, 850); // 800ms card animation + 50ms buffer
         },
 
         gradeSubjektif: (reviewId, score) => {
           get().reviewSubmission(reviewId, score);
         },
 
-        nextTurn: (fromTurn?: number) => {
+        nextTurn: () => {
           const state = get();
-          if (state.groups.length === 0) return;
-
-          // PILAR A: State-Based Distributed Turn-Number Guard (Bulletproof under any network conditions)
-          if (fromTurn !== undefined && state.currentTurn !== fromTurn) {
-            console.log(`[nextTurn] Replaced outdated turn advance call. Current: ${state.currentTurn}, Expected: ${fromTurn}`);
-            return;
+          if (socket && state.roomCode && state.isGuru) {
+            socket.emit("game:skip_turn", state.roomCode);
           }
+        },
 
+
+        clearLastResult: () => {
           if (resultTimeoutId) {
             clearTimeout(resultTimeoutId);
             resultTimeoutId = null;
           }
-
-          // Find the next active group index (skipping SURRENDERED)
-          let nextIndex = (state.activeGroupIndex + 1) % state.groups.length;
-          let searchCount = 0;
-          
-          while (state.groups[nextIndex].status === 'SURRENDERED' && searchCount < state.groups.length) {
-            nextIndex = (nextIndex + 1) % state.groups.length;
-            searchCount++;
-          }
-
-          syncSet((s) => ({
-            activeGroupIndex: nextIndex,
-            currentTurn: s.currentTurn + 1,
-            currentCard: null,
-            lastCardDismissTime: Date.now(),
-            lastResult: null, // Clear the toast!
-            lastResultCloseTime: Date.now(),
-            timer: 0,
-            isTimerRunning: false,
-            isMoving: false,
-            isRolling: false,
-            hasRolled: false,
-            isGrading: false,
-            isChoosingPath: false,
-            availablePaths: [],
-            stepsRemaining: 0,
-            isSpinningStar: false,
-            starSpinResult: null,
-            isSpinAnimating: false,
-            visualPath: [] // Reset visualPath so next player starts with clean visual state
-          }));
-        },
-
-        decrementTimer: () => {
           const state = get();
-          // Only proceed if timer is actually 0 and was previously running
-          if (state.timer <= 0 && state.isTimerRunning) {
-            // Immediately stop timer locally to prevent double calls during the 800ms transition
-            set({ isTimerRunning: false });
-
-            const activeG = state.groups[state.activeGroupIndex];
-            
-            // Only the Teacher triggers the fallback timeout submission centrally to avoid multiple submissions.
-            const isGuru = typeof window !== 'undefined' && localStorage.getItem(`eduboard_role_${state.roomCode}`) === 'guru';
-            
-            if (isGuru) {
-              // Give the active student a 1.5-second grace period to submit their drafted answer
-              setTimeout(() => {
-                const currentState = get();
-                // If the card is STILL open, meaning the student didn't submit it in time (or is offline)
-                // AND we are not currently in the middle of a grading process
-                if (currentState.currentCard?.id === state.currentCard?.id && !currentState.isGrading) {
-                   if (currentState.currentCard?.type === 'DASAR') {
-                     currentState.submitAnswerObjektif(activeG.id, "TIMEOUT");
-                   } else if (currentState.currentCard?.type === 'PEMAHAMAN' || currentState.currentCard?.type === 'TANTANGAN') {
-                     // Only submit fallback if the student hasn't submitted yet
-                     const alreadySubmitted = currentState.pendingReviews.some(r => r.groupId === activeG.id);
-                     if (!alreadySubmitted) {
-                        const fallbackMsg = currentState.currentCard?.type === 'PEMAHAMAN' 
-                          ? "Waktu habis, jawaban tulisan belum selesai." 
-                          : "Waktu habis, siswa belum selesai menjawab lisan.";
-                        currentState.submitAnswerSubjektif(activeG.id, fallbackMsg);
-                     }
-                   }
-                }
-              }, 5000);
-            }
-          }
-        },
-
-        clearLastResult: (fromTurn?: number) => {
-          if (resultTimeoutId) {
-            clearTimeout(resultTimeoutId);
-            resultTimeoutId = null;
-          }
-          get().nextTurn(fromTurn !== undefined ? fromTurn : get().currentTurn);
+          const turn = state.lastResult?.turnNumber ?? null;
+          set({ lastResult: null, lastClosedResultTurn: turn });
         },
         
         handleAutoRejoin: () => {

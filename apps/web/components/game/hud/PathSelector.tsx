@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { GitFork, ArrowRight, Shuffle } from "lucide-react";
-import { getTileById } from "../config/gameConfig";
 import { useGameStore } from "../../../store/gameStore";
 
 // ─── PathSelector ─────────────────────────────────────────────────────────────
@@ -14,10 +13,12 @@ interface PathSelectorProps {
 }
 
 export default function PathSelector({ isMyTurn, activeGroupName }: PathSelectorProps) {
-  const { isChoosingPath, availablePaths, selectBranch, animatingPionId, groups, activeGroupIndex } = useGameStore();
+  const { isChoosingPath, isRolling, availablePaths, selectBranch, animatingPionId, groups, activeGroupIndex } = useGameStore();
   const activeGroup = groups[activeGroupIndex];
   const isPionMoving = animatingPionId === activeGroup?.id;
   const [isMobile, setIsMobile] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const wasRollingRef = useRef(false);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -28,12 +29,40 @@ export default function PathSelector({ isMyTurn, activeGroupName }: PathSelector
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
+  // Track if the dice was rolling just before transition to CHOOSING_PATH
+  useEffect(() => {
+    if (isRolling) {
+      wasRollingRef.current = true;
+    } else if (!isChoosingPath) {
+      wasRollingRef.current = false;
+    }
+  }, [isRolling, isChoosingPath]);
+
+  useEffect(() => {
+    if (isChoosingPath) {
+      // Only delay by 500ms if we came directly from a dice roll (to let it settle)
+      // If we came from movement landing, show immediately (0ms delay)
+      const delay = wasRollingRef.current ? 500 : 0;
+      const timer = setTimeout(() => {
+        setShowModal(true);
+        wasRollingRef.current = false; // Reset after showing
+      }, delay);
+      return () => clearTimeout(timer);
+    } else {
+      // Wrap in setTimeout to avoid calling setState synchronously within the effect body
+      const timer = setTimeout(() => {
+        setShowModal(false);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [isChoosingPath]);
+
   // NOTE: AnimatePresence MUST wrap the conditional — do NOT do early return before
   // AnimatePresence, otherwise the exit animation never plays and the component
   // will flash twice when the server echo arrives after the user chose.
   return (
     <AnimatePresence>
-      {isChoosingPath && (
+      {showModal && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-6 pointer-events-none">
           {/* Backdrop */}
           <motion.div
@@ -41,7 +70,7 @@ export default function PathSelector({ isMyTurn, activeGroupName }: PathSelector
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="absolute inset-0 bg-slate-950/75 pointer-events-auto"
+            className="absolute inset-0 bg-slate-950/75 pointer-events-none"
           />
 
           {/* Card */}
@@ -76,9 +105,6 @@ export default function PathSelector({ isMyTurn, activeGroupName }: PathSelector
             {isMyTurn ? (
               <div className="flex flex-col gap-3">
                 {availablePaths.map((tileId, index) => {
-                  let tile: ReturnType<typeof getTileById> | null = null;
-                  try { tile = getTileById(tileId); } catch { tile = null; }
-
                   return (
                     <button
                       key={tileId}
@@ -100,9 +126,6 @@ export default function PathSelector({ isMyTurn, activeGroupName }: PathSelector
                             index === 0 ? "text-blue-700" : "text-amber-700"
                           }`}>
                             {index === 0 ? "Jalur Utama" : "Jalur Pintas"}
-                          </p>
-                          <p className="text-[10px] text-slate-400 font-medium">
-                            Tile #{tileId} • {tile?.type ?? "..."}
                           </p>
                         </div>
                       </div>

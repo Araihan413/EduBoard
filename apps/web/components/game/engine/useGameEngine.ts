@@ -58,19 +58,15 @@ export interface GameEngineState {
 export function useGameEngine(role: string): GameEngineState {
   const {
     currentCard,
-    timer,
-    isTimerRunning,
     pendingReviews,
     lastResult,
     activeGroupIndex,
     groups,
     myGroupName,
-    submitAnswerObjektif,
-    submitAnswerSubjektif,
   } = useGameStore();
 
   const activeGroup: Group | undefined = groups[activeGroupIndex];
-  const myGroup = groups.find((g) => g.name === myGroupName);
+  const myGroup = groups.find((g) => g.name?.trim().toLowerCase() === myGroupName?.trim().toLowerCase());
 
   // ── Local state ────────────────────────────────────────────────────────────
 
@@ -159,77 +155,7 @@ export function useGameEngine(role: string): GameEngineState {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentCard, isUnderReview]);
 
-  // ── Auto-submit on timeout (student only) ──────────────────────────────────
 
-  const lastTimeoutCardRef = useRef<string | null>(null);
-  const cardDrawTimeRef = useRef<number>(0);
-  const lastCardIdRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (currentCard) {
-      if (currentCard.id !== lastCardIdRef.current) {
-        cardDrawTimeRef.current = Date.now();
-        lastCardIdRef.current = currentCard.id ?? null;
-      }
-    } else {
-      cardDrawTimeRef.current = 0;
-      lastCardIdRef.current = null;
-    }
-  }, [currentCard]);
-
-  useEffect(() => {
-    if (role !== "siswa") return;
-    if (activeGroup?.name !== myGroupName) return;
-    // Guard: only fire when timer is genuinely 0 AND the server has confirmed
-    // the timer is stopped (isTimerRunning === false). This prevents a race
-    // condition on mobile where the client still has timer=0 from the previous
-    // turn's end-state while the new currentCard + timer:30 packet is still
-    // in-flight. drawCard() always sends { isTimerRunning: true, timer: N }
-    // atomically, so isTimerRunning will be true whenever a card is freshly drawn.
-    if (timer !== 0 || isTimerRunning || !currentCard) return;
-    if (lastTimeoutCardRef.current === (currentCard.id ?? null)) return;
-
-    // Minimal delay of 2 seconds after the card is drawn/opened before auto-submit can fire.
-    const elapsed = Date.now() - cardDrawTimeRef.current;
-    if (elapsed < 2000) {
-      const remainingDelay = 2000 - elapsed;
-      const timeoutId = setTimeout(() => {
-        // Double check all conditions inside the timeout using the latest store state
-        const currentStoreState = useGameStore.getState();
-        if (
-          currentStoreState.timer === 0 &&
-          !currentStoreState.isTimerRunning &&
-          currentStoreState.currentCard?.id === currentCard.id &&
-          lastTimeoutCardRef.current !== currentCard.id
-        ) {
-          lastTimeoutCardRef.current = currentCard.id ?? null;
-          triggerAutoSubmit();
-        }
-      }, remainingDelay);
-
-      return () => clearTimeout(timeoutId);
-    }
-
-    // Otherwise, submit immediately
-    lastTimeoutCardRef.current = currentCard.id ?? null;
-    triggerAutoSubmit();
-
-    function triggerAutoSubmit() {
-      if (!currentCard || !activeGroup) return;
-      if (currentCard.type === "DASAR") {
-        submitAnswerObjektif(activeGroup.id, "TIMEOUT");
-      } else {
-        setIsSubmitting(true);
-        const fallback =
-          currentCard.type === "PEMAHAMAN"
-            ? "Waktu habis, jawaban tulisan belum selesai."
-            : "Waktu habis, siswa belum selesai menjawab lisan.";
-        submitAnswerSubjektif(activeGroup.id, tantanganText.trim() || fallback);
-        setTantanganText("");
-      }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timer, isTimerRunning, role, activeGroup, myGroupName, currentCard, tantanganText, submitAnswerObjektif, submitAnswerSubjektif]);
 
   // ── Reset isSubmitting when review is resolved ─────────────────────────────
 
@@ -239,8 +165,8 @@ export function useGameEngine(role: string): GameEngineState {
       (r) => r.groupId === activeGroup?.id || r.groupId === myGroup?.id
     );
     const hasMyResult =
-      lastResult?.groupName === myGroupName ||
-      lastResult?.groupName === activeGroup?.name;
+      (lastResult?.groupName && myGroupName && lastResult.groupName.trim().toLowerCase() === myGroupName.trim().toLowerCase()) ||
+      (lastResult?.groupName && activeGroup?.name && lastResult.groupName.trim().toLowerCase() === activeGroup.name.trim().toLowerCase());
     if (hasMyReview || hasMyResult || !currentCard) {
       setTimeout(() => setIsSubmitting(false), 0);
     }

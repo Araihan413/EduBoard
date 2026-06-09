@@ -737,7 +737,7 @@ function BoardPage() {
       {/* Result notification (Force-closed when game finishes) */}
       <AnimatePresence>
         {lastResult && gameStatus !== "FINISHED" && cardPhase === "idle" && (
-          <ResultNotification result={lastResult} onClose={() => clearLastResult(lastResult.turnNumber)} />
+          <ResultNotification result={lastResult} onClose={() => clearLastResult()} />
         )}
       </AnimatePresence>
 

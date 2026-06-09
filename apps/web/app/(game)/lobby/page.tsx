@@ -148,7 +148,7 @@ export default function LobbyPage() {
 
           // Also try to sync from groups array if available (source of truth from server)
           if (myGroupName && groups.length > 0) {
-            const me = groups.find(g => g.name === myGroupName);
+            const me = groups.find(g => g.name.trim().toLowerCase() === myGroupName?.trim().toLowerCase());
             if (me) {
               if (me.avatar && me.avatar !== lastSentAvatarRef.current) {
                 const idx = AVATAR_SEEDS.indexOf(me.avatar);
@@ -232,7 +232,7 @@ export default function LobbyPage() {
   };
 
   const syncProfile = useCallback((newAvatarIdx: number, newColor: typeof PREMIUM_COLORS[0]) => {
-    const me = groups.find(g => g.name === myGroupName);
+    const me = groups.find(g => g.name.trim().toLowerCase() === myGroupName?.trim().toLowerCase());
     if (me) {
       lastSentAvatarRef.current = AVATAR_SEEDS[newAvatarIdx];
       lastSentColorRef.current = newColor.hex;

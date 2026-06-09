@@ -19,6 +19,7 @@ import {
   OrthographicCamera,
   useTexture,
   MapControls,
+  Html,
 } from "@react-three/drei";
 import * as THREE from "three";
 import { Trophy, Disc3 } from "lucide-react";
@@ -194,19 +195,36 @@ function computeSlotOffsets(
   });
 }
 
-// ─── 🏃‍♂️ PION PEMAIN 3D ────────────────────────────────────────────────────────
 function Pion({
   group,
   offsetX,
   offsetZ,
   pionScale,
+  isActive,
 }: {
   group: Group;
   offsetX: number;
   offsetZ: number;
   pionScale: number;
+  isActive: boolean;
 }) {
   const meshRef = useRef<THREE.Group>(null!);
+  const ringRef = useRef<THREE.Mesh>(null);
+  const ringMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
+
+  // Track if we came from branch selection to bypass dice slerp delay
+  const isChoosingPath = useGameStore((state) => state.isChoosingPath);
+  const hasRolled = useGameStore((state) => state.hasRolled);
+  const gameStatus = useGameStore((state) => state.gameStatus);
+
+  const showActiveIndicator = isActive && gameStatus === "PLAYING" && !hasRolled;
+  const wasChoosingPathRef = useRef(false);
+
+  useEffect(() => {
+    if (isChoosingPath) {
+      wasChoosingPathRef.current = true;
+    }
+  }, [isChoosingPath]);
 
   // Keep stable refs for useFrame closure
   const offsetRef = useRef({ x: offsetX, z: offsetZ });
@@ -247,9 +265,21 @@ function Pion({
       
       // If path exists and is a valid forward walk (at most 6 steps based on max dice roll)
       if (path && path.length > 0 && path.length <= 6) {
-        queueRef.current = [...queueRef.current, ...path];
-        lastTargetRef.current = group.position;
-        isMovingLocal.current = true;
+        if (wasChoosingPathRef.current) {
+          // Pawn moves instantly if coming from path selection (no dice roll occurred)
+          wasChoosingPathRef.current = false;
+          queueRef.current = [...queueRef.current, ...path];
+          lastTargetRef.current = group.position;
+          isMovingLocal.current = true;
+        } else {
+          // Delay visual movement by 500ms to let the 3D dice finish its roll and landing slerp
+          const timer = setTimeout(() => {
+            queueRef.current = [...queueRef.current, ...path];
+            lastTargetRef.current = group.position;
+            isMovingLocal.current = true;
+          }, 500);
+          return () => clearTimeout(timer);
+        }
       } else {
         // Teleport/Reset fallback: instantly snap visual pawn to target coordinates
         queueRef.current = [];
@@ -291,6 +321,16 @@ function Pion({
       startTimeRef.current = clockTime;
     }
 
+    // Animasi Indikator Aktif (Cincin Radar)
+    if (showActiveIndicator) {
+      if (ringRef.current && ringMaterialRef.current) {
+        const t = (clockTime * 1.2) % 1.0;
+        const scaleVal = 0.85 + t * 0.55;
+        ringRef.current.scale.set(scaleVal, scaleVal, 1);
+        ringMaterialRef.current.opacity = 0.8 * (1 - t);
+      }
+    }
+
     const DURATION = 0.42;
     let elapsed = clockTime - startTimeRef.current;
 
@@ -320,7 +360,7 @@ function Pion({
         if (isMovingLocal.current) {
           isMovingLocal.current = false;
           setTimeout(() => {
-            useGameStore.getState().onPionAnimationFinished(group.id, group.position);
+            useGameStore.getState().onPionAnimationFinished();
           }, 50);
         }
       }
@@ -370,6 +410,24 @@ function Pion({
 
   return (
     <group ref={meshRef}>
+      {/* ─── Pulsing Radar Ring (Kaki Pion) ─── */}
+      {showActiveIndicator && (
+        <mesh 
+          ref={ringRef}
+          position={[0, TILE_TOP_Y + 0.006, 0]} 
+          rotation={[-Math.PI / 2, 0, 0]}
+        >
+          <ringGeometry args={[0.22, 0.28, 32]} />
+          <meshBasicMaterial 
+            ref={ringMaterialRef}
+            color="#facc15" 
+            transparent 
+            opacity={0.8} 
+            depthWrite={false}
+          />
+        </mesh>
+      )}
+
       <mesh position={[0, TILE_TOP_Y + 0.005, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[0.26, 24]} />
         <meshBasicMaterial color={color} transparent opacity={0.3} />
@@ -389,6 +447,26 @@ function Pion({
         <sphereGeometry args={[0.09, 16, 12]} />
         <meshStandardMaterial color={color} roughness={0.2} metalness={0.5} emissive={color} emissiveIntensity={0.15} />
       </mesh>
+
+      {/* ─── Floating Gold Arrow 2D Billboard (Kepala Pion) ─── */}
+      {showActiveIndicator && (
+        <Html position={[0, TILE_TOP_Y + 0.1, -0.65]} center>
+          {/* Container luar pembungkus (tanpa translate-y pixel agar proporsional saat zoom) */}
+          <div className="pointer-events-none select-none">
+            {/* Container dalam untuk efek memantul */}
+            <div className="animate-bounce flex flex-col items-center">
+              {/* Panah Bulat Kuning */}
+              <div className="w-6 h-6 bg-yellow-400 rounded-full border-2 border-white flex items-center justify-center shadow-[0_4px_10px_rgba(0,0,0,0.3)]">
+                <svg className="w-3.5 h-3.5 text-slate-900 fill-none stroke-current stroke-[3px]" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                </svg>
+              </div>
+              {/* Segitiga Ekor Panah */}
+              <div className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[5px] border-t-white -mt-[1px]" />
+            </div>
+          </div>
+        </Html>
+      )}
     </group>
   );
 }
@@ -602,6 +680,7 @@ function Scene({ groups }: { groups: Group[] }) {
 
           return groups.map((group) => {
             const slot = slotMap[group.id] ?? { ox: 0, oz: 0, scale: 1.35 };
+            const isActive = activeGroup?.id === group.id;
             return (
               <Pion
                 key={group.id}
@@ -609,6 +688,7 @@ function Scene({ groups }: { groups: Group[] }) {
                 offsetX={slot.ox}
                 offsetZ={slot.oz}
                 pionScale={slot.scale}
+                isActive={isActive}
               />
             );
           });
