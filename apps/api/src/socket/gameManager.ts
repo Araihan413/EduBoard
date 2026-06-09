@@ -148,6 +148,23 @@ function calculateSubPath(fromTileId: number, steps: number): { path: number[], 
 const activeRooms = new Map<string, ActiveRoom>();
 const socketToUser = new Map<string, { roomCode: string, groupName: string, role: string }>();
 
+interface RoomDeck {
+  dasar: any[];
+  tantangan: any[];
+  pemahaman: any[];
+}
+
+const roomDecks = new Map<string, RoomDeck>();
+
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
 // Auto-cleanup stale/abandoned rooms with zero active connections (Grace Period: 10 minutes)
 setInterval(() => {
   const now = Date.now();
@@ -163,6 +180,7 @@ setInterval(() => {
         console.log(`[CLEANUP] Menghapus room terbengkalai (tidak aktif selama 10 menit): ${roomCode}`);
         if (room.intervalId) clearInterval(room.intervalId);
         activeRooms.delete(roomCode);
+        roomDecks.delete(roomCode);
       }
     } else {
       if (room.emptySince) {
@@ -306,6 +324,7 @@ export function handleSocketEvents(io: Server, socket: Socket) {
         console.error("Gagal batalkan room di DB:", err);
       } finally {
         activeRooms.delete(roomCode);
+        roomDecks.delete(roomCode);
       }
     }
   });
@@ -1264,19 +1283,58 @@ function drawCard(roomCode: string, type: string, io: Server) {
   const activeGroup = room.groups[room.activeGroupIndex];
   if (!activeGroup) return;
 
-  let pool = room.questions && room.questions.length > 0 ? room.questions : [];
-  if (type) {
-    pool = pool.filter(q => q.type.toString().toUpperCase() === type.toUpperCase());
+  const typeUpper = type.toUpperCase();
+  const questions = room.questions && room.questions.length > 0 ? room.questions : [];
+
+  // Get or initialize the decks map for this room
+  let decks = roomDecks.get(roomCode);
+  if (!decks) {
+    decks = { dasar: [], tantangan: [], pemahaman: [] };
+    roomDecks.set(roomCode, decks);
   }
 
-  if (pool.length === 0) {
-    room.logs = [`Sistem: Tidak ada soal untuk tipe ${type}!`, ...room.logs];
+  let card: any = null;
+
+  if (typeUpper === 'DASAR') {
+    if (decks.dasar.length === 0) {
+      decks.dasar = shuffleArray(questions.filter(q => q.type?.toUpperCase() === 'DASAR'));
+    }
+    if (decks.dasar.length === 0) {
+      room.logs = [`Sistem: Tidak ada soal untuk tipe ${type}!`, ...room.logs];
+      io.to(roomCode).emit("game:state", { roomCode, logs: room.logs });
+      setTimeout(() => advanceTurn(roomCode, io), 2000);
+      return;
+    }
+    card = decks.dasar.pop();
+  } else if (typeUpper === 'TANTANGAN') {
+    if (decks.tantangan.length === 0) {
+      decks.tantangan = shuffleArray(questions.filter(q => q.type?.toUpperCase() === 'TANTANGAN'));
+    }
+    if (decks.tantangan.length === 0) {
+      room.logs = [`Sistem: Tidak ada soal untuk tipe ${type}!`, ...room.logs];
+      io.to(roomCode).emit("game:state", { roomCode, logs: room.logs });
+      setTimeout(() => advanceTurn(roomCode, io), 2000);
+      return;
+    }
+    card = decks.tantangan.pop();
+  } else if (typeUpper === 'PEMAHAMAN') {
+    if (decks.pemahaman.length === 0) {
+      decks.pemahaman = shuffleArray(questions.filter(q => q.type?.toUpperCase() === 'PEMAHAMAN'));
+    }
+    if (decks.pemahaman.length === 0) {
+      room.logs = [`Sistem: Tidak ada soal untuk tipe ${type}!`, ...room.logs];
+      io.to(roomCode).emit("game:state", { roomCode, logs: room.logs });
+      setTimeout(() => advanceTurn(roomCode, io), 2000);
+      return;
+    }
+    card = decks.pemahaman.pop();
+  } else {
+    room.logs = [`Sistem: Tipe soal ${type} tidak dikenal!`, ...room.logs];
     io.to(roomCode).emit("game:state", { roomCode, logs: room.logs });
     setTimeout(() => advanceTurn(roomCode, io), 2000);
     return;
   }
 
-  const card = pool[Math.floor(Math.random() * pool.length)];
   room.currentCard = card;
   room.timer = (card.type === 'PEMAHAMAN' ? room.roomConfig.turnDurationPemahaman :
                 card.type === 'TANTANGAN' ? room.roomConfig.turnDurationTantangan :
