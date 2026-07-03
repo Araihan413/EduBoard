@@ -344,6 +344,52 @@ export function handleSocketEvents(io: Server, socket: Socket) {
     }
   });
   
+  socket.on("room:kick", async (data: { roomCode: string, groupName: string }) => {
+    const sender = socketToUser.get(socket.id);
+    if (!sender || sender.role !== 'guru' || sender.roomCode !== data.roomCode) {
+      socket.emit("error", { message: "Akses ditolak: Anda tidak memiliki wewenang Guru." });
+      return;
+    }
+
+    const room = activeRooms.get(data.roomCode);
+    if (room) {
+      if (room.gameStatus === 'LOBBY') {
+        const normalizedName = data.groupName.trim().toLowerCase();
+        room.groups = room.groups.filter((g: any) => g.name.trim().toLowerCase() !== normalizedName);
+        
+        // Find and disconnect the kicked group socket
+        const targetSocketEntry = Array.from(socketToUser.entries()).find(([_, u]) => 
+          u.roomCode === data.roomCode && 
+          u.role === 'siswa' && 
+          u.groupName && 
+          u.groupName.trim().toLowerCase() === normalizedName
+        );
+
+        if (targetSocketEntry) {
+          const [targetSocketId] = targetSocketEntry;
+          const targetSocket = io.sockets.sockets.get(targetSocketId);
+          if (targetSocket) {
+            targetSocket.emit("error", { message: "Anda telah dikeluarkan dari ruangan oleh Guru." });
+            targetSocket.leave(data.roomCode);
+          }
+          socketToUser.delete(targetSocketId);
+        }
+
+        await prisma.group.deleteMany({
+          where: {
+            room: { code: data.roomCode },
+            name: { equals: data.groupName, mode: 'insensitive' }
+          }
+        });
+
+        room.logs = [`${data.groupName} dikeluarkan oleh Guru.`, ...room.logs];
+
+        const { intervalId, ...roomData } = room;
+        io.to(data.roomCode).emit("game:state", { ...roomData, roomCode: data.roomCode });
+      }
+    }
+  });
+  
   socket.on("room:join", async (data: { roomCode: string, groupName: string, role?: string, roomConfig?: any, avatar?: string, color?: string, token?: string }) => {
     
     // 1. Verify Guru Identity if role is 'guru'

@@ -4,19 +4,21 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import NextImage from "next/image";
 import { 
-  Users, CheckCircle2, Copy, Play, Loader2, Activity, LogOut 
+  Users, CheckCircle2, Copy, Play, Loader2, Activity, LogOut, UserRoundX 
 } from "lucide-react";
 import Link from "next/link";
 import { useGameStore } from "../../store/gameStore";
 import { toast } from "sonner";
+import ConfirmModal from "../shared/ConfirmModal";
 
 export default function MissionControl() {
   const { 
     gameStatus, groups, roomCode, roomConfig, countdown, 
-    startGame, endGame, cancelRoom 
+    startGame, endGame, cancelRoom, kickGroup 
   } = useGameStore();
   const [copied, setCopied] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [groupToKick, setGroupToKick] = useState<{ id: string, name: string } | null>(null);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(roomCode);
@@ -87,9 +89,22 @@ export default function MissionControl() {
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: idx * 0.05 }}
                     key={g.id} 
-                    className={`bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 transition-all group relative overflow-hidden ${isSurrendered ? 'opacity-50 grayscale' : isOffline ? 'opacity-80' : ''}`}
+                    className={`bg-white p-5 rounded-xl border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 transition-all group relative overflow-hidden ${isSurrendered ? 'opacity-50 grayscale' : isOffline ? 'opacity-80' : ''}`}
                     style={{ borderLeft: `4px solid ${isSurrendered ? '#94a3b8' : (g.color || '#2c49c5')}` }}
                   >
+                    {gameStatus === 'LOBBY' && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setGroupToKick({ id: g.id, name: g.name });
+                        }}
+                        className="absolute -top-0.5 -right-0.5 w-7 h-7 rounded-bl-md bg-red-50 hover:bg-red-500 hover:text-white text-red-500 flex items-center justify-center border border-red-100/50 hover:border-red-500 transition-all shadow-sm active:scale-95 z-30 cursor-pointer p-1"
+                        title="Keluarkan Kelompok"
+                      >
+                        <UserRoundX size={16} />
+                      </button>
+                    )}
+
                     <div className="flex items-center gap-4 relative z-10">
                       <div 
                         className="w-12 h-12 rounded-xl flex items-center justify-center shadow-inner transition-transform group-hover:scale-110 relative overflow-hidden"
@@ -227,6 +242,20 @@ export default function MissionControl() {
           )}
         </div>
       </div>
+      <ConfirmModal
+        isOpen={!!groupToKick}
+        onClose={() => setGroupToKick(null)}
+        onConfirm={() => {
+          if (groupToKick) {
+            kickGroup(roomCode, groupToKick.name);
+          }
+        }}
+        title="Keluarkan Kelompok"
+        message={`Apakah Anda yakin ingin mengeluarkan kelompok "${groupToKick?.name}" dari lobby?`}
+        confirmText="Ya, Keluarkan"
+        cancelText="Batal"
+        variant="danger"
+      />
     </div>
   );
 }

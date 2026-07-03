@@ -926,7 +926,7 @@ export default function QuestionsManager() {
                         <p className="text-slate-700 font-bold mb-4 line-clamp-3 leading-relaxed">{q.text}</p>
                         
                         {/* Options if multiple choice */}
-                        {q.options && q.options.length > 0 && (
+                        {q.type === 'DASAR' && q.options && q.options.length > 0 && (
                           <div className="grid grid-cols-2 gap-2 mb-4">
                             {q.options.map((opt, i) => {
                               const isCorrect = opt === q.answerKey;
@@ -948,13 +948,19 @@ export default function QuestionsManager() {
                           </div>
                         )}
 
-                        {/* Answer Key if no options or if essay */}
-                        {q.answerKey && (!q.options || q.options.length === 0) && (
+                        {/* Answer Key if essay or oral */}
+                        {q.type !== 'DASAR' && (
                           <div className="bg-slate-50 border border-slate-100 rounded-2xl p-3.5 mb-4 text-xs">
                             <span className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Kunci Jawaban</span>
-                            <span className="font-bold text-slate-700 leading-relaxed block max-h-16 overflow-y-auto scrollbar-none" title={q.answerKey}>
-                              {q.answerKey}
-                            </span>
+                            {q.answerKey && q.answerKey.trim() !== "" ? (
+                              <span className="font-bold text-slate-700 leading-relaxed block max-h-16 overflow-y-auto scrollbar-none" title={q.answerKey}>
+                                {q.answerKey}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 font-medium italic block">
+                                Tidak ada referensi kunci (Penilaian Guru manual)
+                              </span>
+                            )}
                           </div>
                         )}
                         
@@ -984,13 +990,19 @@ export default function QuestionsManager() {
                           <p className="text-slate-700 font-bold truncate mb-1">{q.text}</p>
                           <div className="flex items-center gap-3 flex-wrap">
                             <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{q.points} PTS</span>
-                            {q.answerKey && (
+                            {q.answerKey && q.answerKey.trim() !== "" ? (
                               <span 
                                 className="text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100/50 px-2 py-0.5 rounded-md truncate max-w-[250px]"
                                 title={q.answerKey}
                               >
                                 Kunci: {q.answerKey}
                               </span>
+                            ) : (
+                              q.type !== 'DASAR' && (
+                                <span className="text-[9px] font-bold text-slate-400 bg-slate-50 border border-slate-200/50 px-2 py-0.5 rounded-md">
+                                  Tanpa Kunci Referensi
+                                </span>
+                              )
                             )}
                           </div>
                         </div>

@@ -122,7 +122,7 @@ interface GameState {
   lastClosedResultTurn: number | null;
   isMuted: boolean;
   countdown: number | null;
-  activeTab: 'SESI' | 'SOAL' | 'RIWAYAT';
+  activeTab: 'SESI' | 'SOAL' | 'RIWAYAT' | 'PANDUAN';
   selectedSession: any | null;
   isGrading: boolean;
   // Branching path state
@@ -155,7 +155,7 @@ interface GameActions {
   endGame: () => void;
   resetToIdle: () => void;
   rejoinAsGuru: (roomCode: string) => Promise<void>;
-  setActiveTab: (tab: 'SESI' | 'SOAL' | 'RIWAYAT') => void;
+  setActiveTab: (tab: 'SESI' | 'SOAL' | 'RIWAYAT' | 'PANDUAN') => void;
   setSelectedSession: (session: any | null) => void;
 
   // Actions - Paket Soal
@@ -188,6 +188,7 @@ interface GameActions {
   updateGroup: (groupId: string, updates: Partial<Group>) => void;
   leaveRoom: (roomCode: string, name: string) => void;
   cancelRoom: (roomCode: string) => void;
+  kickGroup: (roomCode: string, groupName: string) => void;
   
   spinStar: () => void;
   
@@ -305,15 +306,10 @@ export const useGameStore = create<GameState & GameActions>()(
             return;
           }
 
-          // PILAR B: Sequence-Numbered Filter
-          if (newState.stateSeq !== undefined && currentState.stateSeq !== undefined) {
-            if (newState.stateSeq < currentState.stateSeq) {
-              // ALWAYS accept FINISHED game status, do not discard it!
-              if (newState.gameStatus !== 'FINISHED') {
-                return;
-              }
-            }
-          }
+          // PILAR B: Sequence-Numbered Filter bypassed. Server is the authoritative source of truth,
+          // and WebSocket (TCP) guarantees in-order delivery. Having the client reject server broadcasts
+          // due to local sequence numbers causes desynchronization when the server initiates transitions.
+
 
           if (newState.lastResult === null && resultTimeoutId) {
             clearTimeout(resultTimeoutId);
@@ -545,12 +541,17 @@ export const useGameStore = create<GameState & GameActions>()(
           }
           get().resetToIdle();
         },
-         cancelRoom: (roomCode) => {
+        cancelRoom: (roomCode) => {
           setLeavingFlag(true); // Set flag BEFORE emitting
           if (socket) {
             socket.emit("room:cancel", roomCode);
           }
           get().resetToIdle();
+        },
+        kickGroup: (roomCode, groupName) => {
+          if (socket) {
+            socket.emit("room:kick", { roomCode, groupName });
+          }
         },
         spinStar: () => {
           const state = get();

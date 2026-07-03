@@ -12,6 +12,7 @@ import GradingPanel from "@/components/dashboard/GradingPanel";
 import FinishedState from "@/components/dashboard/FinishedState";
 import QuestionsManager from "@/components/dashboard/QuestionsManager";
 import SessionHistory from "@/components/dashboard/SessionHistory";
+import GuidesManager from "@/components/dashboard/GuidesManager";
 import LiveMonitoringConsole from "@/components/dashboard/LiveMonitoringConsole";
 import MobileLiveTicker from "@/components/dashboard/MobileLiveTicker";
 import MobileLogOverlay from "@/components/dashboard/MobileLogOverlay";
@@ -101,6 +102,18 @@ export default function DashboardPage() {
                   className="max-w-5xl mx-auto w-full"
                 >
                   <SessionHistory />
+                </motion.div>
+              )}
+
+              {activeTab === 'PANDUAN' && (
+                <motion.div 
+                  key="panduan"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="max-w-5xl mx-auto w-full"
+                >
+                  <GuidesManager />
                 </motion.div>
               )}
             </AnimatePresence>

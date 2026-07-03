@@ -139,9 +139,10 @@ export function useGameEngine(role: string): GameEngineState {
         }, 350);
       }
     } else if (!currentCard && !isUnderReview) {
-      // Card dismissed — start exit animation
+      // Card dismissed - stop any pending opening animations
+      clearAllCardTimers();
+
       if (cardPhaseRef.current === "revealed" || cardPhaseRef.current === "drawing") {
-        clearAllCardTimers();
         updatePhase("returning");
         returnTimerRef.current = setTimeout(() => {
           returnTimerRef.current = null;
@@ -150,6 +151,12 @@ export function useGameEngine(role: string): GameEngineState {
           setIsSubmitting(false);
           updatePhase("idle");
         }, 800);
+      } else {
+        // If still in 'idle' (pawn settling), reset states immediately
+        setStickyCardData(null);
+        setTantanganText("");
+        setIsSubmitting(false);
+        updatePhase("idle");
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

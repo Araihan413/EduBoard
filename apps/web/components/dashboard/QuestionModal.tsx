@@ -19,7 +19,9 @@ export default function QuestionModal({ isOpen, onClose, editingQuestion, setId 
   const [newQ, setNewQ] = useState<Omit<QuestionCard, 'id' | 'setId'>>({
     type: editingQuestion?.type || 'DASAR',
     text: editingQuestion?.text || '',
-    points: editingQuestion?.points || 10,
+    points: editingQuestion?.points !== undefined 
+      ? editingQuestion.points 
+      : (editingQuestion?.type === 'TANTANGAN' ? 30 : editingQuestion?.type === 'PEMAHAMAN' ? 20 : 10),
     answerKey: editingQuestion?.answerKey || '',
     options: editingQuestion?.options || ['', '', '', '']
   });
@@ -46,11 +48,16 @@ export default function QuestionModal({ isOpen, onClose, editingQuestion, setId 
 
     setIsSaving(true);
     try {
+      const finalQuestion = {
+        ...newQ,
+        options: newQ.type === 'DASAR' ? newQ.options : []
+      };
+
       if (editingQuestion) {
-        await updateQuestion(editingQuestion.id!, newQ);
+        await updateQuestion(editingQuestion.id!, finalQuestion);
       } else {
         if (!setId) throw new Error("setId is required for new questions");
-        await addQuestion(setId, newQ as any);
+        await addQuestion(setId, finalQuestion as any);
       }
       onClose();
     } catch (err: any) {
@@ -102,7 +109,13 @@ export default function QuestionModal({ isOpen, onClose, editingQuestion, setId 
               {(["DASAR", "TANTANGAN", "PEMAHAMAN"] as const).map((type) => (
                 <button
                   key={type}
-                  onClick={() => setNewQ({...newQ, type})}
+                  onClick={() => {
+                    const defaults = { DASAR: 10, TANTANGAN: 30, PEMAHAMAN: 20 };
+                    const prevDefault = defaults[newQ.type];
+                    const nextDefault = defaults[type];
+                    const updatedPoints = newQ.points === prevDefault ? nextDefault : newQ.points;
+                    setNewQ({ ...newQ, type, points: updatedPoints });
+                  }}
                   className={`py-3 px-4 rounded-xl font-bold text-xs transition-all border-2 ${
                     newQ.type === type 
                       ? 'bg-blue-50 border-[#2c49c5] text-[#2c49c5]' 

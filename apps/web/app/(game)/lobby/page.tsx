@@ -17,12 +17,14 @@ import {
   Check,
   Disc3,
   LogOut,
-  XCircle
+  XCircle,
+  BookOpen
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGameStore } from "../../../store/gameStore";
 
 import { AVATAR_SEEDS, PREMIUM_COLORS } from "../../../lib/constants";
+import PlayerGuideModal from "../../../components/game/PlayerGuideModal";
 
 export default function LobbyPage() {
   const router = useRouter();
@@ -57,12 +59,27 @@ export default function LobbyPage() {
       bgImg.src = "/map/map_background.webp";
     }
   }, []);
-  
+
   const [roomCodeInput, setRoomCodeInput] = useState("");
   const [groupNameInput, setGroupNameInput] = useState("");
   const [isJoining, setIsJoining] = useState(false);
   const [step, setStep] = useState(1);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
+
+  // Auto-open guide on step === 2 (first time in the lobby)
+  useEffect(() => {
+    if (step === 2) {
+      const hasSeen = sessionStorage.getItem("eduboard_guide_shown");
+      if (!hasSeen) {
+        const timer = setTimeout(() => {
+          setShowGuide(true);
+        }, 0);
+        sessionStorage.setItem("eduboard_guide_shown", "true");
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [step]);
   
   // Modern React 18 hydration detection (Avoids cascading renders)
   const isMounted = useSyncExternalStore(
@@ -264,7 +281,7 @@ export default function LobbyPage() {
   if (!isMounted) return null;
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-[#fafafa] pt-24 pb-8 px-4 relative overflow-hidden font-sans">
+    <div className="flex min-h-screen flex-col items-center justify-start sm:justify-center bg-[#fafafa] pt-38 sm:pt-24 pb-8 px-4 relative overflow-hidden font-sans">
       {/* Premium Background */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-100/40 blur-[100px] rounded-full" />
@@ -273,6 +290,15 @@ export default function LobbyPage() {
 
       {/* Control Bar */}
       <div className="fixed top-24 right-6 flex items-center gap-3 z-50">
+        {step === 2 && (
+          <button 
+            onClick={() => setShowGuide(true)}
+            className="h-10 px-4 bg-white shadow-sm border border-slate-200 rounded-xl flex items-center gap-2 text-xs font-black text-slate-600 hover:text-blue-600 transition-all active:scale-90"
+          >
+            <BookOpen size={16} />
+            <span>Panduan</span>
+          </button>
+        )}
         <button 
           onClick={toggleMute}
           className="w-10 h-10 bg-white shadow-sm border border-slate-200 rounded-xl flex items-center justify-center text-slate-500 hover:text-blue-600 transition-all active:scale-90"
@@ -350,7 +376,7 @@ export default function LobbyPage() {
               className="space-y-6"
             >
               {/* Profile Customization Section */}
-              <div className="bg-white border border-slate-200/60 p-8 rounded-[2.5rem] shadow-xl shadow-slate-200/40">
+              <div className="bg-white border border-slate-200/60 pt-16 pb-8 px-8 md:p-8 rounded-[2.5rem] shadow-xl shadow-slate-200/40">
                 <div className="flex flex-col md:flex-row gap-8 items-center">
                   <div className="relative">
                     <div className={`w-32 h-32 rounded-[2rem] ${selectedColor.bg} ${selectedColor.shadow} shadow-lg transition-all duration-500 relative z-10 overflow-hidden`}>
@@ -639,6 +665,9 @@ export default function LobbyPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Player Guide Slider Modal */}
+      <PlayerGuideModal isOpen={showGuide} onClose={() => setShowGuide(false)} />
       {/* Preload all avatars to prevent flickering when selecting */}
       <div className="hidden" aria-hidden="true">
         {AVATAR_SEEDS.map((seed) => (

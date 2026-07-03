@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { 
-  LayoutDashboard, Database, History, LogOut, Menu, X, User as UserIcon, ChevronDown
+  LayoutDashboard, Database, History, LogOut, Menu, X, User as UserIcon, ChevronDown, BookOpen
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -13,8 +13,8 @@ import { createClient } from "../../lib/supabase/client";
 import { useGameStore } from "../../store/gameStore";
 
 interface DashboardNavbarProps {
-  activeTab: 'SESI' | 'SOAL' | 'RIWAYAT';
-  setActiveTab: (tab: 'SESI' | 'SOAL' | 'RIWAYAT') => void;
+  activeTab: 'SESI' | 'SOAL' | 'RIWAYAT' | 'PANDUAN';
+  setActiveTab: (tab: 'SESI' | 'SOAL' | 'RIWAYAT' | 'PANDUAN') => void;
   resetToIdle: () => void;
 }
 
@@ -59,6 +59,7 @@ export default function DashboardNavbar({
     { id: 'SESI', label: 'Sesi Aktif', icon: LayoutDashboard },
     { id: 'SOAL', label: 'Bank Soal', icon: Database },
     { id: 'RIWAYAT', label: 'Riwayat Sesi', icon: History },
+    { id: 'PANDUAN', label: 'Panduan', icon: BookOpen },
   ] as const;
 
   const handleExitSession = () => {
